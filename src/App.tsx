@@ -14,6 +14,10 @@ import MessagesPage from "./pages/MessagesPage.tsx";
 import OnboardingPage from "./pages/OnboardingPage.tsx";
 import ProfilePage from "./pages/ProfilePage.tsx";
 import ProfileSetupPage from "./pages/ProfileSetupPage.tsx";
+import AccountSettingsPage from "./pages/AccountSettingsPage.tsx";
+import PrivacyPage from "./pages/PrivacyPage.tsx";
+import NotificationsPage from "./pages/NotificationsPage.tsx";
+import PreferencesPage from "./pages/PreferencesPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -57,6 +61,10 @@ const AnimatedRoutes = () => {
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
         <Route path="/chat" element={<ChatPage />} />
+        <Route path="/settings/account" element={<AccountSettingsPage />} />
+        <Route path="/settings/privacy" element={<PrivacyPage />} />
+        <Route path="/settings/notifications" element={<NotificationsPage />} />
+        <Route path="/settings/preferences" element={<PreferencesPage />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
