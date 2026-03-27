@@ -6,12 +6,15 @@ const SplashScreen = () => {
 
   return (
     <div className="relative h-full w-full flex flex-col items-center justify-end p-8 overflow-hidden">
-      {/* Background "Video" Simulation */}
+      {/* Background Video */}
       <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1514525253344-f814d0743b15?auto=format&fit=crop&w=1920&q=80" 
-          className="w-full h-full object-cover opacity-60 scale-110 animate-pulse"
-          alt="Splash Background"
+        <video
+          className="w-full h-full object-cover opacity-70"
+          src="/videos/city-night.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
       </div>
