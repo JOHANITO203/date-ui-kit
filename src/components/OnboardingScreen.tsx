@@ -47,13 +47,13 @@ const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
               <span className="text-sm font-body text-foreground">{label}</span>
               <button
                 onClick={() => togglePref(key)}
-                className={`relative w-12 h-7 rounded-full transition-all duration-300 ${
-                  preferences[key] ? "bg-primary" : "bg-muted"
+                className={`relative w-[52px] h-[30px] rounded-full transition-all duration-300 ${
+                  preferences[key] ? "bg-primary" : "bg-border"
                 }`}
               >
                 <span
-                  className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
-                    preferences[key] ? "translate-x-[22px]" : "translate-x-1"
+                  className={`absolute top-[3px] left-[3px] w-6 h-6 rounded-full shadow transition-all duration-300 ${
+                    preferences[key] ? "translate-x-[22px] bg-primary-foreground" : "translate-x-0 bg-muted-foreground/70"
                   }`}
                 />
               </button>
