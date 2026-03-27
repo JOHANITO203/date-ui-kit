@@ -7,7 +7,6 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import LoginMethodsPage from './pages/LoginMethodsPage';
 import OnboardingPage from './pages/OnboardingPage';
-import ProfileSetupPage from './pages/ProfileSetupPage';
 import DiscoverPage from './pages/DiscoverPage';
 import LikesPage from './pages/LikesPage';
 import MessagesPage from './pages/MessagesPage';
@@ -30,7 +29,6 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/login/methods" element={<LoginMethodsPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/setup" element={<ProfileSetupPage />} />
 
             {/* App Shell with Adaptive Navigation */}
             <Route element={<AppShell />}>
