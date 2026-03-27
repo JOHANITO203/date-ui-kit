@@ -5,10 +5,9 @@ import {
   CheckCheck,
   Image,
   MoreVertical,
-  Phone,
   Send,
   Smile,
-  Video,
+  Languages,
 } from "lucide-react";
 import profile1 from "@/assets/profile-1.jpg";
 
@@ -71,6 +70,7 @@ const ChatScreen = ({ onBack }: ChatScreenProps) => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState(mockMessages);
   const [isTyping, setIsTyping] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,11 +142,16 @@ const ChatScreen = ({ onBack }: ChatScreenProps) => {
         </div>
 
         <div className="flex items-center gap-1">
-          <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors">
-            <Phone className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.5} />
-          </button>
-          <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors">
-            <Video className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.5} />
+          <button
+            onClick={() => setShowTranslation((v) => !v)}
+            className={`px-2.5 h-9 rounded-full border transition-colors text-[11px] font-semibold tracking-[0.25em] uppercase ${
+              showTranslation
+                ? "border-white/20 text-white/80 bg-white/5"
+                : "border-white/10 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Languages className="w-3.5 h-3.5 inline-block -mt-0.5 mr-2 text-accent-blue" />
+            Tr
           </button>
           <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/5 transition-colors">
             <MoreVertical className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={1.5} />
@@ -189,7 +194,7 @@ const ChatScreen = ({ onBack }: ChatScreenProps) => {
                     }`}
                   >
                     <p className="text-[14px]">{msg.text}</p>
-                    {msg.translated && (
+                    {showTranslation && msg.translated && (
                       <div className="mt-2 border-t border-white/10 pt-2">
                         <span className={`text-[10px] uppercase tracking-[0.25em] ${
                           isMe ? "text-white/70" : "text-muted-foreground"
