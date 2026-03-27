@@ -19,38 +19,41 @@ const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12 animate-fade-in">
+    <div className="min-h-screen bg-background px-6 py-14 animate-fade-in">
       <div className="max-w-lg mx-auto space-y-10">
-        <div className="space-y-2">
-          <h2 className="text-xl font-light tracking-[0.15em] text-foreground uppercase">
-            Preferences
+        <div className="space-y-3">
+          <h2 className="text-3xl font-display font-light text-foreground">
+            Your Preferences
           </h2>
-          <p className="text-sm text-muted-foreground font-light">
-            Configure your discovery settings
+          <p className="text-sm text-muted-foreground font-body font-light">
+            Tell us what you're looking for
           </p>
         </div>
 
         {/* Toggles */}
-        <div className="space-y-0">
+        <div className="bg-surface-elevated rounded-2xl p-1 shadow-sm">
           {([
             ["Show Women", "women"],
             ["Show Men", "men"],
             ["Notifications", "notifications"],
             ["Location Access", "location"],
-          ] as const).map(([label, key]) => (
-            <div key={key} className="flex items-center justify-between py-4 border-b border-border">
-              <span className="text-sm font-light tracking-wide text-foreground">{label}</span>
+          ] as const).map(([label, key], idx, arr) => (
+            <div
+              key={key}
+              className={`flex items-center justify-between px-5 py-4 ${
+                idx < arr.length - 1 ? "border-b border-border/60" : ""
+              }`}
+            >
+              <span className="text-sm font-body text-foreground">{label}</span>
               <button
                 onClick={() => togglePref(key)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${
-                  preferences[key] ? "bg-gold-muted" : "bg-muted"
+                className={`relative w-12 h-7 rounded-full transition-all duration-300 ${
+                  preferences[key] ? "bg-primary" : "bg-muted"
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full transition-transform ${
-                    preferences[key]
-                      ? "translate-x-[22px] bg-gold"
-                      : "translate-x-0.5 bg-muted-foreground"
+                  className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
+                    preferences[key] ? "translate-x-[22px]" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -59,36 +62,38 @@ const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
         </div>
 
         {/* Age Range */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-light tracking-wide text-foreground">Age Range</span>
-            <span className="text-sm text-gold font-light">
-              {ageRange[0]} – {ageRange[1]}
+        <div className="space-y-5">
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm font-body text-foreground">Age Range</span>
+            <span className="text-2xl font-display font-light text-primary">
+              {ageRange[0]}–{ageRange[1]}
             </span>
           </div>
-          <input
-            type="range"
-            min={18}
-            max={99}
-            value={ageRange[0]}
-            onChange={(e) => setAgeRange([+e.target.value, Math.max(+e.target.value, ageRange[1])])}
-            className="w-full accent-gold h-0.5 bg-muted appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:cursor-pointer"
-          />
-          <input
-            type="range"
-            min={18}
-            max={99}
-            value={ageRange[1]}
-            onChange={(e) => setAgeRange([Math.min(ageRange[0], +e.target.value), +e.target.value])}
-            className="w-full accent-gold h-0.5 bg-muted appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:cursor-pointer"
-          />
+          <div className="space-y-3">
+            <input
+              type="range"
+              min={18}
+              max={99}
+              value={ageRange[0]}
+              onChange={(e) => setAgeRange([+e.target.value, Math.max(+e.target.value, ageRange[1])])}
+              className="w-full h-1 bg-muted rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+            />
+            <input
+              type="range"
+              min={18}
+              max={99}
+              value={ageRange[1]}
+              onChange={(e) => setAgeRange([Math.min(ageRange[0], +e.target.value), +e.target.value])}
+              className="w-full h-1 bg-muted rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:scale-110"
+            />
+          </div>
         </div>
 
         {/* Distance */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-light tracking-wide text-foreground">Distance</span>
-            <span className="text-sm text-gold font-light">{distance} km</span>
+        <div className="space-y-5">
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm font-body text-foreground">Distance</span>
+            <span className="text-2xl font-display font-light text-primary">{distance} km</span>
           </div>
           <input
             type="range"
@@ -96,13 +101,13 @@ const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
             max={200}
             value={distance}
             onChange={(e) => setDistance(+e.target.value)}
-            className="w-full accent-gold h-0.5 bg-muted appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:cursor-pointer"
+            className="w-full h-1 bg-muted rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:scale-110"
           />
         </div>
 
         <button
           onClick={onComplete}
-          className="w-full py-3.5 bg-primary text-primary-foreground text-sm tracking-[0.2em] uppercase font-light rounded-lg transition-all hover:opacity-90"
+          className="w-full py-4 bg-primary text-primary-foreground text-sm font-body tracking-[0.15em] uppercase rounded-2xl transition-all hover:opacity-90 active:scale-[0.98] shadow-md"
         >
           Continue
         </button>
