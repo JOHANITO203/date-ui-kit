@@ -48,6 +48,35 @@
     --touch-target: 2.75rem;
   }
 
+  @media (max-width: 29.9375rem) {
+    :root {
+      --page-x: 0.875rem;
+      --section-gap: 1.25rem;
+      --card-gap: 0.625rem;
+      --grid-gap: 0.625rem;
+      --card-radius: 1.125rem;
+      --icon-size: 1.125rem;
+      --avatar-size: 3.25rem;
+      --cta-height: 2.875rem;
+      --content-max-width: 36rem;
+    }
+  }
+
+  @media (min-width: 40rem) {
+    :root {
+      --page-x: 1.25rem;
+      --section-gap: 1.75rem;
+      --card-gap: 0.875rem;
+      --grid-gap: 0.875rem;
+      --card-radius: 1.375rem;
+      --icon-size: 1.3125rem;
+      --avatar-size: 3.75rem;
+      --cta-height: 3.125rem;
+      --content-max-width: 50rem;
+      --touch-target: 3rem;
+    }
+  }
+
   @media (min-width: 48rem) {
     :root {
       --page-x: 1.5rem;
@@ -75,6 +104,51 @@
       --cta-height: 3.5rem;
       --content-max-width: 75rem;
       --content-max-width-wide: 90rem;
+    }
+  }
+
+  @media (min-width: 80rem) {
+    :root {
+      --page-x: 2.5rem;
+      --section-gap: 3rem;
+      --card-gap: 1.5rem;
+      --grid-gap: 1.5rem;
+      --card-radius: 2rem;
+      --icon-size: 1.625rem;
+      --avatar-size: 5rem;
+      --cta-height: 3.75rem;
+      --content-max-width: 80rem;
+      --content-max-width-wide: 96rem;
+    }
+  }
+
+  @media (min-width: 90rem) {
+    :root {
+      --page-x: 3rem;
+      --section-gap: 3.25rem;
+      --card-gap: 1.75rem;
+      --grid-gap: 1.75rem;
+      --card-radius: 2.125rem;
+      --icon-size: 1.75rem;
+      --avatar-size: 5.5rem;
+      --cta-height: 3.875rem;
+      --content-max-width: 88rem;
+      --content-max-width-wide: 104rem;
+    }
+  }
+
+  @media (min-width: 96rem) {
+    :root {
+      --page-x: 3.5rem;
+      --section-gap: 3.5rem;
+      --card-gap: 2rem;
+      --grid-gap: 2rem;
+      --card-radius: 2.25rem;
+      --icon-size: 1.875rem;
+      --avatar-size: 6rem;
+      --cta-height: 4rem;
+      --content-max-width: 96rem;
+      --content-max-width-wide: 112rem;
     }
   }
 
