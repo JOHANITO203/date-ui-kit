@@ -5,6 +5,7 @@ import ProfileSetupScreen from "@/components/ProfileSetupScreen";
 import SwipeScreen from "@/components/SwipeScreen";
 import MatchOverlay from "@/components/MatchOverlay";
 import MatchesScreen from "@/components/MatchesScreen";
+import MessagesScreen from "@/components/MessagesScreen";
 import ChatScreen from "@/components/ChatScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import BottomNav from "@/components/BottomNav";
@@ -37,7 +38,7 @@ const Index = () => {
     <>
       {screen === "discover" && <SwipeScreen onMatch={handleMatch} />}
       {screen === "matches" && <MatchesScreen onOpenChat={() => setScreen("chat")} />}
-      {screen === "messages" && <MatchesScreen onOpenChat={() => setScreen("chat")} />}
+      {screen === "messages" && <MessagesScreen onOpenChat={() => setScreen("chat")} />}
       {screen === "profile" && <ProfileScreen onReset={() => setScreen("splash")} />}
 
       {showMatch && (
