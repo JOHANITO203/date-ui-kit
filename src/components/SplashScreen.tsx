@@ -6,30 +6,59 @@ interface SplashScreenProps {
 
 const SplashScreen = ({ onContinue }: SplashScreenProps) => {
   return (
-    <div
-      className="flex flex-col items-center justify-center min-h-screen bg-background px-8 cursor-pointer"
-      onClick={onContinue}
-    >
-      <div className="flex flex-col items-center gap-10 animate-fade-in">
-        <img
-          src={logo}
-          alt="Мой Date"
-          width={100}
-          height={100}
-          className="animate-scale-in opacity-80"
-        />
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-display font-light tracking-wide text-foreground">
-            Мой Date
-          </h1>
-          <p className="text-sm font-body font-light tracking-[0.12em] text-muted-foreground italic">
-            Des rencontres exotiques
-          </p>
+    <div className="relative min-h-screen bg-background overflow-hidden">
+      <video
+        className="absolute inset-0 w-full h-full object-cover"
+        src="/videos/city-night.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        poster="/videos/city-night-poster.jpg"
+      />
+      <div className="absolute inset-0 bg-black/55" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
+
+      <div className="relative z-10 min-h-screen flex flex-col px-6">
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+          <img
+            src={logo}
+            alt="Aura"
+            width={72}
+            height={72}
+            className="opacity-90 animate-slide-up"
+            style={{ animationDelay: "80ms" }}
+          />
+          <div className="space-y-4 max-w-sm">
+            <h1
+              className="text-3xl font-semibold text-white tracking-tight animate-slide-up"
+              style={{ animationDelay: "140ms" }}
+            >
+              Des cultures différentes. Une seule connexion.
+            </h1>
+            <p
+              className="text-sm text-white/70 leading-relaxed animate-slide-up"
+              style={{ animationDelay: "220ms" }}
+            >
+              Connectez-vous avec des personnes du monde entier, sans barrière de langue.
+            </p>
+          </div>
+        </div>
+
+        <div className="pb-10 space-y-3 animate-slide-up" style={{ animationDelay: "300ms" }}>
+          <button
+            onClick={onContinue}
+            className="w-full py-3.5 rounded-2xl bg-gradient-love text-white font-semibold shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99]"
+          >
+            Commencer
+          </button>
+          <button
+            className="w-full py-3.5 rounded-2xl border border-white/25 bg-white/10 text-white/90 font-medium backdrop-blur-sm transition-all hover:bg-white/15"
+          >
+            Se connecter
+          </button>
         </div>
       </div>
-      <p className="absolute bottom-14 text-xs text-muted-foreground/60 tracking-[0.2em] uppercase font-body animate-fade-in-slow">
-        Tap to continue
-      </p>
     </div>
   );
 };
