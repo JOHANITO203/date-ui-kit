@@ -7,34 +7,34 @@ interface MatchOverlayProps {
 
 const MatchOverlay = ({ onClose }: MatchOverlayProps) => {
   return (
-    <div className="fixed inset-0 z-50 bg-background/85 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+    <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in">
       {/* Overlapping Avatars */}
-      <div className="flex items-center -space-x-6 mb-8">
-        <div className="w-28 h-28 rounded-full border-2 border-gold overflow-hidden z-10">
+      <div className="flex items-center -space-x-5 mb-10">
+        <div className="w-28 h-28 rounded-full border-[3px] border-primary overflow-hidden z-10 shadow-lg">
           <img src={profile2} alt="You" className="w-full h-full object-cover" />
         </div>
-        <div className="w-28 h-28 rounded-full border-2 border-primary overflow-hidden">
+        <div className="w-28 h-28 rounded-full border-[3px] border-accent overflow-hidden shadow-lg">
           <img src={profile1} alt="Match" className="w-full h-full object-cover" />
         </div>
       </div>
 
-      <h2 className="text-3xl font-light tracking-[0.25em] text-gold uppercase mb-2 animate-scale-in">
+      <h2 className="text-4xl font-display font-light text-foreground mb-2 animate-scale-in">
         It's a Match!
       </h2>
-      <p className="text-sm text-muted-foreground font-light tracking-wide mb-10">
+      <p className="text-sm text-muted-foreground font-body font-light tracking-wide mb-12">
         You and Alina liked each other
       </p>
 
       <button
         onClick={onClose}
-        className="px-10 py-3 border border-gold text-gold text-sm tracking-[0.2em] uppercase font-light rounded-lg transition-all hover:bg-gold hover:text-background"
+        className="px-12 py-4 bg-primary text-primary-foreground text-sm font-body tracking-[0.15em] uppercase rounded-2xl transition-all hover:opacity-90 active:scale-[0.98] shadow-md"
       >
         Say Hello
       </button>
 
       <button
         onClick={onClose}
-        className="mt-4 text-xs text-muted-foreground tracking-widest uppercase hover:text-foreground transition-colors"
+        className="mt-5 text-sm text-muted-foreground font-body tracking-wide hover:text-foreground transition-colors"
       >
         Keep Swiping
       </button>

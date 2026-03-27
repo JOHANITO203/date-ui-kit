@@ -12,35 +12,35 @@ const matches = [
 
 const MatchesScreen = ({ onOpenChat }: MatchesScreenProps) => {
   return (
-    <div className="min-h-screen bg-background px-6 pt-12 pb-24 animate-fade-in">
+    <div className="min-h-screen bg-background px-6 pt-14 pb-28 animate-fade-in">
       <div className="max-w-lg mx-auto space-y-8">
-        <h2 className="text-xl font-light tracking-[0.15em] text-foreground uppercase">
+        <h2 className="text-3xl font-display font-light text-foreground">
           Matches
         </h2>
 
-        <div className="space-y-0">
+        <div className="space-y-3">
           {matches.map((match) => (
             <button
               key={match.name}
               onClick={onOpenChat}
-              className="w-full flex items-center gap-4 py-4 border-b border-border hover:bg-surface-elevated/50 transition-colors text-left px-1 rounded-sm"
+              className="w-full flex items-center gap-4 p-4 bg-surface-elevated rounded-2xl shadow-sm hover:shadow-md transition-all text-left active:scale-[0.98]"
             >
               <div className="relative">
-                <div className="w-14 h-14 rounded-full overflow-hidden border border-border">
+                <div className="w-14 h-14 rounded-full overflow-hidden shadow-sm">
                   <img src={match.image} alt={match.name} className="w-full h-full object-cover" loading="lazy" />
                 </div>
                 {match.online && (
-                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gold rounded-full border-2 border-background" />
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-primary rounded-full border-2 border-surface-elevated" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-light tracking-wide text-foreground">
+                  <h3 className="text-sm font-body font-medium text-foreground">
                     {match.name}, {match.age}
                   </h3>
-                  <span className="text-[10px] text-muted-foreground">2h</span>
+                  <span className="text-[10px] text-muted-foreground font-body">2h</span>
                 </div>
-                <p className="text-xs text-muted-foreground font-light truncate mt-0.5">
+                <p className="text-xs text-muted-foreground font-body font-light truncate mt-0.5">
                   {match.lastMsg}
                 </p>
               </div>
