@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 
 const SwipeScreen = () => {
+  const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
   const isLarge = isDesktop || isTablet;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
+  const quickFilters = ['A moins de 5 km', 'Verifies', 'Actifs', 'Nouveaux'];
+  const [activeFilters, setActiveFilters] = useState<string[]>(['A moins de 5 km', 'Actifs']);
 
   const user = MOCK_USERS[currentIndex % MOCK_USERS.length];
   const nextUser = MOCK_USERS[(currentIndex + 1) % MOCK_USERS.length];
@@ -56,6 +60,12 @@ const SwipeScreen = () => {
     }
   };
 
+  const toggleFilter = (label: string) => {
+    setActiveFilters((prev) =>
+      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
+    );
+  };
+
   const actionButtons = (
     <>
       <motion.button
@@ -93,7 +103,7 @@ const SwipeScreen = () => {
           <h1 className="text-3xl font-bold tracking-tight text-white leading-none">Discover</h1>
         </div>
         {!isDesktop && (
-          <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
+          <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
             <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">Boost</span>
           </button>
@@ -115,10 +125,18 @@ const SwipeScreen = () => {
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Filtres rapides</p>
                 <div className="flex flex-wrap gap-2">
-                  {['A moins de 5 km', 'Verifies', 'Actifs', 'Nouveaux'].map((label) => (
-                    <span key={label} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-wider text-white/70">
+                  {quickFilters.map((label) => (
+                    <button
+                      key={label}
+                      onClick={() => toggleFilter(label)}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        activeFilters.includes(label)
+                          ? 'text-white border border-fuchsia-400/60 bg-gradient-to-r from-pink-500/30 to-blue-500/30 shadow-[0_0_14px_rgba(217,70,239,0.25)]'
+                          : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
                       {label}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -157,7 +175,7 @@ const SwipeScreen = () => {
               className="absolute inset-0 rounded-[36px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.8)] cursor-grab active:cursor-grabbing border border-white/5 bg-zinc-900"
               onClick={handlePhotoNav}
             >
-              <button className="absolute top-5 right-5 z-30 flex items-center gap-2 px-3 py-2 rounded-full border border-orange-500/35 bg-black/45 backdrop-blur-lg hover:bg-orange-500/10 transition-colors">
+              <button onClick={() => navigate('/boost')} className="absolute top-5 right-5 z-30 flex items-center gap-2 px-3 py-2 rounded-full border border-orange-500/35 bg-black/45 backdrop-blur-lg hover:bg-orange-500/10 transition-colors">
                 <ICONS.Boost size={14} className="text-orange-400" />
                 <span className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-300">Boost</span>
               </button>
