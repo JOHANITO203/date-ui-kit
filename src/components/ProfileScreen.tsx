@@ -10,9 +10,9 @@ const ProfileScreen = () => {
   const isLarge = isDesktop || isTablet;
 
   return (
-    <div className={`h-full flex flex-col ${isLarge ? 'p-12' : 'p-6 pb-28'} overflow-y-auto no-scrollbar bg-black`}>
+    <div className={`h-full flex flex-col ${isLarge ? 'py-10' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}>
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-12">
+      <div className="flex items-center justify-between mb-8 md:mb-10 px-[var(--page-x)]">
         <div>
           <h2 className="text-4xl font-black tracking-tighter mb-1">Mon Espace</h2>
           <p className="text-secondary text-xs uppercase tracking-[0.3em] font-bold">Gestion du compte</p>
@@ -33,7 +33,7 @@ const ProfileScreen = () => {
         </div>
       </div>
 
-      <div className={`grid ${isLarge ? 'grid-cols-12 gap-12' : 'grid-cols-1 gap-8'}`}>
+      <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)]' : 'grid-cols-1 gap-[var(--section-gap)]'}`}>
         {/* Left Column: Identity & Status */}
         <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
           <div className="relative group">
@@ -71,7 +71,7 @@ const ProfileScreen = () => {
           </div>
 
           {/* Premium Membership Card */}
-          <div className="relative overflow-hidden rounded-[40px] p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer">
+          <div className="relative overflow-hidden rounded-[40px] p-6 md:p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer">
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/20">
@@ -91,9 +91,9 @@ const ProfileScreen = () => {
         </div>
 
         {/* Right Column: Performance & Insights */}
-        <div className={`${isLarge ? 'col-span-7' : ''} space-y-8`}>
+        <div className={`${isLarge ? 'col-span-7' : ''} space-y-6 md:space-y-8`}>
           {/* Stats Bento Grid */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]">
             <div className="glass p-8 rounded-[40px] space-y-4 hover:bg-white/[0.05] transition-colors group">
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
@@ -122,7 +122,7 @@ const ProfileScreen = () => {
           </div>
 
           {/* Profile Completion */}
-          <div className="glass p-10 rounded-[48px] space-y-8 relative overflow-hidden">
+          <div className="glass p-6 md:p-8 rounded-[48px] space-y-8 relative overflow-hidden">
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
                 <h4 className="text-2xl font-bold">Score de visibilité</h4>
@@ -151,7 +151,7 @@ const ProfileScreen = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-[var(--grid-gap)]">
             {[
               { icon: <ICONS.Shield size={20} />, label: 'Sécurité', color: 'text-blue-400' },
               { icon: <ICONS.Zap size={20} />, label: 'Boost', color: 'text-orange-400' },

@@ -26,9 +26,14 @@ export default function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/splash" element={<Navigate to="/" replace />} />
+            <Route path="/entry" element={<Navigate to="/" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/login/methods" element={<LoginMethodsPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/onboarding/*" element={<OnboardingPage />} />
+            <Route path="/setup" element={<Navigate to="/onboarding" replace />} />
+            <Route path="/profile-setup" element={<Navigate to="/onboarding" replace />} />
 
             {/* App Shell with Adaptive Navigation */}
             <Route element={<AppShell />}>

@@ -28,7 +28,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   return (
     <motion.div {...containerProps}>
       {/* Header */}
-      <div className={`glass ${embedded ? 'p-4' : 'p-6'} flex items-center justify-between shrink-0`}>
+      <div className={`glass ${embedded ? 'p-4' : 'px-[var(--page-x)] py-4'} flex items-center justify-between shrink-0`}>
         <div className="flex items-center gap-4">
           {!embedded && (
             <button onClick={() => navigate(-1)} className="p-2 hover-effect rounded-full"><ICONS.ChevronLeft /></button>
@@ -58,12 +58,12 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+      <div className={`${embedded ? 'max-w-none' : 'container-content'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]`}>
         <div className="flex justify-center">
           <span className="glass px-4 py-1 rounded-full text-[9px] font-black text-secondary uppercase tracking-[0.2em]">Aujourd'hui</span>
         </div>
 
-        <div className="flex gap-3 max-w-[85%]">
+        <div className="flex gap-3 max-w-[85%] md:max-w-[70%] xl:max-w-[62%]">
           <img src={user.photos[0]} className="w-8 h-8 rounded-xl object-cover self-end shrink-0" alt="" referrerPolicy="no-referrer" />
           <div className="space-y-1.5">
             <div className="glass p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed">
@@ -81,14 +81,14 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1.5 ml-auto max-w-[85%]">
+        <div className="flex flex-col items-end gap-1.5 ml-auto max-w-[85%] md:max-w-[70%] xl:max-w-[62%]">
           <div className="gradient-premium p-4 rounded-[24px] rounded-br-none text-sm leading-relaxed shadow-lg shadow-pink-500/10">
             Thanks! It was taken in Iceland last summer. Have you ever been there?
           </div>
           <span className="text-[9px] font-bold text-secondary pr-2 uppercase tracking-widest">Lu 14:25</span>
         </div>
 
-        <div className="flex gap-3 max-w-[85%]">
+        <div className="flex gap-3 max-w-[85%] md:max-w-[70%] xl:max-w-[62%]">
           <img src={user.photos[0]} className="w-8 h-8 rounded-xl object-cover self-end shrink-0" alt="" referrerPolicy="no-referrer" />
           <div className="glass p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed">
             Not yet, but it's on my bucket list! 🇮🇸
@@ -97,8 +97,8 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       </div>
 
       {/* Input */}
-      <div className={`${embedded ? 'p-4' : 'p-6'} pb-8 shrink-0`}>
-        <div className="glass rounded-[28px] p-1.5 flex items-center gap-2 border border-white/5 focus-within:border-white/20 transition-all">
+      <div className={`${embedded ? 'p-4' : 'px-[var(--page-x)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3'} shrink-0 ${embedded ? '' : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent'}`}>
+        <div className={`${embedded ? '' : 'container-content'} glass rounded-[28px] p-1.5 flex items-center gap-2 border border-white/5 focus-within:border-white/20 transition-all`}>
           <button className="p-3 text-secondary hover:text-white transition-colors rounded-full hover:bg-white/5">
             <ICONS.Globe size={20} />
           </button>

@@ -5,11 +5,20 @@ export default {
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
+    screens: {
+      xs: "30rem",
+      sm: "40rem",
+      md: "48rem",
+      lg: "64rem",
+      xl: "80rem",
+      wide: "90rem",
+      "2xl": "96rem",
+    },
     container: {
       center: true,
       padding: "2rem",
       screens: {
-        "2xl": "1400px",
+        "2xl": "96rem",
       },
     },
     extend: {

@@ -13,24 +13,75 @@
 
 @layer base {
   :root {
-    /* Adaptive Spacing & Radius */
-    --app-padding: 1.5rem;
-    --card-radius: 24px;
-    --touch-target: 44px;
+    /* Business breakpoint aliases (documentation/hooks) */
+    --bp-mobile-small-max: 29.9375rem; /* 479px */
+    --bp-mobile-min: 30rem; /* 480px */
+    --bp-tablet-min: 48rem; /* 768px */
+    --bp-desktop-min: 64rem; /* 1024px */
+    --bp-wide-min: 90rem; /* 1440px */
+
+    /* Layout tokens */
+    --page-x: 1rem;
+    --section-gap: 1.5rem;
+    --card-gap: 0.75rem;
+    --grid-gap: 0.75rem;
+    --card-radius: 1.25rem;
+    --icon-size: 1.25rem;
+    --avatar-size: 3.5rem;
+    --cta-height: 3rem;
+    --header-height: 4rem;
+    --bottom-nav-height: 5.25rem;
+    --safe-bottom-offset: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+    --content-max-width: 40rem;
+    --content-max-width-wide: 75rem;
+
+    /* Typography */
+    --text-xs: clamp(0.75rem, 0.72rem + 0.1vw, 0.8rem);
+    --text-sm: clamp(0.875rem, 0.82rem + 0.15vw, 0.95rem);
+    --text-base: clamp(1rem, 0.95rem + 0.2vw, 1.1rem);
+    --text-lg: clamp(1.125rem, 1.05rem + 0.35vw, 1.35rem);
+    --text-xl: clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem);
+    --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+    --text-3xl: clamp(2rem, 1.6rem + 1.5vw, 3rem);
+
+    /* Misc */
+    --touch-target: 2.75rem;
   }
 
-  @media (min-width: 768px) {
+  @media (min-width: 48rem) {
     :root {
-      --app-padding: 2rem;
-      --card-radius: 32px;
-      --touch-target: 48px;
+      --page-x: 1.5rem;
+      --section-gap: 2rem;
+      --card-gap: 1rem;
+      --grid-gap: 1rem;
+      --card-radius: 1.5rem;
+      --icon-size: 1.375rem;
+      --avatar-size: 4rem;
+      --cta-height: 3.25rem;
+      --content-max-width: 60rem;
+      --touch-target: 3rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    :root {
+      --page-x: 2rem;
+      --section-gap: 2.5rem;
+      --card-gap: 1.25rem;
+      --grid-gap: 1.25rem;
+      --card-radius: 1.75rem;
+      --icon-size: 1.5rem;
+      --avatar-size: 4.5rem;
+      --cta-height: 3.5rem;
+      --content-max-width: 75rem;
+      --content-max-width-wide: 90rem;
     }
   }
 
   body {
     @apply bg-black text-white font-sans antialiased overflow-hidden;
-    background: linear-gradient(to bottom, #1a0b2e, #000000);
-    height: 100vh;
+    background: radial-gradient(120% 90% at 50% -10%, #1c1326 0%, #07070b 45%, #000000 100%);
+    min-height: 100dvh;
     width: 100vw;
   }
 
@@ -90,6 +141,127 @@
 
   .text-secondary {
     color: #8E8E93;
+  }
+
+  .screen-safe {
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pb-nav {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .pt-header {
+    padding-top: calc(var(--header-height) + env(safe-area-inset-top));
+  }
+
+  .content-safe {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
+  }
+
+  .app-container {
+    margin-inline: auto;
+    width: 100%;
+    max-width: var(--content-max-width-wide);
+    padding-inline: var(--page-x);
+  }
+
+  .container-content {
+    margin-inline: auto;
+    width: 100%;
+    max-width: var(--content-max-width);
+  }
+
+  .container-wide {
+    margin-inline: auto;
+    width: 100%;
+    max-width: var(--content-max-width-wide);
+  }
+
+  .container-narrow {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 32rem;
+  }
+
+  .container-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--grid-gap);
+  }
+
+  @media (min-width: 64rem) {
+    .container-split {
+      grid-template-columns: 20rem minmax(0, 1fr);
+    }
+  }
+
+  .container-fullscreen {
+    width: 100%;
+    min-height: 100%;
+  }
+
+  .layout-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-gap);
+  }
+
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--grid-gap);
+  }
+
+  @media (min-width: 48rem) {
+    .layout-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .layout-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .layout-autofit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17.5rem, 1fr));
+    gap: var(--grid-gap);
+  }
+
+  .surface-card {
+    width: 100%;
+    border-radius: var(--card-radius);
+    padding: 1rem;
+  }
+
+  @media (min-width: 48rem) {
+    .surface-card {
+      padding: 1.25rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .surface-card {
+      padding: 1.5rem;
+    }
+  }
+
+  .fluid-title {
+    font-size: var(--text-3xl);
+    line-height: 1.1;
+  }
+
+  .fluid-subtitle {
+    font-size: var(--text-lg);
   }
 
   /* Hide scrollbar */

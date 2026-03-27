@@ -8,11 +8,11 @@ const AppShell: React.FC = () => {
   const { isDesktop } = useDevice();
 
   return (
-    <div className="h-full w-full bg-black text-white flex overflow-hidden">
+    <div className="screen-safe h-full w-full bg-black text-white flex overflow-hidden">
       {isDesktop && <Sidebar />}
       
-      <main className={`flex-1 relative overflow-y-auto no-scrollbar ${!isDesktop ? 'pb-24' : ''}`}>
-        <div className="max-w-7xl mx-auto h-full">
+      <main className={`flex-1 relative overflow-y-auto no-scrollbar ${!isDesktop ? 'content-safe' : ''}`}>
+        <div className="app-container h-full">
           <Outlet />
         </div>
       </main>
