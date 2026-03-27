@@ -10,7 +10,16 @@ import ChatScreen from "@/components/ChatScreen";
 import ProfileScreen from "@/components/ProfileScreen";
 import BottomNav from "@/components/BottomNav";
 
-type Screen = "splash" | "onboarding" | "profileSetup" | "discover" | "matches" | "messages" | "profile" | "chat";
+type Screen =
+  | "splash"
+  | "onboarding"
+  | "profileSetup"
+  | "discover"
+  | "likes"
+  | "messages"
+  | "boost"
+  | "profile"
+  | "chat";
 
 const Index = () => {
   const [screen, setScreen] = useState<Screen>("splash");
@@ -37,8 +46,9 @@ const Index = () => {
   return (
     <>
       {screen === "discover" && <SwipeScreen onMatch={handleMatch} />}
-      {screen === "matches" && <MatchesScreen onOpenChat={() => setScreen("chat")} />}
+      {screen === "likes" && <MatchesScreen onOpenChat={() => setScreen("chat")} />}
       {screen === "messages" && <MessagesScreen onOpenChat={() => setScreen("chat")} />}
+      {screen === "boost" && <SwipeScreen onMatch={handleMatch} />}
       {screen === "profile" && <ProfileScreen onReset={() => setScreen("splash")} />}
 
       {showMatch && (
@@ -48,6 +58,10 @@ const Index = () => {
       <BottomNav
         active={screen}
         onNavigate={(s) => setScreen(s as Screen)}
+        badges={{
+          likes: { count: 3 },
+          messages: { dot: true },
+        }}
       />
     </>
   );

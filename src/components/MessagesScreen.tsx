@@ -1,7 +1,7 @@
 import profile1 from "@/assets/profile-1.jpg";
 import profile3 from "@/assets/profile-3.jpg";
 import profile2 from "@/assets/profile-2.jpg";
-import { Search } from "lucide-react";
+import { CheckCheck, Search, SlidersHorizontal } from "lucide-react";
 
 interface MessagesScreenProps {
   onOpenChat: () => void;
@@ -12,10 +12,11 @@ const conversations = [
     name: "Alina",
     age: 28,
     image: profile1,
-    lastMsg: "You should definitely come! I could show you the best spots 🌸",
+    lastMsg: "You should definitely come! I could show you the best spots.",
     time: "10:38",
     online: true,
     unread: 2,
+    read: false,
   },
   {
     name: "Sofia",
@@ -25,15 +26,17 @@ const conversations = [
     time: "Yesterday",
     online: false,
     unread: 0,
+    read: true,
   },
   {
     name: "Marco",
     age: 31,
     image: profile2,
-    lastMsg: "Great taste in architecture 👏",
+    lastMsg: "Great taste in architecture.",
     time: "Mon",
     online: false,
     unread: 0,
+    read: true,
   },
 ];
 
@@ -45,26 +48,35 @@ const newMatches = [
 
 const MessagesScreen = ({ onOpenChat }: MessagesScreenProps) => {
   return (
-    <div className="min-h-screen bg-background px-5 pt-14 pb-28 animate-fade-in">
+    <div className="min-h-screen bg-background px-5 pt-10 pb-28 animate-fade-in">
       <div className="max-w-lg mx-auto space-y-6">
-        <h2 className="text-3xl font-display font-light text-foreground">
-          Messages
-        </h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-love shadow-md" />
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Inbox</p>
+              <h2 className="text-2xl font-semibold text-foreground">Messages</h2>
+            </div>
+          </div>
+          <button className="w-10 h-10 rounded-full bg-surface-elevated border border-border/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" strokeWidth={1.5} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" strokeWidth={1.5} />
           <input
             type="text"
             placeholder="Search conversations..."
-            className="w-full bg-surface-elevated text-foreground text-sm font-body pl-11 pr-4 py-3 rounded-2xl border border-border/30 focus:outline-none focus:border-primary/30 placeholder:text-muted-foreground/50 transition-all shadow-sm"
+            className="w-full bg-surface-elevated text-foreground text-sm font-body pl-11 pr-4 py-3 rounded-2xl border border-border/50 focus:outline-none focus:border-accent-blue/60 placeholder:text-muted-foreground/60 transition-all shadow-sm"
           />
         </div>
 
         {/* New Matches horizontal scroll */}
         <div className="space-y-3">
-          <span className="text-xs text-muted-foreground font-body tracking-widest uppercase">
-            New Matches
+          <span className="text-xs text-muted-foreground font-body tracking-[0.4em] uppercase">
+            Nouveaux Matches
           </span>
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
             {newMatches.map((m) => (
@@ -74,11 +86,11 @@ const MessagesScreen = ({ onOpenChat }: MessagesScreenProps) => {
                 className="flex flex-col items-center gap-2 shrink-0 group"
               >
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all shadow-sm">
+                  <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-white/10 group-hover:ring-accent-blue/50 transition-all shadow-sm">
                     <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
                   </div>
                   {m.online && (
-                    <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                    <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-accent-blue rounded-full border-2 border-background" />
                   )}
                 </div>
                 <span className="text-xs font-body text-muted-foreground group-hover:text-foreground transition-colors">
@@ -89,10 +101,26 @@ const MessagesScreen = ({ onOpenChat }: MessagesScreenProps) => {
           </div>
         </div>
 
+        {/* CTA Card */}
+        <div className="rounded-3xl bg-surface-elevated border border-border/60 p-4 shadow-md bg-sheen">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground">
+                Like en attente
+              </p>
+              <h3 className="text-lg font-semibold text-foreground">Camille attend ta réponse</h3>
+              <p className="text-xs text-muted-foreground mt-1">Ne laisse pas filer le match.</p>
+            </div>
+            <button className="px-4 py-2 rounded-full bg-gradient-love text-white text-sm font-semibold shadow-lg">
+              Voir
+            </button>
+          </div>
+        </div>
+
         {/* Conversations */}
         <div className="space-y-1">
-          <span className="text-xs text-muted-foreground font-body tracking-widest uppercase">
-            Recent
+          <span className="text-xs text-muted-foreground font-body tracking-[0.4em] uppercase">
+            Messages
           </span>
           <div className="space-y-1 mt-2">
             {conversations.map((conv) => (
@@ -106,7 +134,7 @@ const MessagesScreen = ({ onOpenChat }: MessagesScreenProps) => {
                     <img src={conv.image} alt={conv.name} className="w-full h-full object-cover" loading="lazy" />
                   </div>
                   {conv.online && (
-                    <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                    <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-accent-blue rounded-full border-2 border-background" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -114,7 +142,7 @@ const MessagesScreen = ({ onOpenChat }: MessagesScreenProps) => {
                     <h3 className={`text-sm font-body text-foreground ${conv.unread > 0 ? "font-semibold" : "font-medium"}`}>
                       {conv.name}, {conv.age}
                     </h3>
-                    <span className={`text-[11px] font-body ${conv.unread > 0 ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                    <span className={`text-[11px] font-body ${conv.unread > 0 ? "text-accent-pink font-medium" : "text-muted-foreground"}`}>
                       {conv.time}
                     </span>
                   </div>
@@ -122,11 +150,16 @@ const MessagesScreen = ({ onOpenChat }: MessagesScreenProps) => {
                     <p className={`text-[13px] font-body truncate pr-3 ${conv.unread > 0 ? "text-foreground" : "text-muted-foreground font-light"}`}>
                       {conv.lastMsg}
                     </p>
-                    {conv.unread > 0 && (
-                      <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-body font-semibold flex items-center justify-center shrink-0">
-                        {conv.unread}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {conv.read && (
+                        <CheckCheck className="w-4 h-4 text-accent-blue" strokeWidth={2} />
+                      )}
+                      {conv.unread > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-accent-red text-white text-[10px] font-body font-semibold flex items-center justify-center">
+                          {conv.unread}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </button>
