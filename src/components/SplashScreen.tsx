@@ -2,9 +2,10 @@ import logo from "@/assets/logo.png";
 
 interface SplashScreenProps {
   onContinue: () => void;
+  onLogin: () => void;
 }
 
-const SplashScreen = ({ onContinue }: SplashScreenProps) => {
+const SplashScreen = ({ onContinue, onLogin }: SplashScreenProps) => {
   return (
     <div className="relative min-h-screen bg-background overflow-hidden">
       <video
@@ -53,6 +54,7 @@ const SplashScreen = ({ onContinue }: SplashScreenProps) => {
             Commencer
           </button>
           <button
+            onClick={onLogin}
             className="w-full py-3.5 rounded-2xl border border-white/25 bg-white/10 text-white/90 font-medium backdrop-blur-sm transition-all hover:bg-white/15"
           >
             Se connecter

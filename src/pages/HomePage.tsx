@@ -4,7 +4,12 @@ import SplashScreen from "@/components/SplashScreen";
 const HomePage = () => {
   const navigate = useNavigate();
 
-  return <SplashScreen onContinue={() => navigate("/onboarding")} />;
+  return (
+    <SplashScreen
+      onContinue={() => navigate("/profile-setup")}
+      onLogin={() => navigate("/onboarding")}
+    />
+  );
 };
 
 export default HomePage;
