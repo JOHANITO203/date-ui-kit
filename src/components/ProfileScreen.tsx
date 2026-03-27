@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
@@ -8,9 +9,41 @@ const ProfileScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const isLarge = isDesktop || isTablet;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [profileScrollProgress, setProfileScrollProgress] = useState(0);
+  const [profileScrollThumb, setProfileScrollThumb] = useState(28);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!isLarge || !node) return;
+
+    const updateScroll = () => {
+      const max = node.scrollHeight - node.clientHeight;
+      const progress = max <= 0 ? 0 : node.scrollTop / max;
+      const size = node.scrollHeight <= 0 ? 100 : (node.clientHeight / node.scrollHeight) * 100;
+      setProfileScrollProgress(Math.min(1, Math.max(0, progress)));
+      setProfileScrollThumb(Math.max(20, Math.min(100, size)));
+    };
+
+    updateScroll();
+    node.addEventListener('scroll', updateScroll);
+    window.addEventListener('resize', updateScroll);
+
+    return () => {
+      node.removeEventListener('scroll', updateScroll);
+      window.removeEventListener('resize', updateScroll);
+    };
+  }, [isLarge]);
+
+  const jumpToSection = (index: number) => {
+    const node = sectionRefs.current[index];
+    if (!node) return;
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
-    <div className={`h-full flex flex-col ${isLarge ? 'py-10' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}>
+    <div ref={scrollRef} className={`relative group/profile h-full flex flex-col ${isLarge ? 'py-10 pr-10' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}>
       {/* Header Section */}
       <div className="flex items-center justify-between mb-8 md:mb-10 px-[var(--page-x)]">
         <div>
@@ -36,7 +69,12 @@ const ProfileScreen = () => {
       <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)]' : 'grid-cols-1 gap-[var(--section-gap)]'}`}>
         {/* Left Column: Identity & Status */}
         <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
-          <div className="relative group">
+          <div
+            ref={(el) => {
+              sectionRefs.current[0] = el;
+            }}
+            className="relative group"
+          >
             <motion.div 
               whileHover={!isTouch ? { scale: 1.02 } : {}}
               className="relative z-10"
@@ -71,7 +109,12 @@ const ProfileScreen = () => {
           </div>
 
           {/* Premium Membership Card */}
-          <div className="relative overflow-hidden rounded-[40px] p-6 md:p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer">
+          <div
+            ref={(el) => {
+              sectionRefs.current[1] = el;
+            }}
+            className="relative overflow-hidden rounded-[40px] p-6 md:p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer"
+          >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/20">
@@ -93,7 +136,12 @@ const ProfileScreen = () => {
         {/* Right Column: Performance & Insights */}
         <div className={`${isLarge ? 'col-span-7' : ''} space-y-6 md:space-y-8`}>
           {/* Stats Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]">
+          <div
+            ref={(el) => {
+              sectionRefs.current[2] = el;
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]"
+          >
             <div className="glass p-8 rounded-[40px] space-y-4 hover:bg-white/[0.05] transition-colors group">
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
@@ -122,7 +170,12 @@ const ProfileScreen = () => {
           </div>
 
           {/* Profile Completion */}
-          <div className="glass p-6 md:p-8 rounded-[48px] space-y-8 relative overflow-hidden">
+          <div
+            ref={(el) => {
+              sectionRefs.current[3] = el;
+            }}
+            className="glass p-6 md:p-8 rounded-[48px] space-y-8 relative overflow-hidden"
+          >
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
                 <h4 className="text-2xl font-bold">Score de visibilité</h4>
@@ -151,7 +204,12 @@ const ProfileScreen = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-[var(--grid-gap)]">
+          <div
+            ref={(el) => {
+              sectionRefs.current[4] = el;
+            }}
+            className="grid grid-cols-2 md:grid-cols-3 gap-[var(--grid-gap)]"
+          >
             {[
               { icon: <ICONS.Shield size={20} />, label: 'Sécurité', color: 'text-blue-400' },
               { icon: <ICONS.Zap size={20} />, label: 'Boost', color: 'text-orange-400' },
@@ -170,6 +228,32 @@ const ProfileScreen = () => {
           </div>
         </div>
       </div>
+
+      {isLarge && (
+        <div className="pointer-events-none fixed right-4 top-28 bottom-10 z-20 flex items-center opacity-0 transition-opacity duration-300 group-hover/profile:opacity-100">
+          <div className="pointer-events-auto rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_14px_rgba(168,85,247,0.28)]">
+            <div className="relative w-2.5 h-44 rounded-full bg-[#09090c]/95 overflow-hidden">
+              <div
+                className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
+                style={{
+                  height: `${profileScrollThumb}%`,
+                  top: `${profileScrollProgress * (100 - profileScrollThumb)}%`,
+                }}
+              />
+            </div>
+          </div>
+          <div className="ml-2 flex flex-col gap-2 pointer-events-auto">
+            {[0, 1, 2, 3, 4].map((index) => (
+              <button
+                key={`profile-jump-${index}`}
+                onClick={() => jumpToSection(index)}
+                className="w-2 h-2 rounded-full bg-white/35 hover:bg-white/70 transition-colors"
+                aria-label={`Aller a la section ${index + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

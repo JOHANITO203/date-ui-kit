@@ -110,8 +110,8 @@ const MessagesScreen = () => {
             ))}
           </div>
           {isLarge && (
-            <div className="mt-3 px-1">
-              <div className="rounded-full p-[1px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-blue-500/90 shadow-[0_0_12px_rgba(236,72,153,0.3)]">
+            <div className="mt-3 px-1 h-4 group/matches-slider">
+              <div className="rounded-full p-[1px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-blue-500/90 shadow-[0_0_12px_rgba(236,72,153,0.3)] opacity-0 transition-opacity duration-200 group-hover/matches-slider:opacity-100 group-focus-within/matches-slider:opacity-100">
                 <div className="relative h-2.5 rounded-full bg-[#09090c]/95 overflow-hidden">
                   <input
                     type="range"

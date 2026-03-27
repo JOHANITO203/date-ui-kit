@@ -1,11 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { ICONS } from '../types';
 import { motion } from 'motion/react';
 
 const Sidebar: React.FC = () => {
   const navItems = [
-    { path: '/discover', icon: ICONS.Discover, label: 'Découvrir' },
+    { path: '/discover', icon: ICONS.Discover, label: 'Decouvrir' },
     { path: '/likes', icon: ICONS.Likes, label: 'Likes' },
     { path: '/messages', icon: ICONS.Messages, label: 'Messages' },
     { path: '/boost', icon: ICONS.Boost, label: 'Boost' },
@@ -26,22 +26,22 @@ const Sidebar: React.FC = () => {
             to={item.path}
             className={({ isActive }) =>
               `flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${
-                isActive 
-                  ? 'bg-white/10 text-white' 
+                isActive
+                  ? 'bg-white/10 text-white'
                   : 'text-secondary hover:bg-white/5 hover:text-white'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <item.icon 
-                  size={20} 
-                  className={isActive ? 'text-pink-500' : 'group-hover:text-pink-400 transition-colors'} 
+                <item.icon
+                  size={20}
+                  className={isActive ? 'text-pink-500' : 'group-hover:text-pink-400 transition-colors'}
                   fill={isActive ? 'currentColor' : 'none'}
                 />
                 <span className="font-medium">{item.label}</span>
                 {isActive && (
-                  <motion.div 
+                  <motion.div
                     layoutId="sidebar-active"
                     className="ml-auto w-1 h-4 bg-pink-500 rounded-full"
                   />
@@ -53,10 +53,17 @@ const Sidebar: React.FC = () => {
       </nav>
 
       <div className="mt-auto pt-6 border-t border-white/5">
-        <button className="w-full flex items-center gap-4 px-4 py-3 text-secondary hover:text-white transition-colors group">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-colors group ${
+              isActive ? 'bg-white/10 text-white' : 'text-secondary hover:text-white hover:bg-white/5'
+            }`
+          }
+        >
           <ICONS.Settings size={20} className="group-hover:rotate-45 transition-transform duration-500" />
-          <span className="font-medium">Paramètres</span>
-        </button>
+          <span className="font-medium">Parametres</span>
+        </NavLink>
       </div>
     </aside>
   );

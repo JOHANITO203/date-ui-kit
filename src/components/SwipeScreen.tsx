@@ -90,11 +90,7 @@ const SwipeScreen = () => {
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isDesktop ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-hidden pb-nav'}`}>
       <div className="flex items-center justify-between px-[var(--page-x)] pt-6 md:pt-7 lg:pt-8 pb-4 shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 gradient-premium rounded-lg shadow-lg shadow-pink-500/10" />
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 leading-none mb-1">Decouvrir</span>
-            <h1 className="text-xl font-bold tracking-tight text-white leading-none">Swipe</h1>
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-white leading-none">Discover</h1>
         </div>
         {!isDesktop && (
           <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
@@ -108,12 +104,13 @@ const SwipeScreen = () => {
         <div className="flex-1 min-h-0 px-[var(--page-x)] py-2">
           <div className="h-full grid grid-cols-[16rem_minmax(0,1fr)] gap-5 items-start">
             <aside className="glass rounded-[28px] p-5 space-y-5 h-fit">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 gradient-premium rounded-xl" />
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-black">Discover</p>
-                  <h3 className="text-2xl font-black tracking-tight">Swipe</h3>
-                </div>
+              <div className="flex items-center">
+                <button
+                  aria-label="Ouvrir les reglages de decouverte"
+                  className="w-11 h-11 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
+                >
+                  <ICONS.Settings size={18} className="text-white/80" />
+                </button>
               </div>
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Filtres rapides</p>
