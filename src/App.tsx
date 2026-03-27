@@ -1,89 +1,61 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import AppShell from "./pages/AppShell.tsx";
-import BoostPage from "./pages/BoostPage.tsx";
-import ChatPage from "./pages/ChatPage.tsx";
-import DiscoverPage from "./pages/DiscoverPage.tsx";
-import HomePage from "./pages/HomePage.tsx";
-import LikesPage from "./pages/LikesPage.tsx";
-import MessagesPage from "./pages/MessagesPage.tsx";
-import OnboardingPage from "./pages/OnboardingPage.tsx";
-import ProfilePage from "./pages/ProfilePage.tsx";
-import ProfileSetupPage from "./pages/ProfileSetupPage.tsx";
-import AccountSettingsPage from "./pages/AccountSettingsPage.tsx";
-import PrivacyPage from "./pages/PrivacyPage.tsx";
-import NotificationsPage from "./pages/NotificationsPage.tsx";
-import PreferencesPage from "./pages/PreferencesPage.tsx";
-import EditProfilePage from "./pages/EditProfilePage.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AnimatePresence } from 'motion/react';
+import './App.css';
 
-const queryClient = new QueryClient();
+// Pages
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import LoginMethodsPage from './pages/LoginMethodsPage';
+import OnboardingPage from './pages/OnboardingPage';
+import ProfileSetupPage from './pages/ProfileSetupPage';
+import DiscoverPage from './pages/DiscoverPage';
+import LikesPage from './pages/LikesPage';
+import MessagesPage from './pages/MessagesPage';
+import ChatPage from './pages/ChatPage';
+import BoostPage from './pages/BoostPage';
+import ProfilePage from './pages/ProfilePage';
+import EditProfilePage from './pages/EditProfilePage';
+import AccountSettingsPage from './pages/AccountSettingsPage';
+import AppShell from './pages/AppShell';
+import NotFound from './pages/NotFound';
 
-const AnimatedRoutes = () => {
-  const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [stage, setStage] = useState<"fade-in" | "fade-out">("fade-in");
-  const previousPath = useRef(location.pathname);
-
-  useEffect(() => {
-    if (location.pathname !== previousPath.current) {
-      setStage("fade-out");
-      const timeout = window.setTimeout(() => {
-        previousPath.current = location.pathname;
-        setDisplayLocation(location);
-        setStage("fade-in");
-      }, 180);
-
-      return () => window.clearTimeout(timeout);
-    }
-
-    setDisplayLocation(location);
-  }, [location]);
-
+export default function App() {
   return (
-    <div
-      className={`transition-all duration-200 ease-out ${
-        stage === "fade-in" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-      }`}
-    >
-      <Routes location={displayLocation}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/profile-setup" element={<ProfileSetupPage />} />
-        <Route element={<AppShell />}>
-          <Route path="/discover" element={<DiscoverPage />} />
-          <Route path="/likes" element={<LikesPage />} />
-          <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/boost" element={<BoostPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-        </Route>
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/profile/edit" element={<EditProfilePage />} />
-        <Route path="/settings/account" element={<AccountSettingsPage />} />
-        <Route path="/settings/privacy" element={<PrivacyPage />} />
-        <Route path="/settings/notifications" element={<NotificationsPage />} />
-        <Route path="/settings/preferences" element={<PreferencesPage />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </div>
+    <Router>
+      <div className="h-screen w-full bg-black overflow-hidden relative">
+        <AnimatePresence mode="wait">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login/methods" element={<LoginMethodsPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/setup" element={<ProfileSetupPage />} />
+
+            {/* App Shell with Adaptive Navigation */}
+            <Route element={<AppShell />}>
+              <Route path="/discover" element={<DiscoverPage />} />
+              <Route path="/likes" element={<LikesPage />} />
+              <Route path="/messages" element={<MessagesPage />} />
+              <Route path="/boost" element={<BoostPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              
+              {/* Settings within AppShell for Desktop Sidebar consistency */}
+              <Route path="/settings" element={<AccountSettingsPage />} />
+              <Route path="/settings/:category" element={<AccountSettingsPage />} />
+              <Route path="/settings/:category/:sub" element={<AccountSettingsPage />} />
+            </Route>
+
+            {/* Sub-screens / Full-screen views */}
+            <Route path="/chat/:userId" element={<ChatPage />} />
+            <Route path="/profile/edit" element={<EditProfilePage />} />
+
+            {/* Fallback */}
+            <Route path="/404" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/404" replace />} />
+          </Routes>
+        </AnimatePresence>
+      </div>
+    </Router>
   );
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AnimatedRoutes />
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+}

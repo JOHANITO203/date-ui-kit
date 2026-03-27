@@ -1,134 +1,171 @@
-import {
-  ArrowLeft,
-  CheckCircle2,
-  ChevronRight,
-  MapPin,
-  Settings,
-  Sparkles,
-} from "lucide-react";
-import profile2 from "@/assets/profile-2.jpg";
-import { Link } from "react-router-dom";
-
-interface ProfileScreenProps {
-  onReset: () => void;
-}
+import { useNavigate } from 'react-router-dom';
+import { ICONS } from '../types';
+import GlassButton from './ui/GlassButton';
+import { useDevice } from '../hooks/useDevice';
+import { motion } from 'motion/react';
 
 const ProfileScreen = () => {
+  const navigate = useNavigate();
+  const { isDesktop, isTablet, isTouch } = useDevice();
+  const isLarge = isDesktop || isTablet;
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="min-h-screen bg-gradient-to-b from-[#3a1456] via-[#0b0b10] to-black px-5 pt-10 pb-28">
-        <div className="max-w-lg mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-white/80 text-sm">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="uppercase tracking-[0.25em] text-[11px]">Parametres du profil</span>
+    <div className={`h-full flex flex-col ${isLarge ? 'p-12' : 'p-6 pb-28'} overflow-y-auto no-scrollbar bg-black`}>
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-12">
+        <div>
+          <h2 className="text-4xl font-black tracking-tighter mb-1">Mon Espace</h2>
+          <p className="text-secondary text-xs uppercase tracking-[0.3em] font-bold">Gestion du compte</p>
+        </div>
+        <div className="flex gap-3">
+          {isDesktop && (
+            <div className="hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-[10px] text-secondary uppercase tracking-widest font-black">Serveur: Paris-01</span>
             </div>
-            <button className="text-xs uppercase tracking-[0.2em] text-white/70 hover:text-white transition-colors">
-              Enregistrer
-            </button>
-          </div>
+          )}
+          <button 
+            onClick={() => navigate('/settings')} 
+            className="w-12 h-12 glass rounded-full flex items-center justify-center hover-effect transition-all"
+          >
+            <ICONS.Settings size={22} className="text-white" />
+          </button>
+        </div>
+      </div>
 
-          {/* Identity / Progress */}
-          <div className="flex flex-col items-center text-center gap-3">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full p-1 bg-gradient-love shadow-[0_12px_30px_rgba(0,0,0,0.4)]">
-                <div className="w-full h-full rounded-full overflow-hidden bg-black">
-                  <img src={profile2} alt="Profil" className="w-full h-full object-cover" />
-                </div>
-              </div>
-              <CheckCircle2 className="absolute -right-1 -bottom-1 w-5 h-5 text-accent-blue" />
-            </div>
-            <Link
-              to="/profile/edit"
-              className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs text-white/80 hover:text-white transition-colors"
+      <div className={`grid ${isLarge ? 'grid-cols-12 gap-12' : 'grid-cols-1 gap-8'}`}>
+        {/* Left Column: Identity & Status */}
+        <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
+          <div className="relative group">
+            <motion.div 
+              whileHover={!isTouch ? { scale: 1.02 } : {}}
+              className="relative z-10"
             >
-              Modifier profil
-            </Link>
-            <div className="w-full">
-              <div className="flex items-center justify-between text-[11px] text-white/60">
-                <span>Profil complete : 85%</span>
-                <span>85%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/10 mt-2 overflow-hidden">
-                <div className="h-full w-[85%] bg-gradient-love" />
-              </div>
-            </div>
-          </div>
-
-          {/* Basic info */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Informations de base</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "Nom", value: "Sophie" },
-                { label: "Age", value: "26" },
-                { label: "Genre", value: "Femme" },
-                { label: "Localisation", value: "Paris" },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 px-4 py-3"
-                >
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">{item.label}</p>
-                  <p className="text-sm font-semibold text-white">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Votre biographie</p>
-            <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 px-4 py-4">
-              <p className="text-sm text-white/80">
-                Salut ! J aime la randonnee, le cafe et decouvrir de nouveaux restos. Curieuse et spontanee.
-              </p>
-              <p className="text-[10px] text-white/40 mt-3">140 / 250</p>
-            </div>
-          </div>
-
-          {/* Preferences */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Ce que je recherche</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Relation", value: "Long terme", icon: Sparkles },
-                { label: "Dist. max", value: "35 km", icon: MapPin },
-                { label: "Age", value: "25-34", icon: ChevronRight },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 px-3 py-3"
-                >
-                  <div className="flex items-center gap-2 text-white/60 text-xs">
-                    <item.icon className="w-3.5 h-3.5" />
-                    <span>{item.label}</span>
+              <div className="aspect-square rounded-[48px] overflow-hidden border border-white/10 shadow-2xl">
+                <img 
+                  src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80" 
+                  className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
+                  alt="Me" 
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                
+                <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
+                  <div>
+                    <h3 className="text-4xl font-black tracking-tighter text-white mb-1">Alex, 26</h3>
+                    <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
+                      <ICONS.MapPin size={12} className="text-pink-500" /> Paris, FR
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-white mt-2">{item.value}</p>
+                  <button 
+                    onClick={() => navigate('/profile/edit')}
+                    className="w-12 h-12 glass rounded-2xl flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                  >
+                    <ICONS.Edit size={20} />
+                  </button>
                 </div>
-              ))}
+              </div>
+            </motion.div>
+            {/* Decorative background element */}
+            <div className="absolute -inset-4 bg-pink-500/5 blur-3xl rounded-full -z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+          </div>
+
+          {/* Premium Membership Card */}
+          <div className="relative overflow-hidden rounded-[40px] p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer">
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/20">
+                  <ICONS.Star size={20} className="text-white" />
+                </div>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-pink-500">Membre Gold</span>
+              </div>
+              <h4 className="text-2xl font-bold mb-2">Passez au niveau supérieur</h4>
+              <p className="text-secondary text-sm leading-relaxed mb-6">Débloquez les likes illimités, les boosts mensuels et voyez qui vous a liké.</p>
+              <GlassButton className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-pink-500 hover:text-white transition-all">
+                Voir les avantages
+              </GlassButton>
+            </div>
+            {/* Abstract background shape */}
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl group-hover:bg-pink-500/20 transition-all duration-1000" />
+          </div>
+        </div>
+
+        {/* Right Column: Performance & Insights */}
+        <div className={`${isLarge ? 'col-span-7' : ''} space-y-8`}>
+          {/* Stats Bento Grid */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="glass p-8 rounded-[40px] space-y-4 hover:bg-white/[0.05] transition-colors group">
+              <div className="flex justify-between items-start">
+                <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+                  <ICONS.Eye size={24} />
+                </div>
+                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">+12%</span>
+              </div>
+              <div>
+                <span className="text-4xl font-black tracking-tighter block">1,284</span>
+                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">Vues du profil</span>
+              </div>
+            </div>
+            
+            <div className="glass p-8 rounded-[40px] space-y-4 hover:bg-white/[0.05] transition-colors group">
+              <div className="flex justify-between items-start">
+                <div className="p-3 rounded-2xl bg-pink-500/10 text-pink-400 group-hover:scale-110 transition-transform">
+                  <ICONS.Heart size={24} />
+                </div>
+                <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">+5</span>
+              </div>
+              <div>
+                <span className="text-4xl font-black tracking-tighter block">48</span>
+                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">Nouveaux Matches</span>
+              </div>
             </div>
           </div>
 
-          {/* Settings links */}
-          <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-2">
+          {/* Profile Completion */}
+          <div className="glass p-10 rounded-[48px] space-y-8 relative overflow-hidden">
+            <div className="flex justify-between items-end relative z-10">
+              <div className="space-y-2">
+                <h4 className="text-2xl font-bold">Score de visibilité</h4>
+                <p className="text-secondary text-sm">Votre profil est presque parfait. Ajoutez une vidéo pour booster votre visibilité.</p>
+              </div>
+              <div className="text-right">
+                <span className="text-5xl font-black tracking-tighter text-pink-500">85%</span>
+              </div>
+            </div>
+            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden relative z-10">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: '85%' }}
+                transition={{ duration: 1.5, ease: "circOut" }}
+                className="h-full bg-gradient-to-r from-pink-500 to-violet-500 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.3)]" 
+              />
+            </div>
+            <div className="flex gap-4 relative z-10">
+              <button className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+                Améliorer
+              </button>
+              <button className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+                Aperçu
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-3 gap-4">
             {[
-              { label: "Parametres du compte", to: "/settings/account" },
-              { label: "Confidentialite", to: "/settings/privacy" },
-              { label: "Notifications", to: "/settings/notifications" },
-              { label: "Preferences de recherche", to: "/settings/preferences" },
-            ].map((item, idx) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={`w-full flex items-center justify-between px-4 py-4 rounded-xl hover:bg-white/10 transition-colors ${
-                  idx < 3 ? "border-b border-white/10" : ""
-                }`}
+              { icon: <ICONS.Shield size={20} />, label: 'Sécurité', color: 'text-blue-400' },
+              { icon: <ICONS.Zap size={20} />, label: 'Boost', color: 'text-orange-400' },
+              { icon: <ICONS.HelpCircle size={20} />, label: 'Aide', color: 'text-green-400' }
+            ].map((action, i) => (
+              <button 
+                key={i}
+                className="glass p-6 rounded-[32px] flex flex-col items-center gap-3 hover:bg-white/10 transition-all group"
               >
-                <span className="text-sm text-white">{item.label}</span>
-                <ChevronRight className="w-4 h-4 text-white/40" />
-              </Link>
+                <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
+                  {action.icon}
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest">{action.label}</span>
+              </button>
             ))}
           </div>
         </div>

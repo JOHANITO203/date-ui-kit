@@ -1,10 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import ProfileScreen from "@/components/ProfileScreen";
+import React from 'react';
+import ProfileScreen from '../components/ProfileScreen';
 
-const ProfilePage = () => {
-  const navigate = useNavigate();
-
-  return <ProfileScreen onReset={() => navigate("/")} />;
+const ProfilePage: React.FC = () => {
+  return <ProfileScreen />;
 };
 
 export default ProfilePage;

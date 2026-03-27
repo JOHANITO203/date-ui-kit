@@ -1,6 +1,7 @@
-import AccountSettingsScreen from "@/components/AccountSettingsScreen";
+import React from 'react';
+import AccountSettingsScreen from '../components/AccountSettingsScreen';
 
-const AccountSettingsPage = () => {
+const AccountSettingsPage: React.FC = () => {
   return <AccountSettingsScreen />;
 };
 

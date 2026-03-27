@@ -1,79 +1,315 @@
-import { ArrowLeft, ChevronRight, Lock, Mail, Phone, ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { motion } from 'motion/react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ICONS } from '../types';
+import GlassButton from './ui/GlassButton';
+import { useDevice } from '../hooks/useDevice';
 
 const AccountSettingsScreen = () => {
   const navigate = useNavigate();
+  const { category, sub } = useParams();
+  const { isDesktop, isTablet } = useDevice();
+  const isLarge = isDesktop || isTablet;
+  
+  const sections = [
+    { 
+      id: 'account', 
+      title: 'Compte', 
+      icon: <ICONS.Profile size={18} />, 
+      items: [
+        { label: 'Numéro de téléphone', id: 'phone', type: 'text' }, 
+        { label: 'Email', id: 'email', type: 'text' }, 
+        { label: 'Mot de passe', id: 'password', type: 'password' }
+      ], 
+      path: '/settings/account' 
+    },
+    { 
+      id: 'privacy', 
+      title: 'Confidentialité', 
+      icon: <ICONS.Shield size={18} />, 
+      items: [
+        { label: 'Visibilité du profil', id: 'visibility', type: 'toggle', desc: 'Contrôlez qui peut voir votre profil' }, 
+        { label: 'Mode Incognito', id: 'incognito', type: 'toggle', desc: 'Seules les personnes que vous aimez peuvent vous voir' }, 
+        { label: 'Confirmations de lecture', id: 'read-receipts', type: 'toggle', desc: 'Afficher quand vous avez lu les messages' },
+        { label: 'Contacts bloqués', id: 'blocked', type: 'list', desc: 'Gérer les personnes bloquées' }
+      ], 
+      path: '/settings/privacy' 
+    },
+    { 
+      id: 'notifications', 
+      title: 'Notifications', 
+      icon: <ICONS.Bell size={18} />, 
+      items: [
+        { label: 'Nouveaux Matches', id: 'matches', type: 'toggle' }, 
+        { label: 'Nouveaux Messages', id: 'messages', type: 'toggle' }, 
+        { label: 'Nouveaux Likes', id: 'likes', type: 'toggle' },
+        { label: 'Offres Spéciales', id: 'offers', type: 'toggle' }
+      ], 
+      path: '/settings/notifications' 
+    },
+    { 
+      id: 'preferences', 
+      title: 'Préférences', 
+      icon: <ICONS.Settings size={18} />, 
+      items: [
+        { label: 'Distance maximale', id: 'distance', type: 'slider', unit: 'km', min: 2, max: 160 }, 
+        { label: 'Tranche d\'âge', id: 'age', type: 'range', min: 18, max: 100 }, 
+        { label: 'Genre recherché', id: 'gender', type: 'select', options: ['Hommes', 'Femmes', 'Tous'] }
+      ], 
+      path: '/settings/preferences' 
+    },
+  ];
 
-  return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="min-h-screen bg-gradient-to-b from-[#261030] via-[#0b0b10] to-black px-5 pt-10 pb-28">
-        <div className="max-w-lg mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-white/80 text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="uppercase tracking-[0.25em] text-[11px]">Compte</span>
-            </button>
-            <button className="text-xs uppercase tracking-[0.2em] text-white/70 hover:text-white transition-colors">
-              Enregistrer
-            </button>
+  const renderDetail = () => {
+    const isEmbedded = isLarge;
+
+    if (sub) {
+      const section = sections.find(s => s.id === category);
+      const item = section?.items.find(i => i.id === sub);
+      const itemLabel = item?.label || sub;
+      
+      return (
+        <div className={`${isEmbedded ? 'p-8' : 'p-6'} space-y-8`}>
+          <div className="flex items-center gap-4 mb-6">
+            {!isEmbedded && (
+              <button onClick={() => navigate(`/settings/${category}`)} className="p-2 hover-effect rounded-full glass">
+                <ICONS.ChevronLeft />
+              </button>
+            )}
+            <h2 className="text-2xl font-bold">{itemLabel}</h2>
           </div>
-
-          <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-4 h-4 text-accent-blue" />
-              <div>
-                <p className="text-sm font-semibold text-white">Securite</p>
-                <p className="text-xs text-white/50">Protegez votre compte</p>
-              </div>
+          
+          <div className="glass p-8 rounded-[32px] space-y-8 border border-white/5 shadow-2xl">
+            <div className="space-y-2">
+              <p className="text-secondary text-sm font-medium">
+                {item?.desc || `Gérez vos paramètres de ${itemLabel.toLowerCase()}`}
+              </p>
+              <p className="text-[10px] text-white/40 uppercase tracking-widest font-black">Mise à jour instantanée</p>
             </div>
-            {[
-              { label: "Mot de passe", value: "Derniere mise a jour il y a 2 semaines", icon: Lock },
-              { label: "Double authentification", value: "Active", icon: ShieldCheck },
-            ].map((item) => (
-              <button
-                key={item.label}
-                className="w-full flex items-center justify-between px-3 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="w-4 h-4 text-white/60" />
-                  <div className="text-left">
-                    <p className="text-sm text-white">{item.label}</p>
-                    <p className="text-xs text-white/50">{item.value}</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-white/40" />
-              </button>
-            ))}
-          </div>
 
-          <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4 space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Coordonnees</p>
-            {[
-              { label: "Telephone", value: "+33 6 12 34 56 78", icon: Phone },
-              { label: "Email", value: "sophie.d@email.fr", icon: Mail },
-            ].map((item) => (
-              <button
-                key={item.label}
-                className="w-full flex items-center justify-between px-3 py-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="w-4 h-4 text-white/60" />
-                  <div className="text-left">
-                    <p className="text-sm text-white">{item.label}</p>
-                    <p className="text-xs text-white/50">{item.value}</p>
+            <div className="space-y-6">
+              {item?.type === 'toggle' && (
+                <div className="flex items-center justify-between p-6 glass rounded-2xl border border-white/5">
+                  <span className="font-bold text-sm">Activer {itemLabel}</span>
+                  <div className="w-14 h-7 rounded-full bg-pink-500 relative cursor-pointer shadow-lg shadow-pink-500/20">
+                    <div className="absolute right-1 top-1 w-5 h-5 rounded-full bg-white" />
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-white/40" />
-              </button>
-            ))}
+              )}
+
+              {(item?.type === 'text' || item?.type === 'password') && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">Nouveau {itemLabel.toLowerCase()}</label>
+                    <input 
+                      type={item.type} 
+                      placeholder={`Entrez votre ${itemLabel.toLowerCase()}`}
+                      className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl focus:border-pink-500 focus:bg-white/10 outline-none transition-all text-sm font-medium"
+                    />
+                  </div>
+                  <GlassButton className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em]">
+                    Enregistrer
+                  </GlassButton>
+                </div>
+              )}
+
+              {(item?.type === 'slider' || item?.type === 'range') && (
+                <div className="space-y-8 py-4">
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm font-bold text-secondary">Valeur actuelle</span>
+                    <span className="text-2xl font-black text-pink-500">
+                      {item.type === 'range' ? '22 - 35' : `50 ${item.unit || ''}`}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full bg-white/10 rounded-full relative">
+                    <div className="absolute left-1/4 top-0 h-full w-1/2 bg-gradient-to-r from-pink-500 to-violet-500 rounded-full" />
+                    <div className="absolute left-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-xl border-4 border-black cursor-pointer" />
+                    {item.type === 'range' && (
+                      <div className="absolute left-3/4 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-xl border-4 border-black cursor-pointer" />
+                    )}
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black text-white/20 uppercase tracking-widest">
+                    <span>{item.min} {item.unit || ''}</span>
+                    <span>{item.max} {item.unit || ''}</span>
+                  </div>
+                </div>
+              )}
+
+              {item?.type === 'select' && (
+                <div className="grid grid-cols-1 gap-3">
+                  {item.options?.map((opt: string) => (
+                    <button 
+                      key={opt}
+                      className={`p-5 rounded-2xl border text-sm font-bold transition-all flex items-center justify-between ${
+                        opt === 'Femmes' 
+                          ? 'bg-pink-500/10 border-pink-500/50 text-white' 
+                          : 'bg-white/5 border-white/10 text-secondary hover:border-white/20'
+                      }`}
+                    >
+                      {opt}
+                      {opt === 'Femmes' && <div className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {item?.type === 'list' && (
+                <div className="space-y-4">
+                  <p className="text-xs text-secondary italic">Aucun élément dans cette liste pour le moment.</p>
+                  <GlassButton className="w-full py-4 rounded-2xl text-xs font-bold opacity-50 cursor-not-allowed">
+                    Ajouter un élément
+                  </GlassButton>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      );
+    }
+
+    switch (category) {
+      case 'privacy':
+      case 'notifications':
+      case 'preferences':
+      case 'account':
+      default:
+        const section = sections.find(s => s.id === (category || 'account'));
+        return (
+          <div className={`${isEmbedded ? 'p-8' : 'p-6'} space-y-8`}>
+            {isEmbedded && <h2 className="text-2xl font-bold">Paramètres {section?.title}</h2>}
+            <div className="glass rounded-[32px] overflow-hidden border border-white/5">
+              {section?.items.map((item, i, arr) => (
+                <button 
+                  key={item.id} 
+                  onClick={() => navigate(`${section.path}/${item.id}`)}
+                  className={`w-full p-6 flex items-center justify-between hover:bg-white/5 transition-colors ${i !== arr.length - 1 ? 'border-b border-white/5' : ''}`}
+                >
+                  <div className="flex flex-col items-start text-left">
+                    <span className="text-sm font-bold text-white">{item.label}</span>
+                    {item.desc && <span className="text-[10px] text-secondary font-medium mt-1">{item.desc}</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-pink-500">Gérer</span>
+                    <ICONS.ChevronLeft className="rotate-180 text-white/20" size={16} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+    }
+  };
+
+  if (isLarge) {
+    return (
+      <div className="h-full flex overflow-hidden">
+        {/* Master: Settings Sidebar */}
+        <div className="w-[320px] border-r border-white/5 flex flex-col p-8 shrink-0">
+          <div className="flex items-center gap-4 mb-10">
+            <button onClick={() => navigate('/profile')} className="p-2 hover-effect rounded-full glass">
+              <ICONS.ChevronLeft />
+            </button>
+            <h2 className="text-2xl font-bold">Paramètres</h2>
+          </div>
+
+          <div className="space-y-2">
+            {sections.map(section => (
+              <button
+                key={section.id}
+                onClick={() => navigate(section.path)}
+                className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${
+                  category === section.id || (!category && section.id === 'account')
+                    ? 'bg-white/10 text-white shadow-lg'
+                    : 'text-secondary hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <div className={`p-2 rounded-xl ${category === section.id || (!category && section.id === 'account') ? 'bg-pink-500/20 text-pink-500' : 'bg-white/5'}`}>
+                  {section.icon}
+                </div>
+                <span className="text-sm font-bold">{section.title}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-auto pt-8">
+            <button 
+              onClick={() => navigate('/')} 
+              className="w-full p-4 glass rounded-2xl text-red-500 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors"
+            >
+              <ICONS.LogOut size={18} />
+              Déconnexion
+            </button>
+          </div>
+        </div>
+
+        {/* Detail: Settings Content */}
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-white/[0.02]">
+          {renderDetail()}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  // Mobile View
+  if (category) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="h-full flex flex-col overflow-y-auto no-scrollbar"
+      >
+        <div className="p-6 flex items-center gap-4 border-b border-white/5">
+          <button onClick={() => navigate('/settings')} className="p-2 hover-effect rounded-full glass">
+            <ICONS.ChevronLeft />
+          </button>
+          <h2 className="text-xl font-bold capitalize">{category}</h2>
+        </div>
+        <div className="flex-1 pb-28">
+          {renderDetail()}
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="h-full flex flex-col p-6 pb-28 overflow-y-auto no-scrollbar"
+    >
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/profile')} className="p-2 hover-effect rounded-full glass">
+            <ICONS.ChevronLeft />
+          </button>
+          <h2 className="text-2xl font-bold">Paramètres</h2>
+        </div>
+        <GlassButton className="py-2 px-4 rounded-full text-xs">Enregistrer</GlassButton>
+      </div>
+
+      <div className="space-y-8">
+        {sections.map(section => (
+          <div key={section.id} className="space-y-4">
+            <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] px-2">{section.title}</h3>
+            <div className="glass rounded-[32px] overflow-hidden">
+              {section.items.map((item, i) => (
+                <button 
+                  key={item.id} 
+                  onClick={() => navigate(`${section.path}/${item.id}`)}
+                  className={`w-full p-5 text-left flex items-center justify-between hover:bg-white/5 active:bg-white/10 transition-colors ${i !== section.items.length - 1 ? 'border-b border-white/5' : ''}`}
+                >
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <ICONS.ChevronLeft className="rotate-180 text-white/20" size={16} />
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        
+        <button onClick={() => navigate('/')} className="w-full p-5 glass rounded-[24px] text-red-500 font-black text-xs uppercase tracking-widest">
+          Déconnexion
+        </button>
+      </div>
+    </motion.div>
   );
 };
 

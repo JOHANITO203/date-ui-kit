@@ -1,10 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import MatchesScreen from "@/components/MatchesScreen";
+import React from 'react';
+import MatchesScreen from '../components/MatchesScreen';
 
-const LikesPage = () => {
-  const navigate = useNavigate();
-
-  return <MatchesScreen onOpenChat={() => navigate("/chat")} />;
+const LikesPage: React.FC = () => {
+  return <MatchesScreen />;
 };
 
 export default LikesPage;

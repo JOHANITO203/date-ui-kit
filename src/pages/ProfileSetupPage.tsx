@@ -1,10 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import ProfileSetupScreen from "@/components/ProfileSetupScreen";
+import React from 'react';
+import ProfileSetupScreen from '../components/ProfileSetupScreen';
 
-const ProfileSetupPage = () => {
-  const navigate = useNavigate();
-
-  return <ProfileSetupScreen onComplete={() => navigate("/discover")} />;
+const ProfileSetupPage: React.FC = () => {
+  return <ProfileSetupScreen />;
 };
 
 export default ProfileSetupPage;

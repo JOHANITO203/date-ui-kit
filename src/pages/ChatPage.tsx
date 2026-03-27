@@ -1,10 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import ChatScreen from "@/components/ChatScreen";
+import React from 'react';
+import ChatScreen from '../components/ChatScreen';
 
-const ChatPage = () => {
-  const navigate = useNavigate();
-
-  return <ChatScreen onBack={() => navigate("/messages")} />;
+const ChatPage: React.FC = () => {
+  return <ChatScreen />;
 };
 
 export default ChatPage;

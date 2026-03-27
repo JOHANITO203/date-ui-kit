@@ -1,10 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import MessagesScreen from "@/components/MessagesScreen";
+import React from 'react';
+import MessagesScreen from '../components/MessagesScreen';
 
-const MessagesPage = () => {
-  const navigate = useNavigate();
-
-  return <MessagesScreen onOpenChat={() => navigate("/chat")} />;
+const MessagesPage: React.FC = () => {
+  return <MessagesScreen />;
 };
 
 export default MessagesPage;

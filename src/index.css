@@ -1,153 +1,112 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@theme {
+  --color-premium-start: #FF1493;
+  --color-premium-end: #00BFFF;
+  --color-boost-start: #FF8C00;
+  --color-boost-end: #FFD166;
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-surface-border: rgba(255, 255, 255, 0.1);
+  --radius-card: 32px;
+  --radius-button: 24px;
+}
 
 @layer base {
   :root {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 12% 10%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 12% 10%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 330 100% 54%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 197 100% 50%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 240 8% 14%;
-    --muted-foreground: 240 6% 56%;
-
-    --accent: 197 100% 50%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 85% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 240 8% 18%;
-    --input: 240 8% 18%;
-    --ring: 330 100% 54%;
-
-    --radius: 1.5rem;
-
-    --warm: 28 100% 55%;
-    --warm-muted: 40 100% 60%;
-    --surface: 240 10% 10%;
-    --surface-elevated: 240 10% 14%;
-
-    --accent-pink: 330 100% 54%;
-    --accent-blue: 197 100% 50%;
-    --accent-orange: 32 100% 52%;
-    --accent-yellow: 45 100% 58%;
-    --accent-red: 0 90% 56%;
-    --accent-violet: 265 85% 62%;
-    --ink: 0 0% 0%;
-
-    --sidebar-background: 240 10% 10%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 330 100% 54%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 235 12% 18%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 235 14% 20%;
-    --sidebar-ring: 330 100% 54%;
+    /* Adaptive Spacing & Radius */
+    --app-padding: 1.5rem;
+    --card-radius: 24px;
+    --touch-target: 44px;
   }
-}
 
-@layer base {
-  * {
-    @apply border-border;
+  @media (min-width: 768px) {
+    :root {
+      --app-padding: 2rem;
+      --card-radius: 32px;
+      --touch-target: 48px;
+    }
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    @apply bg-black text-white font-sans antialiased overflow-hidden;
+    background: linear-gradient(to bottom, #1a0b2e, #000000);
+    height: 100vh;
+    width: 100vw;
   }
 
-  h1, h2, h3, h4 {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Pointer-based interactions */
+  @media (pointer: coarse) {
+    /* Mobile/Tablet: Disable hover effects that stick on touch */
+    .hover-effect {
+      @apply active:scale-95 transition-transform;
+    }
+    
+    /* Ensure large touch targets */
+    button, a {
+      min-height: var(--touch-target);
+      min-width: var(--touch-target);
+    }
+  }
+
+  @media (pointer: fine) {
+    /* Desktop: Enable rich hover states */
+    .hover-effect:hover {
+      @apply scale-105 brightness-110 shadow-lg;
+    }
+    
+    /* Custom thin scrollbars for power users */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
   }
 }
 
-@layer utilities {
-  .font-display {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+@layer components {
+  .glass {
+    @apply bg-white/5 border border-white/10 backdrop-blur-xl;
   }
-  .font-body {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  .gradient-premium {
+    background: linear-gradient(135deg, var(--color-premium-start), var(--color-premium-end));
   }
-  .text-warm {
-    color: hsl(var(--warm));
+  
+  .gradient-boost {
+    background: linear-gradient(135deg, var(--color-boost-start), var(--color-boost-end));
   }
-  .text-ink {
-    color: hsl(var(--ink));
+
+  .text-secondary {
+    color: #8E8E93;
   }
-  .text-accent-pink {
-    color: hsl(var(--accent-pink));
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-  .text-accent-blue {
-    color: hsl(var(--accent-blue));
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-  .text-accent-orange {
-    color: hsl(var(--accent-orange));
-  }
-  .text-accent-red {
-    color: hsl(var(--accent-red));
-  }
-  .bg-accent-pink {
-    background-color: hsl(var(--accent-pink));
-  }
-  .bg-accent-blue {
-    background-color: hsl(var(--accent-blue));
-  }
-  .bg-accent-orange {
-    background-color: hsl(var(--accent-orange));
-  }
-  .bg-accent-red {
-    background-color: hsl(var(--accent-red));
-  }
-  .bg-gradient-love {
-    background-image: linear-gradient(135deg, #ff1493 0%, #00bfff 100%);
-  }
-  .bg-gradient-boost {
-    background-image: linear-gradient(135deg, #ff8c00 0%, #ffd166 100%);
-  }
-  .bg-gradient-violet {
-    background-image: linear-gradient(135deg, #8a2be2 0%, #ff1493 100%);
-  }
-  .bg-sheen {
-    background-image: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 45%),
-      radial-gradient(circle at 80% 0%, rgba(255, 20, 147, 0.15), transparent 40%);
-  }
-  .bg-surface {
-    background-color: hsl(var(--surface));
-  }
-  .bg-surface-elevated {
-    background-color: hsl(var(--surface-elevated));
-  }
-  .bg-glass {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-  .border-glass {
-    border-color: rgba(255, 255, 255, 0.12);
-  }
-  .shadow-glow {
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45),
-      0 0 24px rgba(255, 20, 147, 0.12);
-  }
-  .border-warm {
-    border-color: hsl(var(--warm));
-  }
-  .bg-warm {
-    background-color: hsl(var(--warm));
-  }
-  .bg-warm-muted {
-    background-color: hsl(var(--warm-muted));
-  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }

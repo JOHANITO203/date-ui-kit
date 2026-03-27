@@ -1,10 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import OnboardingScreen from "@/components/OnboardingScreen";
+import React from 'react';
+import OnboardingScreen from '../components/OnboardingScreen';
 
-const OnboardingPage = () => {
-  const navigate = useNavigate();
-
-  return <OnboardingScreen onComplete={() => navigate("/profile-setup")} />;
+const OnboardingPage: React.FC = () => {
+  return <OnboardingScreen />;
 };
 
 export default OnboardingPage;

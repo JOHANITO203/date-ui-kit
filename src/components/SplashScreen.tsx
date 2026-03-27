@@ -1,64 +1,43 @@
-import logo from "@/assets/logo.png";
+import { useNavigate } from 'react-router-dom';
+import GlassButton from './ui/GlassButton';
 
-interface SplashScreenProps {
-  onContinue: () => void;
-  onLogin: () => void;
-}
+const SplashScreen = () => {
+  const navigate = useNavigate();
 
-const SplashScreen = ({ onContinue, onLogin }: SplashScreenProps) => {
   return (
-    <div className="relative min-h-screen bg-background overflow-hidden">
-      <video
-        className="absolute inset-0 w-full h-full object-cover"
-        src="/videos/city-night.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        poster="/videos/city-night-poster.jpg"
-      />
-      <div className="absolute inset-0 bg-black/55" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
+    <div className="relative h-full w-full flex flex-col items-center justify-end p-8 overflow-hidden">
+      {/* Background "Video" Simulation */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1514525253344-f814d0743b15?auto=format&fit=crop&w=1920&q=80" 
+          className="w-full h-full object-cover opacity-60 scale-110 animate-pulse"
+          alt="Splash Background"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+      </div>
 
-      <div className="relative z-10 min-h-screen flex flex-col px-6">
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
-          <img
-            src={logo}
-            alt="Aura"
-            width={72}
-            height={72}
-            className="opacity-90 animate-slide-up"
-            style={{ animationDelay: "80ms" }}
-          />
-          <div className="space-y-4 max-w-sm">
-            <h1
-              className="text-3xl font-semibold text-white tracking-tight animate-slide-up"
-              style={{ animationDelay: "140ms" }}
-            >
-              Des cultures différentes. Une seule connexion.
-            </h1>
-            <p
-              className="text-sm text-white/70 leading-relaxed animate-slide-up"
-              style={{ animationDelay: "220ms" }}
-            >
-              Connectez-vous avec des personnes du monde entier, sans barrière de langue.
-            </p>
-          </div>
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8 mb-12">
+        <div className="w-20 h-20 glass rounded-[24px] flex items-center justify-center mb-4">
+          <div className="w-10 h-10 gradient-premium rounded-full blur-[2px]" />
+        </div>
+        
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl font-bold tracking-tight">
+            Des cultures différentes.<br/>
+            <span className="text-transparent bg-clip-text gradient-premium">Une seule connexion.</span>
+          </h1>
+          <p className="text-secondary text-lg">
+            Connectez-vous avec des personnes du monde entier...
+          </p>
         </div>
 
-        <div className="pb-10 space-y-3 animate-slide-up" style={{ animationDelay: "300ms" }}>
-          <button
-            onClick={onContinue}
-            className="w-full py-3.5 rounded-2xl bg-gradient-love text-white font-semibold shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99]"
-          >
+        <div className="w-full flex flex-col gap-4">
+          <GlassButton variant="premium" onClick={() => navigate('/onboarding')} className="w-full text-lg font-semibold">
             Commencer
-          </button>
-          <button
-            onClick={onLogin}
-            className="w-full py-3.5 rounded-2xl border border-white/25 bg-white/10 text-white/90 font-medium backdrop-blur-sm transition-all hover:bg-white/15"
-          >
+          </GlassButton>
+          <GlassButton onClick={() => navigate('/login')} className="w-full text-lg">
             Se connecter
-          </button>
+          </GlassButton>
         </div>
       </div>
     </div>

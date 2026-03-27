@@ -1,6 +1,7 @@
-import BoostScreen from "@/components/BoostScreen";
+import React from 'react';
+import BoostScreen from '../components/BoostScreen';
 
-const BoostPage = () => {
+const BoostPage: React.FC = () => {
   return <BoostScreen />;
 };
 

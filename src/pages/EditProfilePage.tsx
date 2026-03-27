@@ -1,6 +1,7 @@
-import EditProfileScreen from "@/components/EditProfileScreen";
+import React from 'react';
+import EditProfileScreen from '../components/EditProfileScreen';
 
-const EditProfilePage = () => {
+const EditProfilePage: React.FC = () => {
   return <EditProfileScreen />;
 };
 

@@ -1,103 +1,133 @@
-import { ArrowLeft, Camera, ChevronRight, MapPin, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import profile1 from "@/assets/profile-1.jpg";
-import profile2 from "@/assets/profile-2.jpg";
-import profile3 from "@/assets/profile-3.jpg";
+import React from 'react';
+import { motion } from 'motion/react';
+import { Camera, Plus, ChevronLeft, Trash2, GripVertical } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useDevice } from '../hooks/useDevice';
+import GlassButton from './ui/GlassButton';
 
-const EditProfileScreen = () => {
+const EditProfileScreen: React.FC = () => {
   const navigate = useNavigate();
+  const { isDesktop, isTablet } = useDevice();
+  const isLarge = isDesktop || isTablet;
+  
+  const photos = [
+    "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80",
+    null, null, null, null, null
+  ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="min-h-screen bg-gradient-to-b from-[#3a1456] via-[#0b0b10] to-black px-5 pt-10 pb-28">
-        <div className="max-w-lg mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-white/80 text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="uppercase tracking-[0.25em] text-[11px]">Modifier profil</span>
-            </button>
-            <button className="text-xs uppercase tracking-[0.2em] text-white/70 hover:text-white transition-colors">
-              Enregistrer
-            </button>
+    <div className={`h-full flex flex-col bg-black ${isLarge ? 'p-12' : 'p-6 pb-28'} overflow-y-auto no-scrollbar`}>
+      <header className="flex items-center justify-between mb-12">
+        <div className="flex items-center gap-6">
+          <button onClick={() => navigate(-1)} className="p-3 rounded-2xl glass hover-effect">
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-black tracking-tighter">Modifier le Profil</h1>
+            <p className="text-secondary text-[10px] uppercase tracking-[0.2em] font-bold">Personnalisez votre présence</p>
           </div>
+        </div>
+        <GlassButton className="py-3 px-8 rounded-2xl text-xs font-black uppercase tracking-widest bg-pink-500 text-white border-none">
+          Enregistrer
+        </GlassButton>
+      </header>
 
-          {/* Photos */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Photos & medias</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[profile1, profile2, profile3, profile1, profile2].map((src, idx) => (
-                <div
-                  key={`${src}-${idx}`}
-                  className="aspect-square rounded-2xl overflow-hidden bg-white/10 border border-white/10"
-                >
-                  <img src={src} alt="Media" className="w-full h-full object-cover" />
+      <div className={`grid ${isLarge ? 'grid-cols-12 gap-12' : 'grid-cols-1 gap-10'}`}>
+        {/* Photos Section */}
+        <div className={`${isLarge ? 'col-span-7' : ''} space-y-6`}>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-sm font-black uppercase tracking-[0.2em]">Photos (1/6)</h3>
+            <span className="text-[10px] text-secondary font-bold">Glissez pour réorganiser</span>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4">
+            {photos.map((photo, i) => (
+              <div 
+                key={i} 
+                className={`${i === 0 ? 'col-span-2 row-span-2' : ''} aspect-square rounded-[32px] relative group overflow-hidden border border-white/5 bg-white/[0.02]`}
+              >
+                {photo ? (
+                  <>
+                    <img src={photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button className="p-2 glass rounded-xl text-white hover:bg-red-500/20 hover:text-red-500 transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                      <button className="p-2 glass rounded-xl text-white cursor-grab active:cursor-grabbing">
+                        <GripVertical size={18} />
+                      </button>
+                    </div>
+                    {i === 0 && (
+                      <div className="absolute top-4 left-4 px-3 py-1 glass rounded-full text-[8px] font-black uppercase tracking-widest text-white">
+                        Principale
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20 hover:text-pink-500 hover:bg-pink-500/5 transition-all">
+                    <div className="w-10 h-10 rounded-2xl border-2 border-dashed border-current flex items-center justify-center">
+                      <Plus size={20} />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest">Ajouter</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Details Section */}
+        <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
+          <section className="space-y-4">
+            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">À propos de moi</label>
+            <div className="glass rounded-[32px] p-1 focus-within:border-pink-500/30 transition-colors border border-transparent">
+              <textarea 
+                className="w-full bg-transparent outline-none p-6 text-sm leading-relaxed min-h-[160px] no-scrollbar resize-none"
+                placeholder="Dites-en un peu plus sur vous..."
+                defaultValue="Passionné par le design et les voyages. J'aime découvrir de nouveaux endroits et partager des moments authentiques. Toujours prêt pour une nouvelle aventure !"
+              />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">Centres d'intérêt</label>
+            <div className="flex flex-wrap gap-3">
+              {['Voyage', 'Photographie', 'Café', 'Musique', 'Randonnée'].map((tag) => (
+                <div key={tag} className="px-5 py-3 rounded-2xl glass border border-white/5 text-xs font-bold flex items-center gap-3 group hover:border-pink-500/30 transition-colors cursor-pointer">
+                  {tag}
+                  <button className="text-white/20 group-hover:text-red-500 transition-colors">
+                    <Plus size={14} className="rotate-45" />
+                  </button>
                 </div>
               ))}
-              <button className="aspect-square rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                <Camera className="w-5 h-5 text-white/60" />
+              <button className="px-5 py-3 rounded-2xl border border-dashed border-white/20 text-xs font-bold text-secondary hover:text-white hover:border-white/40 transition-all flex items-center gap-2">
+                <Plus size={14} /> Ajouter
               </button>
             </div>
-            <p className="text-[11px] text-white/50">Ajoutez des photos pour booster votre profil.</p>
-          </div>
+          </section>
 
-          {/* Basic info */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Informations de base</p>
-            <div className="grid grid-cols-2 gap-3">
+          <section className="space-y-4">
+            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">Détails vérifiés</label>
+            <div className="glass rounded-[32px] overflow-hidden">
               {[
-                { label: "Nom", value: "Sophie" },
-                { label: "Age", value: "26" },
-                { label: "Genre", value: "Femme" },
-                { label: "Localisation", value: "Paris" },
-              ].map((item) => (
-                <div
+                { label: 'Taille', value: '182 cm' },
+                { label: 'Sport', value: 'Souvent' },
+                { label: 'Fumeur', value: 'Non' },
+                { label: 'Langues', value: 'Français, Anglais' }
+              ].map((item, i, arr) => (
+                <button 
                   key={item.label}
-                  className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 px-4 py-3"
+                  className={`w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors ${i !== arr.length - 1 ? 'border-b border-white/5' : ''}`}
                 >
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">{item.label}</p>
-                  <p className="text-sm font-semibold text-white">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Votre biographie</p>
-            <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 px-4 py-4">
-              <p className="text-sm text-white/80">
-                Salut ! J aime la randonnee, le cafe et decouvrir de nouveaux restos. Curieuse et spontanee.
-              </p>
-              <p className="text-[10px] text-white/40 mt-3">140 / 250</p>
-            </div>
-          </div>
-
-          {/* Preferences */}
-          <div className="space-y-3">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-white/60">Ce que je recherche</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Relation", value: "Long terme", icon: Sparkles },
-                { label: "Dist. max", value: "35 km", icon: MapPin },
-                { label: "Age", value: "25-34", icon: ChevronRight },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 px-3 py-3"
-                >
-                  <div className="flex items-center gap-2 text-white/60 text-xs">
-                    <item.icon className="w-3.5 h-3.5" />
-                    <span>{item.label}</span>
+                  <span className="text-xs font-bold text-secondary">{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-black">{item.value}</span>
+                    <ChevronLeft size={14} className="rotate-180 text-white/20" />
                   </div>
-                  <p className="text-sm font-semibold text-white mt-2">{item.value}</p>
-                </div>
+                </button>
               ))}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>

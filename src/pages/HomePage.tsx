@@ -1,15 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import SplashScreen from "@/components/SplashScreen";
+import React from 'react';
+import SplashScreen from '../components/SplashScreen';
 
-const HomePage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <SplashScreen
-      onContinue={() => navigate("/profile-setup")}
-      onLogin={() => navigate("/onboarding")}
-    />
-  );
+const HomePage: React.FC = () => {
+  return <SplashScreen />;
 };
 
 export default HomePage;
