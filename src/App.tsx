@@ -18,6 +18,7 @@ import AccountSettingsPage from "./pages/AccountSettingsPage.tsx";
 import PrivacyPage from "./pages/PrivacyPage.tsx";
 import NotificationsPage from "./pages/NotificationsPage.tsx";
 import PreferencesPage from "./pages/PreferencesPage.tsx";
+import EditProfilePage from "./pages/EditProfilePage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const AnimatedRoutes = () => {
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
         <Route path="/chat" element={<ChatPage />} />
+        <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/settings/account" element={<AccountSettingsPage />} />
         <Route path="/settings/privacy" element={<PrivacyPage />} />
         <Route path="/settings/notifications" element={<NotificationsPage />} />

@@ -21,8 +21,8 @@ const BottomNav = ({ badges = {} }: BottomNavProps) => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface-elevated/90 backdrop-blur-xl border-t border-border/40 z-50">
-      <div className="max-w-lg mx-auto flex items-center justify-around py-3 px-4">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface-elevated/70 backdrop-blur-3xl border-t border-white/10 z-50">
+      <div className="max-w-lg mx-auto flex items-center justify-around py-4 px-4">
         {items.map((item) => (
           <NavLink
             key={item.id}
@@ -37,7 +37,7 @@ const BottomNav = ({ badges = {} }: BottomNavProps) => {
               <>
                 <div className="relative">
                   <item.icon
-                    className={`w-5 h-5 transition-colors ${isActive ? "fill-current" : ""}`}
+                    className={`w-6 h-6 transition-colors ${isActive ? "fill-current" : ""}`}
                     strokeWidth={isActive ? 2 : 1.5}
                   />
                   {badges[item.id]?.dot && (

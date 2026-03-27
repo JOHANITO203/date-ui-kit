@@ -6,13 +6,13 @@
 
 @layer base {
   :root {
-    --background: 240 14% 6%;
+    --background: 0 0% 0%;
     --foreground: 0 0% 98%;
 
-    --card: 240 14% 10%;
+    --card: 240 12% 10%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 14% 10%;
+    --popover: 240 12% 10%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 330 100% 54%;
@@ -21,8 +21,8 @@
     --secondary: 197 100% 50%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 235 12% 15%;
-    --muted-foreground: 225 10% 65%;
+    --muted: 240 8% 14%;
+    --muted-foreground: 240 6% 56%;
 
     --accent: 197 100% 50%;
     --accent-foreground: 0 0% 100%;
@@ -30,16 +30,16 @@
     --destructive: 0 85% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 235 14% 20%;
-    --input: 235 14% 20%;
+    --border: 240 8% 18%;
+    --input: 240 8% 18%;
     --ring: 330 100% 54%;
 
     --radius: 1.5rem;
 
     --warm: 28 100% 55%;
     --warm-muted: 40 100% 60%;
-    --surface: 240 12% 12%;
-    --surface-elevated: 240 12% 16%;
+    --surface: 240 10% 10%;
+    --surface-elevated: 240 10% 14%;
 
     --accent-pink: 330 100% 54%;
     --accent-blue: 197 100% 50%;
@@ -49,7 +49,7 @@
     --accent-violet: 265 85% 62%;
     --ink: 0 0% 0%;
 
-    --sidebar-background: 240 12% 12%;
+    --sidebar-background: 240 10% 10%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 330 100% 54%;
     --sidebar-primary-foreground: 0 0% 100%;
@@ -130,6 +130,16 @@
   }
   .bg-surface-elevated {
     background-color: hsl(var(--surface-elevated));
+  }
+  .bg-glass {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  .border-glass {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .shadow-glow {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45),
+      0 0 24px rgba(255, 20, 147, 0.12);
   }
   .border-warm {
     border-color: hsl(var(--warm));
