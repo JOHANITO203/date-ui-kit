@@ -6,6 +6,7 @@ import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
+import Logo from './ui/Logo';
 
 const SwipeScreen = () => {
   const navigate = useNavigate();
@@ -119,7 +120,7 @@ const SwipeScreen = () => {
       <div className="flex items-end justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
         <div className="flex flex-col gap-1">
           <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('discover.eyebrow')}</p>
-          <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">{t('discover.title')}</h1>
+          <Logo size={30} showText />
         </div>
         <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
           <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />

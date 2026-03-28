@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { ICONS } from '../types';
 import { motion } from 'motion/react';
 import { useI18n } from '../i18n/I18nProvider';
+import Logo from './ui/Logo';
 
 const Sidebar: React.FC = () => {
   const { t } = useI18n();
@@ -17,9 +18,8 @@ const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-64 h-full border-r border-[var(--menu-premium-border)] flex flex-col p-6 z-40 bg-[var(--menu-premium-gray)] backdrop-blur-2xl shadow-[8px_0_26px_rgba(0,0,0,0.35)]">
-      <div className="flex items-center gap-3 mb-12 px-2">
-        <div className="w-8 h-8 gradient-premium rounded-lg" />
-        <h1 className="text-xl font-black italic tracking-tighter">SWIPE</h1>
+      <div className="mb-12 px-2">
+        <Logo size={34} />
       </div>
 
       <nav className="flex-1 space-y-2">
