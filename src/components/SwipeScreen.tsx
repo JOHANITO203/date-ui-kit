@@ -176,7 +176,7 @@ const SwipeScreen = () => {
             </aside>
 
             <div className="w-full flex flex-col items-center density-comfortable min-h-0">
-            <div className={`container-deck relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(58vh,33rem)]'}`}>
+            <div className={`container-deck relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(62vh,35rem)]'}`}>
           <AnimatePresence>
             <motion.div
               key={`next-${nextUser.id}`}
@@ -213,14 +213,14 @@ const SwipeScreen = () => {
                 />
               </AnimatePresence>
 
-              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 border-4 border-green-500 text-green-500 font-black text-4xl px-6 py-2 rounded-xl rotate-[-20deg] pointer-events-none z-30 uppercase tracking-tighter shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                J'AIME
+              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-16 h-16 border-4 border-blue-400 text-blue-400 rounded-2xl rotate-[-16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
+                <ICONS.Likes size={28} fill="currentColor" />
               </motion.div>
-              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 border-4 border-red-500 text-red-500 font-black text-4xl px-6 py-2 rounded-xl rotate-[20deg] pointer-events-none z-30 uppercase tracking-tighter shadow-[0_0_20px_rgba(239,68,68,0.3)]">
-                NON
+              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-16 h-16 border-4 border-red-500 text-red-500 rounded-2xl rotate-[16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
+                <ICONS.X size={30} />
               </motion.div>
-              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-purple-500 text-purple-500 font-black text-4xl px-6 py-2 rounded-xl pointer-events-none z-30 uppercase tracking-tighter shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                SUPER
+              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-4 border-fuchsia-500 text-fuchsia-400 rounded-2xl pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(217,70,239,0.35)]">
+                <ICONS.Star size={26} fill="currentColor" />
               </motion.div>
 
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10 pointer-events-none" />
@@ -233,7 +233,7 @@ const SwipeScreen = () => {
                 ))}
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 pb-24 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
+              <div className={`absolute bottom-0 left-0 right-0 p-6 pt-24 ${isDesktop ? 'pb-24' : 'pb-20'} bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none`}>
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     <div className={`inline-flex gap-2 ${isLarge ? 'items-center' : 'items-start'}`}>
@@ -334,14 +334,14 @@ const SwipeScreen = () => {
                 />
               </AnimatePresence>
 
-              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 border-4 border-green-500 text-green-500 font-black text-4xl px-6 py-2 rounded-xl rotate-[-20deg] pointer-events-none z-30 uppercase tracking-tighter shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-                J'AIME
+              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-14 h-14 border-4 border-blue-400 text-blue-400 rounded-2xl rotate-[-16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
+                <ICONS.Likes size={24} fill="currentColor" />
               </motion.div>
-              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 border-4 border-red-500 text-red-500 font-black text-4xl px-6 py-2 rounded-xl rotate-[20deg] pointer-events-none z-30 uppercase tracking-tighter shadow-[0_0_20px_rgba(239,68,68,0.3)]">
-                NON
+              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-14 h-14 border-4 border-red-500 text-red-500 rounded-2xl rotate-[16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
+                <ICONS.X size={24} />
               </motion.div>
-              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-purple-500 text-purple-500 font-black text-4xl px-6 py-2 rounded-xl pointer-events-none z-30 uppercase tracking-tighter shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                SUPER
+              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 border-4 border-fuchsia-500 text-fuchsia-400 rounded-2xl pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(217,70,239,0.35)]">
+                <ICONS.Star size={22} fill="currentColor" />
               </motion.div>
 
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10 pointer-events-none" />

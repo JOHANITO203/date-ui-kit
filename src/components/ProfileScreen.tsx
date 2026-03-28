@@ -232,11 +232,11 @@ const ProfileScreen = () => {
       </div>
 
       {isLarge && (
-        <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">
+        <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
           <div className="group/profile-rail h-full w-full flex items-center justify-center pointer-events-auto">
-            <div className="flex items-center opacity-0 transition-opacity duration-300 group-hover/profile-rail:opacity-100">
+            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/profile:opacity-100 group-focus-within/profile:opacity-100 group-hover/profile-rail:opacity-100">
               <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_14px_rgba(168,85,247,0.28)]">
-                <div className="relative w-2.5 h-44 rounded-full bg-[#09090c]/95 overflow-hidden">
+                <div className="relative w-3 h-52 rounded-full bg-[#09090c]/95 overflow-hidden">
                   <div
                     className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
                     style={{
@@ -246,12 +246,12 @@ const ProfileScreen = () => {
                   />
                 </div>
               </div>
-              <div className="ml-2 flex flex-col gap-2">
+              <div className="ml-2 flex flex-col gap-2.5">
                 {[0, 1, 2, 3, 4].map((index) => (
                   <button
                     key={`profile-jump-${index}`}
                     onClick={() => jumpToSection(index)}
-                    className="w-2 h-2 rounded-full bg-white/35 hover:bg-white/70 transition-colors"
+                    className="w-3 h-3 rounded-full bg-white/35 hover:bg-white/70 transition-colors"
                     aria-label={`Aller a la section ${index + 1}`}
                   />
                 ))}

@@ -169,11 +169,11 @@ const BoostScreen = () => {
         </section>
       </div>
       {isLarge && (
-        <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">
+        <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
           <div className="group/boost-rail h-full w-full flex items-center justify-center pointer-events-auto">
-            <div className="flex items-center opacity-0 transition-opacity duration-300 group-hover/boost-rail:opacity-100">
+            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/boost:opacity-100 group-focus-within/boost:opacity-100 group-hover/boost-rail:opacity-100">
               <div className="rounded-full p-[1px] bg-gradient-to-b from-orange-500 via-amber-400 to-yellow-300 shadow-[0_0_14px_rgba(251,146,60,0.33)]">
-                <div className="relative w-2.5 h-40 rounded-full bg-[#120a02]/95 overflow-hidden">
+                <div className="relative w-3 h-48 rounded-full bg-[#120a02]/95 overflow-hidden">
                   <div
                     className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-orange-400 via-amber-300 to-yellow-200"
                     style={{
@@ -183,12 +183,12 @@ const BoostScreen = () => {
                   />
                 </div>
               </div>
-              <div className="ml-2 flex flex-col gap-2">
+              <div className="ml-2 flex flex-col gap-2.5">
                 {[0, 1, 2].map((index) => (
                   <button
                     key={`boost-jump-${index}`}
                     onClick={() => jumpToSection(index)}
-                    className="w-2 h-2 rounded-full bg-white/35 hover:bg-orange-300 transition-colors"
+                    className="w-3 h-3 rounded-full bg-white/35 hover:bg-orange-300 transition-colors"
                     aria-label={`Aller a la section boost ${index + 1}`}
                   />
                 ))}
