@@ -106,6 +106,39 @@
     --boost-title-size: 2.25rem;
     --boost-desc-size: 0.9rem;
     --boost-cta-h: 2.75rem;
+    --boost-tier-card-w: clamp(16.5rem, 24vw, 17.5rem);
+    --boost-tier-card-min-h: clamp(18.5rem, 36vw, 20rem);
+    --boost-tier-card-radius: clamp(2rem, 4vw, 2.5rem);
+    --boost-tier-inner-radius: clamp(1.5rem, 3vw, 2rem);
+    --boost-tier-pad: clamp(1rem, 1.4vw, 1.5rem);
+    --boost-tier-title-size: clamp(1.95rem, 3.4vw, 2.65rem);
+    --boost-tier-price-size: clamp(2.2rem, 4.2vw, 3.2rem);
+    --boost-tier-period-size: clamp(0.72rem, 1.1vw, 0.88rem);
+    --boost-tier-feature-size: clamp(0.86rem, 1.2vw, 1rem);
+    --boost-tier-tag-size: clamp(0.55rem, 0.9vw, 0.62rem);
+    --boost-tier-cta-h: clamp(3.4rem, 6vw, 4.25rem);
+    --boost-tier-cta-size: clamp(1.1rem, 1.8vw, 1.28rem);
+    --boost-tier-cta-track: clamp(0.18em, 0.3vw, 0.32em);
+    --boost-tier-cta-glow-blur: clamp(1.9rem, 3.5vw, 2.5rem);
+    --boost-tier-cta-glow-h: clamp(2.1rem, 3.5vw, 2.5rem);
+    --boost-tier-cta-glow-offset: clamp(-1.5rem, -2vw, -1.1rem);
+    --boost-tier-disclaimer-size: clamp(0.55rem, 0.8vw, 0.62rem);
+    --glass-card-bg: rgba(255, 255, 255, 0.05);
+    --glass-card-bg-soft: rgba(255, 255, 255, 0.03);
+    --glass-card-border: rgba(255, 255, 255, 0.1);
+    --glass-card-border-strong: rgba(255, 255, 255, 0.2);
+    --glass-card-blur: 24px;
+    --glass-card-pad: clamp(1rem, 1.5vw, 1.5rem);
+    --glass-card-radius-soft: clamp(1.5rem, 3vw, 2rem);
+    --glow-silver: 148 163 184;
+    --glow-gold: 245 158 11;
+    --glow-blue: 59 130 246;
+    --glow-pink: 236 72 153;
+    --glow-orange: 249 115 22;
+    --glow-cyan: 34 211 238;
+    --glow-alpha-soft: 0.18;
+    --glow-alpha-medium: 0.28;
+    --glow-alpha-strong: 0.38;
     --content-safe-extra: 1rem;
 
     /* Typography */
@@ -829,6 +862,28 @@
 @layer components {
   .glass {
     @apply bg-white/5 border border-white/10 backdrop-blur-xl;
+  }
+
+  .glass-panel {
+    background: var(--glass-card-bg);
+    border: 1px solid var(--glass-card-border);
+    backdrop-filter: blur(var(--glass-card-blur));
+    -webkit-backdrop-filter: blur(var(--glass-card-blur));
+  }
+
+  .glass-panel-soft {
+    background: var(--glass-card-bg-soft);
+    border: 1px solid var(--glass-card-border);
+    backdrop-filter: blur(var(--glass-card-blur));
+    -webkit-backdrop-filter: blur(var(--glass-card-blur));
+  }
+
+  .glass-panel-active {
+    border-color: var(--glass-card-border-strong);
+  }
+
+  .glass-panel-float {
+    transition: transform 500ms ease-in-out, opacity 500ms ease-in-out, border-color 220ms ease-in-out, background-color 500ms ease-in-out;
   }
   
   .gradient-premium {

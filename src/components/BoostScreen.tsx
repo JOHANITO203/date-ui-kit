@@ -1,77 +1,119 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
+
+type CatalogView = 'instant' | 'passes' | 'bundles';
+type TierId = 'essential' | 'gold' | 'platinum';
+type GlowToken = '--glow-silver' | '--glow-gold' | '--glow-blue' | '--glow-pink' | '--glow-orange' | '--glow-cyan';
+
+type TierDef = {
+  id: TierId;
+  name: string;
+  tierTag: string;
+  price: string;
+  period: string;
+  features: string[];
+  hasStar?: boolean;
+  tagClass: string;
+  bulletClass: string;
+  glowToken: GlowToken;
+  ctaButtonClass: string;
+};
+
+const tiers: TierDef[] = [
+  {
+    id: 'essential',
+    name: 'VIBE Essential',
+    tierTag: 'BASIQUE',
+    price: '9.99\u20AC',
+    period: '/ MOIS',
+    features: ['Voir qui vous a like', '5 Super Likes par jour', 'Likes illimites', 'Zero publicite'],
+    tagClass: 'bg-slate-300 text-black',
+    bulletClass: 'bg-slate-400',
+    glowToken: '--glow-silver',
+    ctaButtonClass: 'bg-gradient-to-r from-slate-400 to-slate-600 text-black',
+  },
+  {
+    id: 'gold',
+    name: 'VIBE Gold',
+    tierTag: 'POPULAIRE',
+    price: '19.99\u20AC',
+    period: '/ MOIS',
+    features: ['Tout de Essential', 'Passeport (Monde entier)', 'Rewind illimite', '1 Boost gratuit par mois', 'Cacher son age/distance'],
+    hasStar: true,
+    tagClass: 'bg-amber-400 text-black',
+    bulletClass: 'bg-amber-400',
+    glowToken: '--glow-gold',
+    ctaButtonClass: 'bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black',
+  },
+  {
+    id: 'platinum',
+    name: 'VIBE Platinum',
+    tierTag: 'ELITE',
+    price: '34.99\u20AC',
+    period: '/ MOIS',
+    features: ['Tout de Gold', 'Priorite sur les Likes', 'Message avant le match', 'Voir qui est en ligne', '2 Boosts gratuits par mois'],
+    tagClass: 'bg-cyan-400 text-black',
+    bulletClass: 'bg-blue-400',
+    glowToken: '--glow-blue',
+    ctaButtonClass: 'bg-gradient-to-r from-indigo-400 via-blue-500 to-cyan-400 text-white',
+  },
+];
+
+const instantProducts = [
+  { id: 'boost', label: 'Boost visibilite', desc: 'Passe devant plus de profils actifs pendant 30 minutes.', price: '3,99 EUR', meta: 'Impact immediat', glowToken: '--glow-orange' as GlowToken },
+  { id: 'premium', label: 'Premium verified', desc: 'Badge verified + conversations sans restriction.', price: '9,99 EUR', meta: 'Mensuel', glowToken: '--glow-pink' as GlowToken },
+  { id: 'superlike', label: 'SuperLike tokens', desc: 'Apparition top conversation avec message prioritaire.', price: '4,99 EUR', meta: '5 tokens', glowToken: '--glow-blue' as GlowToken },
+  { id: 'rewind', label: 'Rewind tokens', desc: 'Annule un swipe. Inclus premium, vendable separement.', price: '2,99 EUR', meta: '5 tokens', glowToken: '--glow-silver' as GlowToken },
+];
+
+const timePacks = [
+  { id: 'day', label: 'Pass Jour', desc: 'Mini premium + 1 boost', price: '5,99 EUR', tag: '24h', glowToken: '--glow-silver' as GlowToken },
+  { id: 'week', label: 'Pass Semaine', desc: 'Premium temporaire + tokens', price: '14,99 EUR', tag: '7 jours', glowToken: '--glow-gold' as GlowToken },
+  { id: 'month', label: 'Pass Mois', desc: 'Premium complet + dotation incluse', price: '29,99 EUR', tag: '30 jours', glowToken: '--glow-blue' as GlowToken },
+];
+
+const bundles = [
+  { id: 'starter', label: 'Starter', desc: '1 Boost + 5 SuperLikes', price: '7,99 EUR', tag: 'Premier achat', glowToken: '--glow-silver' as GlowToken },
+  { id: 'pro', label: 'Dating Pro', desc: '5 Boosts + 20 SuperLikes + 10 Rewinds', price: '24,99 EUR', tag: 'Meilleur rapport', glowToken: '--glow-pink' as GlowToken },
+  { id: 'premiumplus', label: 'Premium+', desc: 'Premium mensuel + 4 boosts + tokens mensuels', price: '39,99 EUR', tag: 'Valeur maximale', glowToken: '--glow-cyan' as GlowToken },
+];
 
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const isLarge = isDesktop || isTablet;
   const showDesktopRail = isLarge && !isTouch;
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
+  const glowTimerRef = useRef<number | null>(null);
+
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollThumb, setScrollThumb] = useState(32);
-  const BOOST_DURATION = 30 * 60;
+  const [catalogView, setCatalogView] = useState<CatalogView>('instant');
+  const [activeTier, setActiveTier] = useState<TierId>('gold');
+  const [glowPulseTier, setGlowPulseTier] = useState<TierId | null>(null);
   const [isBoostActive, setIsBoostActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [catalogView, setCatalogView] = useState<'instant' | 'passes' | 'bundles'>('instant');
-  const hour = new Date().getHours();
-  const isPeakNow = hour >= 20 || hour <= 1;
 
-  const instantProducts = [
-    {
-      id: 'boost',
-      label: 'Boost Visibilite',
-      desc: 'Plus de vues et plus de matches pendant 30 min.',
-      price: '3,99 EUR',
-      unit: '1 activation',
-      tag: 'Impact immediat',
-      accent: 'orange',
-      icon: ICONS.Boost,
-    },
-    {
-      id: 'premium',
-      label: 'Premium Verified',
-      desc: 'Badge verified + conversations sans restriction.',
-      price: '9,99 EUR',
-      unit: 'mensuel',
-      tag: 'Statut + confort',
-      accent: 'pink',
-      icon: ICONS.CheckCircle2,
-    },
-    {
-      id: 'superlike',
-      label: 'SuperLike Tokens',
-      desc: 'Passe en top conversation avec message prioritaire.',
-      price: '4,99 EUR',
-      unit: '5 tokens',
-      tag: 'Top conversation',
-      accent: 'blue',
-      icon: ICONS.Star,
-    },
-    {
-      id: 'rewind',
-      label: 'Rewind Tokens',
-      desc: 'Annule un swipe. Inclus Premium, vendable separement.',
-      price: '2,99 EUR',
-      unit: '5 tokens',
-      tag: 'Filet de securite',
-      accent: 'neutral',
-      icon: ICONS.Rewind,
-    },
-  ];
-
-  const timePacks = [
-    { id: 'day', label: 'Pass Jour', desc: 'Mini premium + 1 boost', price: '5,99 EUR', tag: '24h' },
-    { id: 'week', label: 'Pass Semaine', desc: 'Premium temporaire + tokens', price: '14,99 EUR', tag: '7 jours' },
-    { id: 'month', label: 'Pass Mois', desc: 'Premium complet + dotation incluse', price: '29,99 EUR', tag: '30 jours' },
-  ];
-
-  const bundles = [
-    { id: 'starter', label: 'Starter', desc: '1 Boost + 5 SuperLikes', price: '7,99 EUR', tag: 'Premier achat' },
-    { id: 'pro', label: 'Dating Pro', desc: '5 Boosts + 20 SuperLikes + 10 Rewinds', price: '24,99 EUR', tag: 'Meilleur rapport' },
-    { id: 'premiumplus', label: 'Premium+', desc: 'Premium mensuel + 4 boosts + tokens mensuels', price: '39,99 EUR', tag: 'Valeur maximale' },
-  ];
+  const selectedTier = tiers.find((tier) => tier.id === activeTier) ?? tiers[1];
+  const BOOST_DURATION = 30 * 60;
+  const glowShadow = (token: GlowToken, alpha = 0.28, blur = 34) => ({
+    boxShadow: `0 0 ${blur}px rgb(var(${token}) / ${alpha})`,
+  });
+  const glowBg = (token: GlowToken, alpha = 0.2) => ({
+    backgroundColor: `rgb(var(${token}) / ${alpha})`,
+  });
+  const radialTone = (token: GlowToken, alpha = 0.16) => ({
+    backgroundImage: `radial-gradient(circle at 86% 0%, rgb(var(${token}) / ${alpha}) 0%, transparent 56%)`,
+  });
+  const glowCardStyle = (token: GlowToken, shadowAlpha = 0.18, bgAlpha = 0.06, borderAlpha = 0.22) => ({
+    ...glowShadow(token, shadowAlpha, 24),
+    backgroundColor: `rgb(var(${token}) / ${bgAlpha})`,
+    borderColor: `rgb(var(${token}) / ${borderAlpha})`,
+  });
 
   useEffect(() => {
     if (!isBoostActive) return;
@@ -84,7 +126,6 @@ const BoostScreen = () => {
         return prev - 1;
       });
     }, 1000);
-
     return () => window.clearInterval(interval);
   }, [isBoostActive]);
 
@@ -103,12 +144,17 @@ const BoostScreen = () => {
     updateScroll();
     node.addEventListener('scroll', updateScroll);
     window.addEventListener('resize', updateScroll);
-
     return () => {
       node.removeEventListener('scroll', updateScroll);
       window.removeEventListener('resize', updateScroll);
     };
   }, [isLarge]);
+
+  useEffect(() => {
+    return () => {
+      if (glowTimerRef.current) window.clearTimeout(glowTimerRef.current);
+    };
+  }, []);
 
   const timer = useMemo(() => {
     const min = Math.floor(timeLeft / 60);
@@ -116,19 +162,16 @@ const BoostScreen = () => {
     return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   }, [timeLeft]);
 
-  const liveStats = useMemo(() => {
-    const elapsed = Math.max(0, BOOST_DURATION - timeLeft);
-    return {
-      views: isBoostActive ? Math.max(1, Math.floor(elapsed / 12)) : 0,
-      likes: isBoostActive ? Math.floor(elapsed / 70) : 0,
-      matches: isBoostActive ? Math.floor(elapsed / 180) : 0,
-      visits: isBoostActive ? Math.max(1, Math.floor(elapsed / 25)) : 0,
-    };
-  }, [isBoostActive, timeLeft]);
-
   const activateBoost = () => {
     setIsBoostActive(true);
     setTimeLeft((prev) => (prev > 0 ? prev + BOOST_DURATION : BOOST_DURATION));
+  };
+
+  const handleSelectTier = (tierId: TierId) => {
+    setActiveTier(tierId);
+    setGlowPulseTier(tierId);
+    if (glowTimerRef.current) window.clearTimeout(glowTimerRef.current);
+    glowTimerRef.current = window.setTimeout(() => setGlowPulseTier(null), 260);
   };
 
   const jumpToSection = (index: number) => {
@@ -137,115 +180,173 @@ const BoostScreen = () => {
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const cardBaseClass =
-    'rounded-[var(--card-radius)] border border-[var(--menu-premium-border)] bg-[var(--menu-premium-gray)]/85 backdrop-blur-xl';
-  const getAccentClass = (accent: string) => {
-    if (accent === 'orange') return 'border-orange-400/35 bg-orange-500/10';
-    if (accent === 'pink') return 'border-pink-400/35 bg-pink-500/10';
-    if (accent === 'blue') return 'border-blue-400/35 bg-blue-500/10';
-    return 'border-[var(--menu-premium-border)] bg-[var(--menu-premium-gray)]/85';
-  };
-
   return (
     <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-[var(--boost-page-y)]">
       <div className={`${isLarge ? 'screen-template-commerce container-commerce' : 'container-content flex flex-col gap-[var(--boost-mobile-section-gap)]'} px-[var(--page-x)]`}>
-        <section className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[clamp(2rem,3.2vw,3rem)] leading-none font-black tracking-tight">Boost</h1>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-secondary font-black mt-2">Visibilite & Conversion</p>
-          </div>
-          {!isBoostActive && (
-            <span className="mt-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] border border-orange-300/35 text-orange-200 bg-orange-500/12">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-300" />
-              {isPeakNow ? 'Heure active' : 'Pic ce soir'}
-            </span>
-          )}
-        </section>
-
-        <section
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           ref={(el) => {
             sectionRefs.current[0] = el;
           }}
-          className={`${cardBaseClass} ${isLarge ? 'p-6 md:p-8 lg:p-10' : 'p-[var(--boost-hero-pad)]'} border-orange-500/30 transition-all ${isBoostActive ? 'shadow-[0_0_40px_rgba(251,146,60,0.22)]' : ''}`}
+          className="relative overflow-hidden rounded-[var(--card-radius)] border border-orange-400/30 bg-black p-[var(--boost-hero-pad)] md:p-8"
         >
-          <div className={`flex ${isLarge ? 'flex-col md:flex-row md:items-center md:justify-between gap-6' : 'flex-col gap-4'}`}>
-            <div className={`flex ${isLarge ? 'items-start gap-4' : 'flex-col items-start gap-3'}`}>
-              <div className={`${isLarge ? 'w-20 h-20 md:w-24 md:h-24 rounded-[28px]' : 'w-[var(--boost-hero-icon-box)] h-[var(--boost-hero-icon-box)] rounded-[1.25rem]'} gradient-boost flex items-center justify-center shadow-2xl shadow-orange-500/30 shrink-0 ${isBoostActive ? 'animate-pulse' : 'animate-float'}`}>
-                <ICONS.Boost size={isLarge ? 42 : 30} className="text-black" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Visibilite acceleree</p>
-                <h2 className={`${isLarge ? 'fluid-title' : 'text-[length:var(--boost-title-size)] leading-[1.04]'} font-bold`}>
-                  {isBoostActive ? 'Votre profil performe en direct' : 'Multipliez votre visibilite au bon moment'}
-                </h2>
-                <p className={`text-secondary ${isLarge ? 'fluid-subtitle max-w-lg' : 'text-[length:var(--boost-desc-size)] leading-relaxed max-w-none'}`}>
-                  {isBoostActive
-                    ? 'Votre profil est prioritaire dans votre zone. Continuez pour capter plus de likes, matchs et conversations.'
-                    : 'Jusqu a 3x plus de vues pendant les heures actives. Les profils boostes obtiennent generalement plus de likes et de matchs.'}
-                </p>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border ${isBoostActive ? 'border-green-400/40 text-green-300 bg-green-500/10' : 'border-white/15 text-secondary bg-white/5'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isBoostActive ? 'bg-green-300 animate-pulse' : 'bg-white/40'}`} />
-                    {isBoostActive ? 'Boost actif' : 'Boost inactif'}
-                  </span>
-                  {isBoostActive && (
-                    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold border border-orange-300/40 text-orange-200 bg-orange-500/15">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-300 animate-pulse" />
-                      {timer} restant
-                    </span>
-                  )}
-                </div>
-                {!isBoostActive && (
-                  <p className="text-xs text-orange-200/90">
-                    {isPeakNow ? 'Forte activite dans votre zone maintenant.' : 'Pic estime ce soir entre 20h et 23h.'}
-                  </p>
-                )}
-              </div>
-            </div>
-            <GlassButton onClick={activateBoost} variant="boost" className={`w-full md:w-auto min-w-[14rem] ${isLarge ? 'h-[var(--cta-height)] text-base md:text-lg' : 'h-[var(--boost-cta-h)] text-[1.1rem]'} font-bold animate-[pulse_3s_ease-in-out_infinite]`}>
-              {isBoostActive ? 'Ajouter 30 min' : 'Activer le Boost'}
-            </GlassButton>
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(58,21,16,0.9)_0%,transparent_60%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_80%,rgba(242,125,38,0.22)_0%,transparent_50%)]" />
           </div>
-        </section>
+          <div className="relative z-10 flex flex-col gap-5 md:gap-6">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1">
+              <ICONS.Star size={14} className="text-amber-400" />
+              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Offres Premium</span>
+            </div>
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl">
+                <h1 className="text-[clamp(2rem,4vw,3.2rem)] italic uppercase font-black tracking-tighter leading-[0.95]">
+                  Activez Votre <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">Potentiel</span>
+                </h1>
+                <p className="mt-3 text-sm md:text-base text-secondary max-w-xl">
+                  Ne vendez pas un clic. Activez une fenetre de visibilite premium pour capter plus de likes, de matchs et de conversations.
+                </p>
+              </div>
+              <motion.div whileTap={{ scale: 0.95 }} className="w-full md:w-auto">
+                <GlassButton
+                  onClick={activateBoost}
+                  variant="glass"
+                  className={`w-full md:w-auto min-w-[14rem] h-[var(--boost-cta-h)] md:h-[var(--cta-height)] text-sm md:text-base font-black uppercase tracking-[0.18em] transition-[background,box-shadow,color] duration-500 ease-in-out border-0 ${selectedTier.ctaButtonClass}`}
+                  style={glowShadow(selectedTier.glowToken, 0.3, 36)}
+                >
+                  {isBoostActive ? `Boost actif ${timer}` : 'Activer Boost'}
+                </GlassButton>
+              </motion.div>
+            </div>
+          </div>
+        </motion.section>
 
         <section
           ref={(el) => {
             sectionRefs.current[1] = el;
           }}
-          className="grid grid-cols-1 md:grid-cols-12 gap-[var(--grid-gap)]"
+          className="space-y-5"
         >
-          <div className={`${cardBaseClass} surface-card md:col-span-4`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Situation actuelle</p>
-            <p className="text-2xl font-black tracking-tight mb-2">Visibilite stable</p>
-            <p className="text-secondary text-sm mb-3">Votre profil reste visible, mais sans acceleration notable.</p>
-            <svg viewBox="0 0 180 48" className="w-full h-12" aria-hidden>
-              <path d="M4 34 C36 32, 56 36, 86 33 C115 31, 144 34, 176 32" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            <p className="text-[11px] text-secondary">Courbe plate: progression lente et reguliere.</p>
+          <motion.div
+            className={isLarge ? 'grid grid-cols-3 gap-[var(--grid-gap)]' : 'flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1'}
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}
+          >
+            {tiers.map((tier) => {
+              const isActive = tier.id === activeTier;
+              const isPulse = glowPulseTier === tier.id;
+              return (
+                <motion.button
+                  key={tier.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeInOut' } },
+                  }}
+                  whileTap={{
+                    scale: 0.95,
+                    borderColor: 'rgba(255,255,255,0.4)',
+                    transition: { type: 'spring', stiffness: 560, damping: 24 },
+                  }}
+                  onClick={() => handleSelectTier(tier.id)}
+                  className={`relative ${isLarge ? '' : 'snap-center shrink-0'} w-[var(--boost-tier-card-w)] md:w-full min-h-[var(--boost-tier-card-min-h)] rounded-[var(--boost-tier-card-radius)] p-[var(--boost-tier-pad)] text-left glass-panel-float ${
+                    isActive ? 'scale-100 opacity-100 glass-panel glass-panel-active' : 'scale-95 opacity-60 glass-panel-soft'
+                  } ${isPulse ? 'border-white/40' : ''}`}
+                  style={isActive ? radialTone(tier.glowToken, 0.16) : undefined}
+                  
+                >
+                  {(isActive || isPulse) && (
+                    <motion.div
+                      className="pointer-events-none absolute -z-10 w-40 h-40 right-[-10px] top-[-10px] rounded-full blur-[60px]"
+                      initial={{ scale: 1, opacity: 0.2 }}
+                      animate={{ scale: isPulse ? 1.14 : 1, opacity: isPulse ? 0.48 : 0.2 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      style={glowBg(tier.glowToken, isPulse ? 0.48 : 0.2)}
+                    />
+                  )}
+                  <div className="h-full flex flex-col gap-4 rounded-[var(--boost-tier-inner-radius)] p-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[length:var(--boost-tier-tag-size)] font-black uppercase tracking-[0.18em] ${tier.tagClass}`}>
+                        {tier.tierTag}
+                      </span>
+                      {tier.hasStar && (
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl glass-panel-soft border-amber-300/20">
+                          <ICONS.Star size={14} className="text-amber-400" />
+                        </span>
+                      )}
+                    </div>
+                    <p className={`font-black italic text-[length:var(--boost-tier-title-size)] leading-none tracking-tighter ${isActive ? 'text-white' : 'text-white/65'}`}>{tier.name}</p>
+                    <div className="flex items-end gap-2">
+                      <p className={`text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter ${isActive ? 'text-white' : 'text-white/78'}`}>{tier.price}</p>
+                      <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.18em] text-white/45 pb-1">{tier.period}</p>
+                    </div>
+                    <ul className="mt-1 space-y-2.5">
+                      {tier.features.map((feature) => (
+                        <li key={feature} className={`flex items-center gap-2.5 text-[length:var(--boost-tier-feature-size)] ${isActive ? 'text-white/86' : 'text-white/52'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${tier.bulletClass}`} />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </motion.div>
+
+          <div className="relative pt-2">
+            <button
+              className="w-full h-[var(--boost-tier-cta-h)] rounded-[24px] border border-white/15 bg-black/65 text-[length:var(--boost-tier-cta-size)] font-black uppercase"
+              style={{ letterSpacing: 'var(--boost-tier-cta-track)' }}
+            >
+              {`S'ABONNER A ${activeTier.toUpperCase()}`}
+            </button>
+            <div
+              className="pointer-events-none absolute left-10 right-10"
+              style={{
+                height: 'var(--boost-tier-cta-glow-h)',
+                bottom: 'var(--boost-tier-cta-glow-offset)',
+                filter: 'blur(var(--boost-tier-cta-glow-blur))',
+                background: `linear-gradient(90deg, transparent 0%, rgb(var(${selectedTier.glowToken}) / 0.34) 48%, transparent 100%)`,
+              }}
+            />
+            <p className="mt-7 text-center text-[length:var(--boost-tier-disclaimer-size)] font-black uppercase tracking-[0.22em] text-white/35">
+              Annulation possible a tout moment • Paiement securise
+            </p>
           </div>
-          <div className={`${cardBaseClass} surface-card md:col-span-4`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Projection boost</p>
-            <p className="text-2xl font-black tracking-tight mb-2">Trajectoire acceleree</p>
-            <p className="text-secondary text-sm mb-3">Le Boost augmente nettement la cadence de decouverte du profil.</p>
-            <svg viewBox="0 0 180 48" className="w-full h-12" aria-hidden>
-              <defs>
-                <linearGradient id="boostCurve" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#FF1493" />
-                  <stop offset="100%" stopColor="#00BFFF" />
-                </linearGradient>
-              </defs>
-              <path d="M4 38 C32 37, 56 34, 82 30 C110 26, 138 19, 176 8" fill="none" stroke="url(#boostCurve)" strokeWidth="3.5" strokeLinecap="round" />
-            </svg>
-            <p className="text-[11px] text-secondary">Courbe montante: plus de profils actifs vous voient.</p>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]">
+          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel p-[var(--glass-card-pad)] border-orange-400/30 bg-orange-500/10" style={glowShadow('--glow-orange', 0.22, 28)}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-[0_10px_24px_rgba(234,88,12,0.35)]">
+                <ICONS.Boost size={24} className="text-black" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-orange-200">Boosts Flash</p>
+                <p className="font-bold">Acceleration immediate</p>
+              </div>
+            </div>
+            <p className="text-sm text-secondary">Un boost place votre profil dans les zones de decouverte les plus actives pour augmenter la traction.</p>
           </div>
-          <div className={`${cardBaseClass} surface-card md:col-span-4`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Impact relationnel</p>
-            <p className="text-2xl font-black tracking-tight mb-2">Potentiel de matches en hausse</p>
-            <p className="text-secondary text-sm mb-3">{isPeakNow ? 'Fenetre active en cours: excellente opportunite.' : 'Le pic du soir augmente les chances de reponse.'}</p>
-            <svg viewBox="0 0 180 48" className="w-full h-12" aria-hidden>
-              <path d="M4 40 C28 39, 48 34, 70 30 C92 26, 116 25, 136 19 C152 15, 164 13, 176 10" fill="none" stroke="rgba(255,140,0,0.95)" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            <p className="text-[11px] text-secondary">Le Boost transforme la visibilite en interactions utiles.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-3xl glass-panel p-4" style={glowShadow('--glow-pink', 0.16, 24)}>
+              <ICONS.Heart size={18} className="text-pink-500 mb-2" />
+              <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Matches</p>
+              <p className="text-sm text-secondary mt-1">Plus de rencontres qualifiees</p>
+            </div>
+            <div className="rounded-3xl glass-panel p-4" style={glowShadow('--glow-blue', 0.16, 24)}>
+              <ICONS.Shield size={18} className="text-blue-500 mb-2" />
+              <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Securite</p>
+              <p className="text-sm text-secondary mt-1">Presence premium verifiee</p>
+            </div>
+            <div className="rounded-3xl glass-panel p-4" style={glowShadow('--glow-gold', 0.16, 24)}>
+              <ICONS.Zap size={18} className="text-amber-500 mb-2" />
+              <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Rythme</p>
+              <p className="text-sm text-secondary mt-1">Decisions plus rapides</p>
+            </div>
           </div>
         </section>
 
@@ -263,8 +364,10 @@ const BoostScreen = () => {
             ].map((item) => (
               <button
                 key={item.id}
-                onClick={() => setCatalogView(item.id as 'instant' | 'passes' | 'bundles')}
-                className={`h-9 px-4 rounded-full text-xs font-bold transition-all ${catalogView === item.id ? 'gradient-premium text-white shadow-[0_8px_24px_rgba(236,72,153,0.25)]' : 'text-secondary hover:bg-white/8'}`}
+                onClick={() => setCatalogView(item.id as CatalogView)}
+                className={`h-9 px-4 rounded-full text-xs font-black uppercase tracking-[0.16em] transition-all ${
+                  catalogView === item.id ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'text-secondary hover:bg-white/8'
+                }`}
               >
                 {item.label}
               </button>
@@ -274,27 +377,26 @@ const BoostScreen = () => {
           {catalogView === 'instant' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
               {instantProducts.map((item) => (
-                <div key={item.id} className={`${cardBaseClass} ${getAccentClass(item.accent)} p-6 flex flex-col gap-4`}>
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  key={item.id}
+                  className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] transition-colors"
+                  style={glowCardStyle(item.glowToken, 0.18, 0.06, 0.24)}
+                >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-black/35 border border-white/10 flex items-center justify-center">
-                        <item.icon size={20} />
-                      </div>
-                      <div>
-                        <p className="font-bold">{item.label}</p>
-                        <p className="text-xs text-secondary">{item.desc}</p>
-                      </div>
+                    <div>
+                      <p className="font-bold text-lg">{item.label}</p>
+                      <p className="text-sm text-secondary mt-1">{item.desc}</p>
                     </div>
-                    <p className="text-lg font-bold whitespace-nowrap">{item.price}</p>
+                    <p className="text-xl font-black whitespace-nowrap">{item.price}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-secondary">{item.unit}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-secondary">{item.tag}</span>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">{item.meta}</span>
+                    <button className="h-10 px-5 rounded-[24px] border border-white/20 bg-white/8 text-sm font-black uppercase tracking-[0.2em] hover:bg-white/12">
+                      Acheter
+                    </button>
                   </div>
-                  <button className="w-full h-11 rounded-full font-bold border border-white/20 bg-white/8 hover:bg-white/12 transition-colors">
-                    Acheter
-                  </button>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
@@ -302,17 +404,19 @@ const BoostScreen = () => {
           {catalogView === 'passes' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
               {timePacks.map((item) => (
-                <div key={item.id} className={`${cardBaseClass} p-6 flex flex-col gap-3`}>
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold">{item.label}</p>
-                    <span className="text-xs px-2 py-1 rounded-full border border-white/15 bg-white/5">{item.tag}</span>
+                <motion.div whileTap={{ scale: 0.98 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold text-lg">{item.label}</p>
+                    <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{item.tag}</span>
                   </div>
-                  <p className="text-sm text-secondary">{item.desc}</p>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xl font-bold">{item.price}</p>
-                    <button className="h-10 px-4 rounded-full gradient-premium text-white text-sm font-bold">Choisir</button>
+                  <p className="text-sm text-secondary mt-2">{item.desc}</p>
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-2xl font-black">{item.price}</p>
+                    <button className="h-10 px-5 rounded-[24px] bg-gradient-to-r from-pink-500 to-violet-500 text-white text-sm font-black uppercase tracking-[0.18em]">
+                      Choisir
+                    </button>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
@@ -320,56 +424,32 @@ const BoostScreen = () => {
           {catalogView === 'bundles' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
               {bundles.map((item) => (
-                <div key={item.id} className={`${cardBaseClass} p-6 grid grid-rows-[auto_1fr_auto] gap-3 min-h-[19rem] ${item.id === 'pro' ? 'border-pink-500/35 bg-pink-500/10' : ''}`}>
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold">{item.label}</p>
-                    <span className={`whitespace-nowrap text-[10px] uppercase tracking-widest px-2 py-1 rounded-full ${item.id === 'pro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  key={item.id}
+                  className="rounded-[var(--glass-card-radius-soft)] glass-panel p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
+                  style={glowCardStyle(item.glowToken, item.id === 'pro' ? 0.24 : 0.16, item.id === 'pro' ? 0.1 : 0.05, item.id === 'pro' ? 0.32 : 0.2)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold text-xl">{item.label}</p>
+                    <span className={`text-[10px] uppercase tracking-[0.16em] px-2 py-1 rounded-full ${item.id === 'pro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
                       {item.tag}
                     </span>
                   </div>
-                  <p className="text-sm text-secondary">{item.desc}</p>
-                  <div className="flex flex-col items-start gap-3">
+                  <p className="text-secondary text-sm mt-2">{item.desc}</p>
+                  <div className="mt-auto flex flex-col gap-3">
                     <p className="text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{item.price}</p>
-                    <button className={`h-10 w-full px-5 rounded-full text-sm font-bold ${item.id === 'pro' ? 'gradient-premium text-white' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
+                    <button className={`h-10 w-full rounded-[24px] text-sm font-black uppercase tracking-[0.2em] ${item.id === 'pro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
                       Prendre ce bundle
                     </button>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
         </section>
-
-        <section className={`${cardBaseClass} p-5 flex flex-col gap-3`}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary">Reassurance</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-secondary">
-            <span>Paiement securise</span>
-            <span>Activation immediate</span>
-            <span>Aucun renouvellement auto sur les packs</span>
-            <span>Boosts non utilises conserves</span>
-          </div>
-          {isBoostActive && (
-            <div className="pt-2 border-t border-white/10 grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div className="rounded-2xl bg-white/5 px-3 py-2">
-                <p className="text-[10px] text-secondary uppercase tracking-widest">Vues</p>
-                <p className="text-lg font-bold">{liveStats.views}</p>
-              </div>
-              <div className="rounded-2xl bg-white/5 px-3 py-2">
-                <p className="text-[10px] text-secondary uppercase tracking-widest">Likes</p>
-                <p className="text-lg font-bold">{liveStats.likes}</p>
-              </div>
-              <div className="rounded-2xl bg-white/5 px-3 py-2">
-                <p className="text-[10px] text-secondary uppercase tracking-widest">Visites</p>
-                <p className="text-lg font-bold">{liveStats.visits}</p>
-              </div>
-              <div className="rounded-2xl bg-white/5 px-3 py-2">
-                <p className="text-[10px] text-secondary uppercase tracking-widest">Matchs</p>
-                <p className="text-lg font-bold">{liveStats.matches}</p>
-              </div>
-            </div>
-          )}
-        </section>
       </div>
+
       {showDesktopRail && (
         <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
           <div className="group/boost-rail h-full w-full flex items-center justify-center pointer-events-auto">
