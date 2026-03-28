@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 
 const AccountSettingsScreen = () => {
   const navigate = useNavigate();
   const { category, sub } = useParams();
-  const { isDesktop, isTablet } = useDevice();
+  const { isDesktop, isTablet, isTouch } = useDevice();
+  const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const isLarge = isDesktop || isTablet;
   
   const sections = [
@@ -256,6 +258,7 @@ const AccountSettingsScreen = () => {
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         className="h-full flex flex-col overflow-y-auto no-scrollbar"
+        style={isTouch && isKeyboardOpen ? { paddingBottom: `${keyboardInset}px` } : undefined}
       >
         <div className="p-6 flex items-center gap-4 border-b border-white/5">
           <button onClick={() => navigate('/settings')} className="p-2 hover-effect rounded-full glass">
@@ -271,10 +274,11 @@ const AccountSettingsScreen = () => {
   }
 
   return (
-    <motion.div 
+      <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="h-full flex flex-col p-6 pb-28 overflow-y-auto no-scrollbar"
+      style={isTouch && isKeyboardOpen ? { paddingBottom: `calc(7rem + ${keyboardInset}px)` } : undefined}
     >
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">

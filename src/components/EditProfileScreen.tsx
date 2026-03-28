@@ -2,11 +2,13 @@ import React from 'react';
 import { Plus, ChevronLeft, Trash2, GripVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import GlassButton from './ui/GlassButton';
 
 const EditProfileScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { isDesktop, isTablet } = useDevice();
+  const { isDesktop, isTablet, isTouch } = useDevice();
+  const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const isLarge = isDesktop || isTablet;
   
   const photos = [
@@ -15,7 +17,10 @@ const EditProfileScreen: React.FC = () => {
   ];
 
   return (
-    <div className={`h-full flex flex-col bg-black ${isLarge ? 'p-12' : 'p-6 pb-28'} overflow-y-auto no-scrollbar`}>
+    <div
+      className={`h-full flex flex-col bg-black ${isLarge ? 'p-12' : 'p-6 pb-28'} overflow-y-auto no-scrollbar`}
+      style={isTouch && isKeyboardOpen ? { paddingBottom: `calc(7rem + ${keyboardInset}px)` } : undefined}
+    >
       <header className="flex items-center justify-between mb-12">
         <div className="flex items-center gap-6">
           <button onClick={() => navigate(-1)} className="p-3 rounded-2xl glass hover-effect">

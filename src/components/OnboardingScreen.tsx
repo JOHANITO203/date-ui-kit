@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
+import { useDevice } from '../hooks/useDevice';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 
 const ZODIAC_SIGNS = [
   { name: 'Bélier', symbol: '♈', start: [3, 21], end: [4, 19] },
@@ -37,6 +39,8 @@ const getZodiacSign = (dateString: string) => {
 
 const OnboardingScreen = () => {
   const navigate = useNavigate();
+  const { isTouch } = useDevice();
+  const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const [step, setStep] = useState(1);
   const [birthDate, setBirthDate] = useState('');
   const [zodiac, setZodiac] = useState<{ name: string, symbol: string } | null>(null);
@@ -64,7 +68,10 @@ const OnboardingScreen = () => {
         ))}
       </div>
 
-      <div className="container-content w-full mx-auto flex-1 overflow-y-auto no-scrollbar min-h-0">
+      <div
+        className="container-content w-full mx-auto flex-1 overflow-y-auto no-scrollbar min-h-0"
+        style={isTouch ? { paddingBottom: `calc(${isKeyboardOpen ? `${keyboardInset}px + ` : ''}0.75rem)` } : undefined}
+      >
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div 
@@ -306,7 +313,10 @@ const OnboardingScreen = () => {
         </AnimatePresence>
       </div>
 
-      <div className="container-content w-full mx-auto mt-6 pb-safe shrink-0">
+      <div
+        className="container-content w-full mx-auto mt-6 pb-safe shrink-0"
+        style={isTouch && isKeyboardOpen ? { marginBottom: `${keyboardInset}px` } : undefined}
+      >
         <GlassButton variant="premium" onClick={nextStep} className="w-full py-4 sm:py-5 text-lg font-bold">
           {step === totalSteps ? 'Terminer' : 'Continuer'}
         </GlassButton>

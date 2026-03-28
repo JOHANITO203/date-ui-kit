@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 
 interface ChatScreenProps {
   embedded?: boolean;
@@ -14,7 +15,8 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const { userId: routeUserId } = useParams();
   const navigate = useNavigate();
   const [showTranslation, setShowTranslation] = useState(false);
-  const { isTablet } = useDevice();
+  const { isTablet, isTouch } = useDevice();
+  const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   
   const userId = propUserId || routeUserId;
   const user = MOCK_USERS.find(u => u.id === userId) || MOCK_USERS[0];
@@ -61,7 +63,14 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       </div>
 
       {/* Messages Area */}
-      <div className={`${embedded ? (isTablet ? 'max-w-none pb-10' : 'max-w-none pb-6') : 'container-chat pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar`}>
+      <div
+        className={`${embedded ? (isTablet ? 'max-w-none pb-10' : 'max-w-none pb-6') : 'container-chat pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar`}
+        style={
+          isTouch && embedded
+            ? { paddingBottom: `calc(${isTablet ? '2.5rem' : '2rem'} + ${keyboardInset}px + env(safe-area-inset-bottom))` }
+            : undefined
+        }
+      >
         <div className="flex justify-center">
           <span className="glass px-4 py-1 rounded-full text-[9px] font-black text-secondary uppercase tracking-[0.2em]">Aujourd'hui</span>
         </div>
@@ -100,7 +109,10 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       </div>
 
       {/* Input */}
-      <div className={`${embedded ? 'p-4' : 'px-[var(--page-x)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3'} shrink-0 ${embedded ? '' : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent'}`}>
+      <div
+        className={`${embedded ? 'p-4 sticky bottom-0 z-20 bg-black/35 backdrop-blur-lg' : 'px-[var(--page-x)] pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3'} shrink-0 ${embedded ? '' : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent'}`}
+        style={!embedded && isTouch ? { bottom: `${keyboardInset}px` } : undefined}
+      >
         <div className={`${embedded ? '' : 'container-chat'} rounded-[28px] p-1.5 flex items-center gap-2 border border-white/10 bg-[#0f1118]/92 backdrop-blur-xl focus-within:border-white/25 transition-all`}>
           <button className="p-3 text-secondary hover:text-white transition-colors rounded-full hover:bg-white/5">
             <ICONS.Globe size={20} />
@@ -114,6 +126,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             <ICONS.Send size={20} />
           </button>
         </div>
+        {isTouch && isKeyboardOpen && <div className="h-[max(env(safe-area-inset-bottom),0px)]" />}
       </div>
     </motion.div>
   );
