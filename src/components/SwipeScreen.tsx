@@ -236,7 +236,7 @@ const SwipeScreen = () => {
               <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
-                    <div className={`flex justify-between gap-2 w-full ${isLarge ? 'items-end' : 'items-start'}`}>
+                    <div className={`inline-flex gap-2 ${isLarge ? 'items-end' : 'items-start'}`}>
                       <h2 className={`text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none ${isLarge ? '' : 'max-w-[75%]'}`}>{user.name}, {user.age}</h2>
                       {user.verified && <div className={isLarge ? '' : 'mt-0.5'}>{verifiedBadge}</div>}
                     </div>
@@ -368,7 +368,7 @@ const SwipeScreen = () => {
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     {isLarge && (
-                      <div className="flex items-end gap-2 w-full">
+                      <div className="inline-flex items-end gap-2">
                         <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
                         {user.verified && verifiedBadge}
                       </div>
