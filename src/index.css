@@ -131,6 +131,8 @@
     --glass-card-blur: 24px;
     --glass-card-pad: clamp(1rem, 1.5vw, 1.5rem);
     --glass-card-radius-soft: clamp(1.5rem, 3vw, 2rem);
+    --blur-premium-overlay: clamp(0.9rem, 1.8vw, 1.5rem);
+    --blur-premium-soft: clamp(0.22rem, 0.35vw, 0.35rem);
     --glow-silver: 148 163 184;
     --glow-gold: 245 158 11;
     --glow-blue: 59 130 246;
@@ -885,6 +887,15 @@
 
   .glass-panel-float {
     transition: transform 500ms ease-in-out, opacity 500ms ease-in-out, border-color 220ms ease-in-out, background-color 500ms ease-in-out;
+  }
+
+  .premium-blur-overlay {
+    backdrop-filter: blur(var(--blur-premium-overlay));
+    -webkit-backdrop-filter: blur(var(--blur-premium-overlay));
+  }
+
+  .premium-blur-text {
+    filter: blur(var(--blur-premium-soft));
   }
   
   .gradient-premium {

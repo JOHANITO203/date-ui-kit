@@ -13,8 +13,8 @@ const SwipeScreen = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
-  const quickFilters = ['A moins de 5 km', 'Verifies', 'Actifs', 'Nouveaux'];
-  const [activeFilters, setActiveFilters] = useState<string[]>(['A moins de 5 km', 'Actifs']);
+  const quickFilters = ['Tout', 'A proximite', 'Nouveaux', 'En ligne', 'Verifies'];
+  const [activeFilters, setActiveFilters] = useState<string[]>(['Tout']);
 
   const user = MOCK_USERS[currentIndex % MOCK_USERS.length];
   const nextUser = MOCK_USERS[(currentIndex + 1) % MOCK_USERS.length];
@@ -108,36 +108,34 @@ const SwipeScreen = () => {
 
   return (
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
-      <div className="flex items-center justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
-        <div className="flex items-center gap-3">
-          <h1 className="text-[length:var(--discover-title-size)] font-bold tracking-tight text-white leading-none">Discover</h1>
+      <div className="flex items-end justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
+        <div className="flex flex-col gap-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Explorer</p>
+          <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">DISCOVER</h1>
         </div>
-        {!isLarge && (
-          <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
-            <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">Boost</span>
-          </button>
-        )}
+        <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
+          <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">Boost</span>
+        </button>
       </div>
-      {!isLarge && (
-        <div className="px-[var(--page-x)] pb-1">
-          <div className="flex gap-[var(--discover-mobile-filter-gap)] overflow-x-auto no-scrollbar">
-            {quickFilters.map((label) => (
-              <button
-                key={`mobile-${label}`}
-                onClick={() => toggleFilter(label)}
-                className={`shrink-0 px-[var(--discover-mobile-filter-px)] py-[var(--discover-mobile-filter-py)] rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap text-center transition-all ${
-                  activeFilters.includes(label)
-                    ? 'text-white border border-fuchsia-400/60 bg-gradient-to-r from-pink-500/30 to-blue-500/30 shadow-[0_0_14px_rgba(217,70,239,0.25)]'
-                    : 'bg-white/5 border border-white/10 text-white/65'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+
+      <div className="px-[var(--page-x)] pb-2 shrink-0">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {quickFilters.map((label) => (
+            <button
+              key={`filter-${label}`}
+              onClick={() => toggleFilter(label)}
+              className={`shrink-0 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.14em] whitespace-nowrap transition-all ${
+                activeFilters.includes(label)
+                  ? 'bg-white text-[#090909] border border-white shadow-[0_8px_24px_rgba(255,255,255,0.16)]'
+                  : 'bg-[#0E1116]/90 border border-white/10 text-white/68 hover:text-white hover:border-white/25'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {isLarge ? (
         <div className={`flex-1 min-h-0 px-[var(--page-x)] pt-2 ${isDesktop ? 'pb-2' : 'pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.25rem)]'}`}>
@@ -157,21 +155,19 @@ const SwipeScreen = () => {
                 </button>
               </div>
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Filtres rapides</p>
-                <div className={`flex flex-wrap ${isTablet ? 'gap-1.5' : 'gap-2'}`}>
-                  {quickFilters.map((label) => (
-                    <button
-                      key={label}
-                      onClick={() => toggleFilter(label)}
-                      className={`${isTablet ? 'px-2.5 py-1.5 text-[9px]' : 'px-3 py-1.5 text-[10px]'} rounded-full font-bold uppercase tracking-wider transition-all ${
-                        activeFilters.includes(label)
-                          ? 'text-white border border-fuchsia-400/60 bg-gradient-to-r from-pink-500/30 to-blue-500/30 shadow-[0_0_14px_rgba(217,70,239,0.25)]'
-                          : 'bg-[var(--filters-chip-bg)] border border-[var(--filters-chip-border)] text-white/70 hover:bg-white/10'
-                      }`}
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Filtres actifs</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeFilters.map((label) => (
+                    <span
+                      key={`active-${label}`}
+                      className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] bg-white/10 border border-white/15 text-white/80"
                     >
                       {label}
-                    </button>
+                    </span>
                   ))}
+                  {activeFilters.length === 0 && (
+                    <span className="text-[11px] text-white/45">Aucun filtre actif</span>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
@@ -209,10 +205,6 @@ const SwipeScreen = () => {
               className="absolute inset-0 rounded-[36px] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.8)] cursor-grab active:cursor-grabbing border border-white/5 bg-zinc-900"
               onClick={handlePhotoNav}
             >
-              <button onClick={() => navigate('/boost')} className="absolute top-5 right-5 z-30 flex items-center gap-2 px-3 py-2 rounded-full border border-orange-500/35 bg-black/45 backdrop-blur-lg hover:bg-orange-500/10 transition-colors">
-                <ICONS.Boost size={14} className="text-orange-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-300">Boost</span>
-              </button>
               <AnimatePresence mode="wait">
                 <motion.img
                   key={photoIndex}

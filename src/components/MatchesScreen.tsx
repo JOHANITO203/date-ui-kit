@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Heart, Star, Sparkles, Eye } from 'lucide-react';
+import { Heart, Star, Eye } from 'lucide-react';
 import { useDevice } from '../hooks/useDevice';
 
 const lockedLikes = [
@@ -99,13 +99,15 @@ const MatchesScreen: React.FC = () => {
           }}
           className="flex items-end justify-between gap-4"
         >
-          <div>
-            <h1 className="fluid-title font-black tracking-tight">Vos Likes</h1>
-            <p className="text-secondary fluid-subtitle">Voyez qui s'interesse a vous et debloquez les profils en un geste.</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Activité</p>
+            <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">
+              TES LIKES
+            </h1>
           </div>
-          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-full glass border border-pink-500/20">
-            <Sparkles size={14} className="text-pink-400" />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-black text-pink-300">Nouveaux likes: 24</span>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-pink-500/35 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.12)]">
+            <Heart size={12} fill="currentColor" className="text-pink-400" />
+            <span className="text-[10px] font-black text-pink-300">24 Nouveaux</span>
           </div>
         </header>
 
@@ -123,26 +125,31 @@ const MatchesScreen: React.FC = () => {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04 }}
-                  className="relative overflow-hidden rounded-[var(--card-radius)] border border-white/10 bg-white/[0.03] aspect-[3/4]"
+                  className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
                   <img src={like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
-                  <div className="absolute inset-0 bg-black/45 backdrop-blur-md" />
+                  <div className="absolute inset-0 bg-black/36 premium-blur-overlay" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
 
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/50 border border-white/20 text-[10px] font-black uppercase tracking-wider text-white/80">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
                     Verrouille
                   </div>
 
-                  <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center mb-3 shadow-lg shadow-pink-500/30">
+                  <div className="absolute top-14 left-1/2 -translate-x-1/2">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center shadow-[0_0_26px_rgba(236,72,153,0.34)]">
                       <Heart size={24} fill="white" />
                     </div>
-                    <p className="text-sm font-semibold text-white">Debloquez pour voir ce profil</p>
-                    <p className="text-xs text-white/50 mt-1">{like.city}</p>
+                  </div>
+
+                  <div className="absolute inset-x-4 top-[48%] text-center">
+                    <p className="mx-auto max-w-[12ch] text-[clamp(0.92rem,1.15vw,1.08rem)] leading-[1.18] font-black text-white">
+                      Debloquez pour voir ce profil
+                    </p>
+                    <p className="text-xs text-white/62 mt-1.5">{like.city}</p>
                   </div>
 
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
-                    <span className="text-sm font-bold blur-sm">{like.name}, {like.age}</span>
+                    <span className="text-sm font-bold premium-blur-text">{like.name}, {like.age}</span>
                     <Eye size={16} className="text-white/50" />
                   </div>
                 </motion.article>
@@ -155,7 +162,7 @@ const MatchesScreen: React.FC = () => {
               }}
               className="layout-stack"
             >
-              <section className="glass rounded-[var(--card-radius)] p-5 border border-white/10">
+              <section className="glass-panel rounded-[var(--card-radius)] p-5">
                 <div className="inline-flex p-2 rounded-xl bg-white/5 mb-3">
                   <Star className="text-[#FFD166]" fill="#FFD166" size={18} />
                 </div>
@@ -168,7 +175,7 @@ const MatchesScreen: React.FC = () => {
                 </button>
               </section>
 
-              <section className="glass rounded-[var(--card-radius)] p-5 border border-white/10 space-y-3">
+              <section className="glass-panel rounded-[var(--card-radius)] p-5 space-y-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Inclut</p>
                 {[
                   'Voir tous les likes recus',
@@ -193,21 +200,38 @@ const MatchesScreen: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
-                  className="relative overflow-hidden rounded-[var(--card-radius)] border border-white/10 bg-white/[0.03] aspect-[3/4]"
+                  className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
                   <img src={like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
-                  <div className="absolute inset-0 bg-black/45 backdrop-blur-md" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center mb-2">
+                  <div className="absolute inset-0 bg-black/36 premium-blur-overlay" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
+
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
+                    Verrouille
+                  </div>
+
+                  <div className="absolute top-12 left-1/2 -translate-x-1/2">
+                    <div className="w-11 h-11 rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center shadow-[0_0_22px_rgba(236,72,153,0.3)]">
                       <Heart size={22} fill="white" />
                     </div>
-                    <p className="text-xs font-semibold text-white">Debloquez pour voir</p>
+                  </div>
+
+                  <div className="absolute inset-x-3 top-[48%] text-center">
+                    <p className="mx-auto max-w-[11ch] text-[0.84rem] leading-[1.18] font-black text-white">
+                      Debloquez pour voir ce profil
+                    </p>
+                    <p className="text-[11px] text-white/62 mt-1">{like.city}</p>
+                  </div>
+
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
+                    <span className="text-xs font-bold premium-blur-text">{like.name}, {like.age}</span>
+                    <Eye size={14} className="text-white/50" />
                   </div>
                 </motion.article>
               ))}
             </section>
 
-            <section className="glass p-6 rounded-[var(--card-radius)] border border-white/10 text-center">
+            <section className="glass-panel p-6 rounded-[var(--card-radius)] text-center">
               <div className="inline-flex p-3 rounded-2xl bg-white/5 mb-4">
                 <Star className="text-[#FFD166]" fill="#FFD166" />
               </div>
