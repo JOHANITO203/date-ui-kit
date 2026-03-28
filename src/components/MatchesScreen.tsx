@@ -55,7 +55,8 @@ const lockedLikes = [
 ];
 
 const MatchesScreen: React.FC = () => {
-  const { isDesktop } = useDevice();
+  const { isDesktop, isTablet } = useDevice();
+  const isLarge = isDesktop || isTablet;
 
   return (
     <div className="h-full overflow-y-auto no-scrollbar py-6 pb-nav">
@@ -71,8 +72,8 @@ const MatchesScreen: React.FC = () => {
           </div>
         </header>
 
-        {isDesktop ? (
-          <div className="grid grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start">
+        {isLarge ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start">
             <section className="grid grid-cols-2 xl:grid-cols-3 gap-[var(--grid-gap)]">
               {lockedLikes.map((like, index) => (
                 <motion.article

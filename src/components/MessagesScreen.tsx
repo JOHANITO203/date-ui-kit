@@ -78,7 +78,7 @@ const MessagesScreen = () => {
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
-      <div className={`flex flex-col ${isLarge ? 'w-[min(30vw,26rem)] border-r border-white/5 overflow-hidden' : 'w-full overflow-y-auto no-scrollbar'} h-full px-[var(--page-x)] pt-6 pb-nav`}>
+      <div className={`flex flex-col ${isLarge ? 'w-[min(30vw,26rem)] border-r border-white/5 overflow-hidden pb-6' : 'w-full overflow-y-auto no-scrollbar pb-nav'} h-full px-[var(--page-x)] pt-6`}>
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-3xl font-bold tracking-tight">Messages</h2>
           <button onClick={() => navigate('/settings')} className="glass p-2.5 rounded-full hover-effect"><ICONS.Settings size={20} /></button>

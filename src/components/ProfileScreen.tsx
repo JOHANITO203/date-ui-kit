@@ -43,7 +43,7 @@ const ProfileScreen = () => {
   };
 
   return (
-    <div ref={scrollRef} className={`relative group/profile h-full flex flex-col ${isLarge ? 'py-10 pr-10' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}>
+    <div ref={scrollRef} className={`relative group/profile h-full flex flex-col ${isLarge ? 'py-10 pr-8' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}>
       {/* Header Section */}
       <div className="flex items-center justify-between mb-8 md:mb-10 px-[var(--page-x)]">
         <div>
@@ -79,7 +79,7 @@ const ProfileScreen = () => {
               whileHover={!isTouch ? { scale: 1.02 } : {}}
               className="relative z-10"
             >
-              <div className="aspect-square rounded-[48px] overflow-hidden border border-white/10 shadow-2xl">
+              <div className="aspect-square rounded-[var(--card-radius)] overflow-hidden border border-white/10 shadow-2xl">
                 <img 
                   src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80" 
                   className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
@@ -113,7 +113,7 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[1] = el;
             }}
-            className="relative overflow-hidden rounded-[40px] p-6 md:p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer"
+            className="relative overflow-hidden rounded-[var(--card-radius)] p-6 md:p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer"
           >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
@@ -142,7 +142,7 @@ const ProfileScreen = () => {
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]"
           >
-            <div className="glass p-8 rounded-[40px] space-y-4 hover:bg-white/[0.05] transition-colors group">
+            <div className="glass p-8 rounded-[var(--card-radius)] space-y-4 hover:bg-white/[0.05] transition-colors group">
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
                   <ICONS.Eye size={24} />
@@ -155,7 +155,7 @@ const ProfileScreen = () => {
               </div>
             </div>
             
-            <div className="glass p-8 rounded-[40px] space-y-4 hover:bg-white/[0.05] transition-colors group">
+            <div className="glass p-8 rounded-[var(--card-radius)] space-y-4 hover:bg-white/[0.05] transition-colors group">
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-pink-500/10 text-pink-400 group-hover:scale-110 transition-transform">
                   <ICONS.Heart size={24} />
@@ -174,7 +174,7 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[3] = el;
             }}
-            className="glass p-6 md:p-8 rounded-[48px] space-y-8 relative overflow-hidden"
+            className="glass p-6 md:p-8 rounded-[var(--card-radius)] space-y-8 relative overflow-hidden"
           >
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
@@ -217,7 +217,7 @@ const ProfileScreen = () => {
             ].map((action, i) => (
               <button 
                 key={i}
-                className="glass p-6 rounded-[32px] flex flex-col items-center gap-3 hover:bg-white/10 transition-all group"
+                className="glass p-6 rounded-[var(--card-radius)] flex flex-col items-center gap-3 hover:bg-white/10 transition-all group"
               >
                 <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
                   {action.icon}
@@ -230,7 +230,7 @@ const ProfileScreen = () => {
       </div>
 
       {isLarge && (
-        <div className="pointer-events-none fixed right-4 top-28 bottom-10 z-20 flex items-center opacity-0 transition-opacity duration-300 group-hover/profile:opacity-100">
+        <div className="pointer-events-none absolute right-2 top-28 bottom-10 z-20 flex items-center opacity-0 transition-opacity duration-300 group-hover/profile:opacity-100">
           <div className="pointer-events-auto rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_14px_rgba(168,85,247,0.28)]">
             <div className="relative w-2.5 h-44 rounded-full bg-[#09090c]/95 overflow-hidden">
               <div

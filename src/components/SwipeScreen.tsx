@@ -97,12 +97,12 @@ const SwipeScreen = () => {
   );
 
   return (
-    <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isDesktop ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-hidden pb-nav'}`}>
+    <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-hidden pb-nav'}`}>
       <div className="flex items-center justify-between px-[var(--page-x)] pt-6 md:pt-7 lg:pt-8 pb-4 shrink-0 z-20">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight text-white leading-none">Discover</h1>
         </div>
-        {!isDesktop && (
+        {!isLarge && (
           <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
             <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">Boost</span>
@@ -110,9 +110,9 @@ const SwipeScreen = () => {
         )}
       </div>
 
-      {isDesktop ? (
+      {isLarge ? (
         <div className="flex-1 min-h-0 px-[var(--page-x)] py-2">
-          <div className="h-full grid grid-cols-[16rem_minmax(0,1fr)] gap-5 items-start">
+          <div className="h-full grid grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)] gap-5 items-start">
             <aside className="glass rounded-[28px] p-5 space-y-5 h-fit">
               <div className="flex items-center">
                 <button
