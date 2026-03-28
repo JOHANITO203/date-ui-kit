@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
+import { useDevice } from '../hooks/useDevice';
 
 const BoostScreen = () => {
+  const { isDesktop, isTablet } = useDevice();
+  const isLarge = isDesktop || isTablet;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = useRef<Array<HTMLElement | null>>([]);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollThumb, setScrollThumb] = useState(32);
   const BOOST_DURATION = 30 * 60;
   const [isBoostActive, setIsBoostActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -22,6 +29,28 @@ const BoostScreen = () => {
     return () => window.clearInterval(interval);
   }, [isBoostActive]);
 
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!isLarge || !node) return;
+
+    const updateScroll = () => {
+      const max = node.scrollHeight - node.clientHeight;
+      const progress = max <= 0 ? 0 : node.scrollTop / max;
+      const size = node.scrollHeight <= 0 ? 100 : (node.clientHeight / node.scrollHeight) * 100;
+      setScrollProgress(Math.min(1, Math.max(0, progress)));
+      setScrollThumb(Math.max(22, Math.min(100, size)));
+    };
+
+    updateScroll();
+    node.addEventListener('scroll', updateScroll);
+    window.addEventListener('resize', updateScroll);
+
+    return () => {
+      node.removeEventListener('scroll', updateScroll);
+      window.removeEventListener('resize', updateScroll);
+    };
+  }, [isLarge]);
+
   const timer = useMemo(() => {
     const min = Math.floor(timeLeft / 60);
     const sec = timeLeft % 60;
@@ -33,10 +62,21 @@ const BoostScreen = () => {
     setTimeLeft((prev) => (prev > 0 ? prev + BOOST_DURATION : BOOST_DURATION));
   };
 
+  const jumpToSection = (index: number) => {
+    const node = sectionRefs.current[index];
+    if (!node) return;
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
-    <div className="h-full overflow-y-auto no-scrollbar py-6 pb-nav">
-      <div className="container-content layout-stack px-[var(--page-x)]">
-        <section className={`glass rounded-[var(--card-radius)] p-6 md:p-8 lg:p-10 border-orange-500/30 transition-all ${isBoostActive ? 'bg-orange-500/10 shadow-[0_0_40px_rgba(251,146,60,0.22)]' : 'bg-orange-500/5'}`}>
+    <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-6 pb-nav">
+      <div className={`${isLarge ? 'container-wide' : 'container-content'} layout-stack px-[var(--page-x)]`}>
+        <section
+          ref={(el) => {
+            sectionRefs.current[0] = el;
+          }}
+          className={`glass rounded-[var(--card-radius)] p-6 md:p-8 lg:p-10 border-orange-500/30 transition-all ${isBoostActive ? 'bg-orange-500/10 shadow-[0_0_40px_rgba(251,146,60,0.22)]' : 'bg-orange-500/5'}`}
+        >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-start gap-4">
               <div className={`w-20 h-20 md:w-24 md:h-24 gradient-boost rounded-[28px] flex items-center justify-center shadow-2xl shadow-orange-500/30 shrink-0 ${isBoostActive ? 'animate-pulse' : 'animate-float'}`}>
@@ -70,7 +110,12 @@ const BoostScreen = () => {
           </div>
         </section>
 
-        <section className="layout-autofit">
+        <section
+          ref={(el) => {
+            sectionRefs.current[1] = el;
+          }}
+          className="layout-autofit"
+        >
           <div className="glass surface-card rounded-[var(--card-radius)]">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Dernieres 24h</p>
             <p className="text-3xl font-black tracking-tight mb-1">{isBoostActive ? '+74%' : '+68%'}</p>
@@ -88,7 +133,12 @@ const BoostScreen = () => {
           </div>
         </section>
 
-        <section className="layout-grid">
+        <section
+          ref={(el) => {
+            sectionRefs.current[2] = el;
+          }}
+          className="layout-grid"
+        >
           <div className="glass p-6 rounded-[var(--card-radius)] border-orange-500/35 bg-orange-500/10 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="text-left">
@@ -116,6 +166,35 @@ const BoostScreen = () => {
           </div>
         </section>
       </div>
+      {isLarge && (
+        <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">
+          <div className="group/boost-rail h-full w-full flex items-center justify-center pointer-events-auto">
+            <div className="flex items-center opacity-0 transition-opacity duration-300 group-hover/boost-rail:opacity-100">
+              <div className="rounded-full p-[1px] bg-gradient-to-b from-orange-500 via-amber-400 to-yellow-300 shadow-[0_0_14px_rgba(251,146,60,0.33)]">
+                <div className="relative w-2.5 h-40 rounded-full bg-[#120a02]/95 overflow-hidden">
+                  <div
+                    className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-orange-400 via-amber-300 to-yellow-200"
+                    style={{
+                      height: `${scrollThumb}%`,
+                      top: `${scrollProgress * (100 - scrollThumb)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="ml-2 flex flex-col gap-2">
+                {[0, 1, 2].map((index) => (
+                  <button
+                    key={`boost-jump-${index}`}
+                    onClick={() => jumpToSection(index)}
+                    className="w-2 h-2 rounded-full bg-white/35 hover:bg-orange-300 transition-colors"
+                    aria-label={`Aller a la section boost ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

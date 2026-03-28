@@ -58,12 +58,12 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       </div>
 
       {/* Messages Area */}
-      <div className={`${embedded ? 'max-w-none' : 'container-content'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]`}>
+      <div className={`${embedded ? 'max-w-none pb-6' : 'container-content pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar`}>
         <div className="flex justify-center">
           <span className="glass px-4 py-1 rounded-full text-[9px] font-black text-secondary uppercase tracking-[0.2em]">Aujourd'hui</span>
         </div>
 
-        <div className="flex gap-3 max-w-[85%] md:max-w-[70%] xl:max-w-[62%]">
+        <div className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
           <img src={user.photos[0]} className="w-8 h-8 rounded-xl object-cover self-end shrink-0" alt="" referrerPolicy="no-referrer" />
           <div className="space-y-1.5">
             <div className="glass p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed">
@@ -81,14 +81,14 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1.5 ml-auto max-w-[85%] md:max-w-[70%] xl:max-w-[62%]">
+        <div className="flex flex-col items-end gap-1.5 ml-auto max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
           <div className="gradient-premium p-4 rounded-[24px] rounded-br-none text-sm leading-relaxed shadow-lg shadow-pink-500/10">
             Thanks! It was taken in Iceland last summer. Have you ever been there?
           </div>
           <span className="text-[9px] font-bold text-secondary pr-2 uppercase tracking-widest">Lu 14:25</span>
         </div>
 
-        <div className="flex gap-3 max-w-[85%] md:max-w-[70%] xl:max-w-[62%]">
+        <div className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
           <img src={user.photos[0]} className="w-8 h-8 rounded-xl object-cover self-end shrink-0" alt="" referrerPolicy="no-referrer" />
           <div className="glass p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed">
             Not yet, but it's on my bucket list! 🇮🇸

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Heart, Star, Sparkles, Eye } from 'lucide-react';
 import { useDevice } from '../hooks/useDevice';
@@ -57,11 +57,48 @@ const lockedLikes = [
 const MatchesScreen: React.FC = () => {
   const { isDesktop, isTablet } = useDevice();
   const isLarge = isDesktop || isTablet;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = useRef<Array<HTMLElement | null>>([]);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollThumb, setScrollThumb] = useState(28);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!isLarge || !node) return;
+
+    const updateScroll = () => {
+      const max = node.scrollHeight - node.clientHeight;
+      const progress = max <= 0 ? 0 : node.scrollTop / max;
+      const size = node.scrollHeight <= 0 ? 100 : (node.clientHeight / node.scrollHeight) * 100;
+      setScrollProgress(Math.min(1, Math.max(0, progress)));
+      setScrollThumb(Math.max(20, Math.min(100, size)));
+    };
+
+    updateScroll();
+    node.addEventListener('scroll', updateScroll);
+    window.addEventListener('resize', updateScroll);
+
+    return () => {
+      node.removeEventListener('scroll', updateScroll);
+      window.removeEventListener('resize', updateScroll);
+    };
+  }, [isLarge]);
+
+  const jumpToSection = (index: number) => {
+    const node = sectionRefs.current[index];
+    if (!node) return;
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
-    <div className="h-full overflow-y-auto no-scrollbar py-6 pb-nav">
+    <div ref={scrollRef} className="relative group/likes h-full overflow-y-auto no-scrollbar py-6 pb-nav">
       <div className="container-wide px-[var(--page-x)] layout-stack">
-        <header className="flex items-end justify-between gap-4">
+        <header
+          ref={(el) => {
+            sectionRefs.current[0] = el;
+          }}
+          className="flex items-end justify-between gap-4"
+        >
           <div>
             <h1 className="fluid-title font-black tracking-tight">Vos Likes</h1>
             <p className="text-secondary fluid-subtitle">Voyez qui s'interesse a vous et debloquez les profils en un geste.</p>
@@ -73,7 +110,12 @@ const MatchesScreen: React.FC = () => {
         </header>
 
         {isLarge ? (
-          <div className="grid grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start">
+          <div
+            ref={(el) => {
+              sectionRefs.current[1] = el;
+            }}
+            className="grid grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start"
+          >
             <section className="grid grid-cols-2 xl:grid-cols-3 gap-[var(--grid-gap)]">
               {lockedLikes.map((like, index) => (
                 <motion.article
@@ -107,7 +149,12 @@ const MatchesScreen: React.FC = () => {
               ))}
             </section>
 
-            <aside className="layout-stack">
+            <aside
+              ref={(el) => {
+                sectionRefs.current[2] = el;
+              }}
+              className="layout-stack"
+            >
               <section className="glass rounded-[var(--card-radius)] p-5 border border-white/10">
                 <div className="inline-flex p-2 rounded-xl bg-white/5 mb-3">
                   <Star className="text-[#FFD166]" fill="#FFD166" size={18} />
@@ -173,6 +220,35 @@ const MatchesScreen: React.FC = () => {
           </>
         )}
       </div>
+      {isLarge && (
+        <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">
+          <div className="group/likes-rail h-full w-full flex items-center justify-center pointer-events-auto">
+            <div className="flex items-center opacity-0 transition-opacity duration-300 group-hover/likes-rail:opacity-100">
+              <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_14px_rgba(217,70,239,0.33)]">
+                <div className="relative w-2.5 h-40 rounded-full bg-[#09090c]/95 overflow-hidden">
+                  <div
+                    className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
+                    style={{
+                      height: `${scrollThumb}%`,
+                      top: `${scrollProgress * (100 - scrollThumb)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="ml-2 flex flex-col gap-2">
+                {[0, 1, 2].map((index) => (
+                  <button
+                    key={`likes-jump-${index}`}
+                    onClick={() => jumpToSection(index)}
+                    className="w-2 h-2 rounded-full bg-white/35 hover:bg-pink-300 transition-colors"
+                    aria-label={`Aller a la section likes ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

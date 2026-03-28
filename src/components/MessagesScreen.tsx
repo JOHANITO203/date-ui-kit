@@ -78,7 +78,7 @@ const MessagesScreen = () => {
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
-      <div className={`flex flex-col ${isLarge ? 'w-[min(30vw,26rem)] border-r border-white/5 overflow-hidden pb-6' : 'w-full overflow-y-auto no-scrollbar pb-nav'} h-full px-[var(--page-x)] pt-6`}>
+      <div className={`group/messages-pane relative flex flex-col ${isLarge ? 'w-[min(34vw,24rem)] xl:w-[min(30vw,26rem)] border-r border-white/5 overflow-hidden pb-6' : 'w-full overflow-y-auto no-scrollbar pb-nav'} h-full px-[var(--page-x)] pt-6`}>
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-3xl font-bold tracking-tight">Messages</h2>
           <button onClick={() => navigate('/settings')} className="glass p-2.5 rounded-full hover-effect"><ICONS.Settings size={20} /></button>
@@ -139,7 +139,7 @@ const MessagesScreen = () => {
         </div>
 
         {/* Conversations */}
-        <div className="space-y-3 flex-1 min-h-0 group/conversations relative">
+        <div className="space-y-3 flex-1 min-h-0">
           <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4">Conversations</h3>
           <div ref={conversationsRef} className="space-y-3 overflow-y-auto no-scrollbar h-full pr-12">
             {MOCK_USERS.map((user, index) => (
@@ -173,7 +173,8 @@ const MessagesScreen = () => {
             ))}
           </div>
           {isLarge && (
-            <div className="absolute top-8 right-2 bottom-1 opacity-0 group-hover/conversations:opacity-100 transition-opacity duration-300 flex items-center">
+            <div className="absolute right-0 top-0 bottom-0 w-14 z-20 pointer-events-none">
+              <div className="group/messages-rail h-full w-full flex items-center justify-center pointer-events-auto opacity-0 transition-opacity duration-300 group-hover/messages-pane:opacity-100 group-hover/messages-rail:opacity-100">
               <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.25)]">
                 <div className="relative w-2.5 h-40 rounded-full bg-[#09090c]/95 overflow-hidden">
                   <div
@@ -197,6 +198,7 @@ const MessagesScreen = () => {
                   />
                 ))}
               </div>
+            </div>
             </div>
           )}
         </div>

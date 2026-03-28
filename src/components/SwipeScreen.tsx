@@ -116,6 +116,7 @@ const SwipeScreen = () => {
             <aside className="glass rounded-[28px] p-5 space-y-5 h-fit">
               <div className="flex items-center">
                 <button
+                  onClick={() => navigate('/settings/preferences')}
                   aria-label="Ouvrir les reglages de decouverte"
                   className="w-11 h-11 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
                 >
