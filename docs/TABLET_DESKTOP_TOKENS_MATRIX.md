@@ -12,7 +12,7 @@ Base de calcul: progression continue depuis les locks mobiles (`320x560` + matri
 
 | Tier | Card H | Name Size | Title Size | Overlay Top | Actions | Compat |
 |---|---:|---:|---:|---:|---:|---:|
-| Tablet 48+ | `min(72dvh,33rem)` | `2.4rem` | `2.1rem` | `8.75rem` | `3.75/3.35rem` | `3.7rem` |
+| Tablet 48+ | `min(72dvh,33rem)` | `1.5rem` | `2.1rem` | `8.75rem` | `3.75/3.35rem` | `3.7rem` |
 | Desktop 64+ | `min(74dvh,36rem)` | `2.6rem` | `2.2rem` | `9.25rem` | `4/3.5rem` | `3.9rem` |
 | Large 80+ | `min(76dvh,38rem)` | `2.8rem` | `2.3rem` | `9.6rem` | stable | stable |
 | Wide 90+ | `min(77dvh,40rem)` | `2.95rem` | stable | `9.9rem` | stable | stable |
@@ -39,4 +39,3 @@ Base de calcul: progression continue depuis les locks mobiles (`320x560` + matri
 - Les tokens sont integres dans `src/index.css` directement dans les media queries `48/64/80/90`.
 - Les pages non touchees composant-par-composant continuent d'heritier des tokens globaux.
 - `Profile` reste preserve structurellement (pas de refonte).
-

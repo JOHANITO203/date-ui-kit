@@ -13,7 +13,7 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 h-full glass border-r border-white/10 flex flex-col p-6 z-40">
+    <aside className="w-64 h-full border-r border-[var(--menu-premium-border)] flex flex-col p-6 z-40 bg-[var(--menu-premium-gray)] backdrop-blur-2xl shadow-[8px_0_26px_rgba(0,0,0,0.35)]">
       <div className="flex items-center gap-3 mb-12 px-2">
         <div className="w-8 h-8 gradient-premium rounded-lg" />
         <h1 className="text-xl font-black italic tracking-tighter">SWIPE</h1>
@@ -27,8 +27,8 @@ const Sidebar: React.FC = () => {
             className={({ isActive }) =>
               `flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 group ${
                 isActive
-                  ? 'bg-white/10 text-white'
-                  : 'text-secondary hover:bg-white/5 hover:text-white'
+                  ? 'bg-white/12 text-white'
+                  : 'text-secondary hover:bg-white/7 hover:text-white'
               }`
             }
           >
@@ -57,7 +57,7 @@ const Sidebar: React.FC = () => {
           to="/settings"
           className={({ isActive }) =>
             `w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-colors group ${
-              isActive ? 'bg-white/10 text-white' : 'text-secondary hover:text-white hover:bg-white/5'
+              isActive ? 'bg-white/12 text-white' : 'text-secondary hover:text-white hover:bg-white/7'
             }`
           }
         >

@@ -37,6 +37,9 @@ Il sert de base pour le tuning mobile-small sans casser la logique globale respo
     --discover-compat-size: 3.2rem;
     --discover-compat-value-size: 0.8rem;
     --discover-compat-label-size: 0.38rem;
+    --discover-mobile-filter-gap: 0.3rem;
+    --discover-mobile-filter-px: 0.5rem;
+    --discover-mobile-filter-py: 0.25rem;
 
     --content-safe-extra: 0.25rem;
   }
@@ -47,6 +50,7 @@ Il sert de base pour le tuning mobile-small sans casser la logique globale respo
 - Nom + age: ancre en haut-gauche via `--discover-identity-top`.
 - Badge verifie: ancre a cote du nom, taille fixe via `--discover-verified-size`.
 - Ring compatibilite: taille compacte via `--discover-compat-size`.
+- Filtres rapides mobile: ligne secondaire compacte, horizontale et scrollable (priorite visuelle au profil) via `--discover-mobile-filter-*`.
 - Actions mobile: boutons rectangulaires arrondis, hauteur reduite via les tokens `--discover-action-mobile-*`.
 - Espace carte/menu bas: controle par `--content-safe-extra` (evite le grand trou noir).
 

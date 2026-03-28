@@ -5,8 +5,13 @@
   --color-premium-end: #00BFFF;
   --color-boost-start: #FF8C00;
   --color-boost-end: #FFD166;
-  --color-surface: rgba(255, 255, 255, 0.05);
-  --color-surface-border: rgba(255, 255, 255, 0.1);
+    --color-surface: rgba(255, 255, 255, 0.05);
+    --color-surface-border: rgba(255, 255, 255, 0.1);
+    --menu-premium-gray: rgba(18, 20, 26, 0.9);
+    --menu-premium-border: rgba(255, 255, 255, 0.12);
+    --filters-stack-bg: rgba(26, 30, 39, 0.72);
+    --filters-chip-bg: rgba(255, 255, 255, 0.06);
+    --filters-chip-border: rgba(255, 255, 255, 0.16);
   --radius-card: 32px;
   --radius-button: 24px;
 }
@@ -64,6 +69,9 @@
     --discover-compat-size: 3.5rem;
     --discover-compat-value-size: 0.88rem;
     --discover-compat-label-size: 0.42rem;
+    --discover-mobile-filter-gap: 0.375rem;
+    --discover-mobile-filter-px: 0.625rem;
+    --discover-mobile-filter-py: 0.3rem;
     --name-xl: 2.25rem;
     --name-lg: 1.05rem;
     --name-md: 0.95rem;
@@ -126,7 +134,7 @@
       --discover-overlay-pad: 1rem;
       --discover-overlay-top: 4.75rem;
       --discover-identity-top: 3.2rem;
-      --discover-name-size: 2rem;
+      --discover-name-size: 1.5rem;
       --discover-title-size: 1.875rem;
       --discover-action-size: 3.5rem;
       --discover-action-main-size: 3.125rem;
@@ -141,6 +149,9 @@
       --discover-compat-size: 3.35rem;
       --discover-compat-value-size: 0.84rem;
       --discover-compat-label-size: 0.4rem;
+      --discover-mobile-filter-gap: 0.35rem;
+      --discover-mobile-filter-px: 0.55rem;
+      --discover-mobile-filter-py: 0.28rem;
       --name-xl: 2rem;
       --name-lg: 1rem;
       --name-md: 0.9rem;
@@ -193,6 +204,9 @@
       --discover-compat-size: 3.2rem;
       --discover-compat-value-size: 0.8rem;
       --discover-compat-label-size: 0.38rem;
+      --discover-mobile-filter-gap: 0.3rem;
+      --discover-mobile-filter-px: 0.5rem;
+      --discover-mobile-filter-py: 0.25rem;
       --name-xl: 1.95rem;
       --name-lg: 0.95rem;
       --name-md: 0.88rem;
@@ -246,6 +260,9 @@
       --discover-compat-size: 3.2rem;
       --discover-compat-value-size: 0.8rem;
       --discover-compat-label-size: 0.38rem;
+      --discover-mobile-filter-gap: 0.3rem;
+      --discover-mobile-filter-px: 0.5rem;
+      --discover-mobile-filter-py: 0.25rem;
       --name-xl: 2.125rem;
       --name-lg: 0.95rem;
       --name-md: 0.88rem;
@@ -294,6 +311,9 @@
       --discover-compat-size: 3.4rem;
       --discover-compat-value-size: 0.86rem;
       --discover-compat-label-size: 0.4rem;
+      --discover-mobile-filter-gap: 0.35rem;
+      --discover-mobile-filter-px: 0.6rem;
+      --discover-mobile-filter-py: 0.28rem;
       --name-xl: 2.25rem;
       --name-lg: 1rem;
       --name-md: 0.92rem;
@@ -336,6 +356,9 @@
       --discover-compat-size: 3.5rem;
       --discover-compat-value-size: 0.9rem;
       --discover-compat-label-size: 0.42rem;
+      --discover-mobile-filter-gap: 0.4rem;
+      --discover-mobile-filter-px: 0.65rem;
+      --discover-mobile-filter-py: 0.3rem;
       --name-xl: 2.35rem;
       --name-lg: 1.04rem;
       --name-md: 0.94rem;
@@ -378,6 +401,9 @@
       --discover-compat-size: 3.65rem;
       --discover-compat-value-size: 0.95rem;
       --discover-compat-label-size: 0.44rem;
+      --discover-mobile-filter-gap: 0.42rem;
+      --discover-mobile-filter-px: 0.7rem;
+      --discover-mobile-filter-py: 0.32rem;
       --name-xl: 2.45rem;
       --name-lg: 1.08rem;
       --name-md: 0.96rem;
@@ -420,6 +446,9 @@
       --discover-compat-size: 3.8rem;
       --discover-compat-value-size: 1rem;
       --discover-compat-label-size: 0.46rem;
+      --discover-mobile-filter-gap: 0.45rem;
+      --discover-mobile-filter-px: 0.75rem;
+      --discover-mobile-filter-py: 0.34rem;
       --name-xl: 2.55rem;
       --name-lg: 1.12rem;
       --name-md: 0.98rem;
@@ -556,7 +585,7 @@
       --discover-overlay-pad: 1.5rem;
       --discover-overlay-top: 8.75rem;
       --discover-identity-top: 5.4rem;
-      --discover-name-size: 2.4rem;
+      --discover-name-size: 2rem;
       --discover-title-size: 2.1rem;
       --discover-action-size: 3.75rem;
       --discover-action-main-size: 3.35rem;

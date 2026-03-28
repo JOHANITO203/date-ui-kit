@@ -120,16 +120,16 @@ const SwipeScreen = () => {
         )}
       </div>
       {!isLarge && (
-        <div className="px-[var(--page-x)] pb-2">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-[var(--page-x)] pb-1">
+          <div className="flex gap-[var(--discover-mobile-filter-gap)] overflow-x-auto no-scrollbar">
             {quickFilters.map((label) => (
               <button
                 key={`mobile-${label}`}
                 onClick={() => toggleFilter(label)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                className={`shrink-0 px-[var(--discover-mobile-filter-px)] py-[var(--discover-mobile-filter-py)] rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap text-center transition-all ${
                   activeFilters.includes(label)
                     ? 'text-white border border-fuchsia-400/60 bg-gradient-to-r from-pink-500/30 to-blue-500/30 shadow-[0_0_14px_rgba(217,70,239,0.25)]'
-                    : 'bg-white/5 border border-white/10 text-white/70'
+                    : 'bg-white/5 border border-white/10 text-white/65'
                 }`}
               >
                 {label}
@@ -140,13 +140,13 @@ const SwipeScreen = () => {
       )}
 
       {isLarge ? (
-        <div className={`flex-1 min-h-0 px-[var(--page-x)] pt-2 ${isDesktop ? 'pb-2' : 'pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+0.75rem)]'}`}>
+        <div className={`flex-1 min-h-0 px-[var(--page-x)] pt-2 ${isDesktop ? 'pb-2' : 'pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1.25rem)]'}`}>
           <div className="container-immersive screen-template-immersive density-immersive h-full">
           <div
             className="h-full grid gap-[var(--grid-gap)] items-start"
             style={{ gridTemplateColumns: `${isDesktop ? 'var(--panel-width-md)' : 'var(--panel-width-sm)'} minmax(0, 1fr)` }}
           >
-            <aside className="glass rounded-[28px] p-5 space-y-5 h-fit">
+            <aside className={`rounded-[28px] border border-[var(--menu-premium-border)] bg-[var(--filters-stack-bg)] backdrop-blur-2xl ${isTablet ? 'p-4 space-y-4' : 'p-5 space-y-5'} h-fit`}>
               <div className="flex items-center">
                 <button
                   onClick={() => navigate('/settings/preferences')}
@@ -158,15 +158,15 @@ const SwipeScreen = () => {
               </div>
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Filtres rapides</p>
-                <div className="flex flex-wrap gap-2">
+                <div className={`flex flex-wrap ${isTablet ? 'gap-1.5' : 'gap-2'}`}>
                   {quickFilters.map((label) => (
                     <button
                       key={label}
                       onClick={() => toggleFilter(label)}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      className={`${isTablet ? 'px-2.5 py-1.5 text-[9px]' : 'px-3 py-1.5 text-[10px]'} rounded-full font-bold uppercase tracking-wider transition-all ${
                         activeFilters.includes(label)
                           ? 'text-white border border-fuchsia-400/60 bg-gradient-to-r from-pink-500/30 to-blue-500/30 shadow-[0_0_14px_rgba(217,70,239,0.25)]'
-                          : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                          : 'bg-[var(--filters-chip-bg)] border border-[var(--filters-chip-border)] text-white/70 hover:bg-white/10'
                       }`}
                     >
                       {label}
@@ -177,13 +177,13 @@ const SwipeScreen = () => {
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Activite</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
-                    <p className="text-lg font-black">24</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">Likes recents</p>
+                  <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
+                    <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>24</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/45">Likes recents</p>
                   </div>
-                  <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
-                    <p className="text-lg font-black">7</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">Matches</p>
+                  <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
+                    <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>7</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/45">Matches</p>
                   </div>
                 </div>
               </div>
@@ -374,24 +374,17 @@ const SwipeScreen = () => {
                 ))}
               </div>
 
-              {!isLarge && (
-                  <div className="absolute left-[var(--discover-overlay-pad)] right-[var(--discover-overlay-pad)] top-[var(--discover-identity-top)] z-30 pointer-events-none">
-                  <NameWithBadge
-                    name={user.name}
-                    age={user.age}
-                    verified={user.verified}
-                    size="xl"
-                    badgeClassName="mt-0.5"
-                  />
-                </div>
-              )}
-
                <div className="absolute bottom-0 left-0 right-0 p-[var(--discover-overlay-pad)] pt-[var(--discover-overlay-top)] pb-16 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none">
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
-                    {isLarge && (
-                      <NameWithBadge name={user.name} age={user.age} verified={user.verified} size="xl" />
-                    )}
+                    <NameWithBadge
+                      name={user.name}
+                      age={user.age}
+                      verified={user.verified}
+                      size={isLarge ? 'xl' : 'lg'}
+                      textClassName={isLarge ? '' : 'max-w-[75%]'}
+                      badgeClassName={isLarge ? '' : 'mt-0.5'}
+                    />
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
                       <div className="flex items-center gap-1.5">

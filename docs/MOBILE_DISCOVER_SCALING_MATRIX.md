@@ -30,6 +30,12 @@ Objectif: agrandir `Discover` a partir de la base `320x560` sans changer la logi
   - `--discover-action-mobile-main-h`
   - `--discover-action-mobile-main-radius`
 
+## Filtres rapides mobile (secondaire)
+
+- Pattern verrouille: **ligne unique horizontale scrollable**.
+- Tokens: `--discover-mobile-filter-gap`, `--discover-mobile-filter-px`, `--discover-mobile-filter-py`.
+- Objectif: ne jamais reduire l'espace alloue a la carte profil.
+
 ## Fichiers relies
 
 - `src/index.css`
