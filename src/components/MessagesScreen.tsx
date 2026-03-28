@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import ChatScreen from './ChatScreen';
+import NameWithBadge from './ui/NameWithBadge';
 
 const MessagesScreen = () => {
   const navigate = useNavigate();
@@ -105,7 +106,7 @@ const MessagesScreen = () => {
                 <div className={`${isLarge ? 'w-20 h-20' : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
                   <img src={user.photos[0]} className="w-full h-full object-cover" alt={user.name} referrerPolicy="no-referrer" />
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider">{user.name}</span>
+                <span className="text-[10px] font-bold tracking-wider">{user.name}, {user.age}</span>
               </div>
             ))}
           </div>
@@ -161,7 +162,13 @@ const MessagesScreen = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center mb-1 gap-2">
-                    <span className={`${isLarge ? 'text-base' : 'text-[length:var(--messages-conv-name-size)]'} font-bold truncate`}>{user.name}</span>
+                    <NameWithBadge
+                      name={user.name}
+                      age={user.age}
+                      verified={user.verified}
+                      size="lg"
+                      textClassName="truncate"
+                    />
                     <span className="text-[10px] text-secondary font-bold shrink-0">14:20</span>
                   </div>
                   <p className={`${isLarge ? 'text-xs' : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary line-clamp-1`}>Hey! I saw your profile and loved your photography...</p>

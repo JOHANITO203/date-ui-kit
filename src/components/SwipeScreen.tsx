@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
+import NameWithBadge from './ui/NameWithBadge';
 
 const SwipeScreen = () => {
   const navigate = useNavigate();
@@ -105,12 +106,6 @@ const SwipeScreen = () => {
     </>
   );
 
-  const verifiedBadge = (
-    <div className="w-[var(--discover-verified-size)] h-[var(--discover-verified-size)] rounded-full bg-[#1D9BF0] border border-white/35 flex items-center justify-center shadow-[0_6px_16px_rgba(29,155,240,0.35)] shrink-0">
-      <span className="text-white font-black leading-none text-[10px]">✓</span>
-    </div>
-  );
-
   return (
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
       <div className="flex items-center justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
@@ -124,6 +119,25 @@ const SwipeScreen = () => {
           </button>
         )}
       </div>
+      {!isLarge && (
+        <div className="px-[var(--page-x)] pb-2">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {quickFilters.map((label) => (
+              <button
+                key={`mobile-${label}`}
+                onClick={() => toggleFilter(label)}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  activeFilters.includes(label)
+                    ? 'text-white border border-fuchsia-400/60 bg-gradient-to-r from-pink-500/30 to-blue-500/30 shadow-[0_0_14px_rgba(217,70,239,0.25)]'
+                    : 'bg-white/5 border border-white/10 text-white/70'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isLarge ? (
         <div className={`flex-1 min-h-0 px-[var(--page-x)] pt-2 ${isDesktop ? 'pb-2' : 'pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+0.75rem)]'}`}>
@@ -213,17 +227,17 @@ const SwipeScreen = () => {
                 />
               </AnimatePresence>
 
-              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-16 h-16 border-4 border-blue-400 text-blue-400 rounded-2xl rotate-[-16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
-                <ICONS.Likes size={28} fill="currentColor" />
+              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-16 h-16 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
+                <ICONS.Likes size={26} fill="currentColor" className="text-blue-300 drop-shadow-[0_0_8px_rgba(96,165,250,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-16 h-16 border-4 border-red-500 text-red-500 rounded-2xl rotate-[16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
-                <ICONS.X size={30} />
+              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-16 h-16 rounded-full rotate-[12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-red-500/70 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
+                <ICONS.X size={28} className="text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-4 border-fuchsia-500 text-fuchsia-400 rounded-2xl pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(217,70,239,0.35)]">
-                <ICONS.Star size={26} fill="currentColor" />
+              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full pointer-events-none z-30 flex items-center justify-center border-2 border-fuchsia-300/80 shadow-[0_0_22px_rgba(217,70,239,0.4)]">
+                <ICONS.Star size={24} fill="currentColor" className="text-white drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
               </motion.div>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/5 pointer-events-none" />
 
               <div className="absolute top-4 left-6 right-6 flex gap-1.5 z-20">
                 {user.photos.map((_, i) => (
@@ -233,12 +247,18 @@ const SwipeScreen = () => {
                 ))}
               </div>
 
-              <div className={`absolute bottom-0 left-0 right-0 p-6 pt-24 ${isDesktop ? 'pb-24' : 'pb-20'} bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none`}>
+              <div className={`absolute bottom-0 left-0 right-0 p-6 pt-24 ${isDesktop ? 'pb-24' : 'pb-20'} bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none`}>
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     <div className={`inline-flex gap-2 ${isLarge ? 'items-center' : 'items-start'}`}>
-                      <h2 className={`text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none whitespace-nowrap ${isLarge ? '' : 'max-w-[75%]'}`}>{user.name}, {user.age}</h2>
-                      {user.verified && <div className={isLarge ? '' : 'mt-0.5'}>{verifiedBadge}</div>}
+                      <NameWithBadge
+                        name={user.name}
+                        age={user.age}
+                        verified={user.verified}
+                        size="xl"
+                        textClassName={isLarge ? '' : 'max-w-[75%]'}
+                        badgeClassName={isLarge ? '' : 'mt-0.5'}
+                      />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
@@ -334,17 +354,17 @@ const SwipeScreen = () => {
                 />
               </AnimatePresence>
 
-              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-14 h-14 border-4 border-blue-400 text-blue-400 rounded-2xl rotate-[-16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
-                <ICONS.Likes size={24} fill="currentColor" />
+              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-14 h-14 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_18px_rgba(59,130,246,0.35)]">
+                <ICONS.Likes size={22} fill="currentColor" className="text-blue-300 drop-shadow-[0_0_8px_rgba(96,165,250,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-14 h-14 border-4 border-red-500 text-red-500 rounded-2xl rotate-[16deg] pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
-                <ICONS.X size={24} />
+              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-14 h-14 rounded-full rotate-[12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-red-500/70 shadow-[0_0_18px_rgba(239,68,68,0.35)]">
+                <ICONS.X size={22} className="text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 border-4 border-fuchsia-500 text-fuchsia-400 rounded-2xl pointer-events-none z-30 flex items-center justify-center bg-black/45 shadow-[0_0_20px_rgba(217,70,239,0.35)]">
-                <ICONS.Star size={22} fill="currentColor" />
+              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full pointer-events-none z-30 flex items-center justify-center border-2 border-fuchsia-300/80 shadow-[0_0_20px_rgba(217,70,239,0.4)]">
+                <ICONS.Star size={20} fill="currentColor" className="text-white drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
               </motion.div>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/5 pointer-events-none" />
 
               <div className="absolute top-4 left-6 right-6 flex gap-1.5 z-20">
                 {user.photos.map((_, i) => (
@@ -355,22 +375,22 @@ const SwipeScreen = () => {
               </div>
 
               {!isLarge && (
-                <div className="absolute left-[var(--discover-overlay-pad)] right-[var(--discover-overlay-pad)] top-[var(--discover-identity-top)] z-30 pointer-events-none">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
-                    {user.verified && <div className="mt-0.5">{verifiedBadge}</div>}
-                  </div>
+                  <div className="absolute left-[var(--discover-overlay-pad)] right-[var(--discover-overlay-pad)] top-[var(--discover-identity-top)] z-30 pointer-events-none">
+                  <NameWithBadge
+                    name={user.name}
+                    age={user.age}
+                    verified={user.verified}
+                    size="xl"
+                    badgeClassName="mt-0.5"
+                  />
                 </div>
               )}
 
-               <div className="absolute bottom-0 left-0 right-0 p-[var(--discover-overlay-pad)] pt-[var(--discover-overlay-top)] pb-16 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
+               <div className="absolute bottom-0 left-0 right-0 p-[var(--discover-overlay-pad)] pt-[var(--discover-overlay-top)] pb-16 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none">
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     {isLarge && (
-                      <div className="inline-flex items-center gap-2">
-                        <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none whitespace-nowrap">{user.name}, {user.age}</h2>
-                        {user.verified && verifiedBadge}
-                      </div>
+                      <NameWithBadge name={user.name} age={user.age} verified={user.verified} size="xl" />
                     )}
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">

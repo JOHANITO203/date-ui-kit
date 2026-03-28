@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
+import NameWithBadge from './ui/NameWithBadge';
 
 interface ChatScreenProps {
   embedded?: boolean;
@@ -38,7 +39,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
           </div>
           <div>
-            <h4 className="font-bold text-sm">{user.name}</h4>
+            <NameWithBadge name={user.name} age={user.age} verified={user.verified} size="md" />
             <span className="text-[9px] text-green-400 uppercase font-black tracking-widest">En ligne</span>
           </div>
         </div>

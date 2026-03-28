@@ -20,7 +20,7 @@ Il sert de base pour le tuning mobile-small sans casser la logique globale respo
 
     --discover-overlay-pad: 0.875rem;
     --discover-overlay-top: 5rem;
-    --discover-identity-top: 3.9rem;
+    --discover-identity-top: 2.85rem;
 
     --discover-name-size: 2.125rem;
     --discover-title-size: 1.75rem;
@@ -35,6 +35,8 @@ Il sert de base pour le tuning mobile-small sans casser la logique globale respo
 
     --discover-verified-size: 1.5rem;
     --discover-compat-size: 3.2rem;
+    --discover-compat-value-size: 0.8rem;
+    --discover-compat-label-size: 0.38rem;
 
     --content-safe-extra: 0.25rem;
   }
@@ -43,7 +45,7 @@ Il sert de base pour le tuning mobile-small sans casser la logique globale respo
 
 ## Behavioral Lock
 - Nom + age: ancre en haut-gauche via `--discover-identity-top`.
-- Badge verifie: ancre en haut-droite, taille fixe via `--discover-verified-size`.
+- Badge verifie: ancre a cote du nom, taille fixe via `--discover-verified-size`.
 - Ring compatibilite: taille compacte via `--discover-compat-size`.
 - Actions mobile: boutons rectangulaires arrondis, hauteur reduite via les tokens `--discover-action-mobile-*`.
 - Espace carte/menu bas: controle par `--content-safe-extra` (evite le grand trou noir).
@@ -52,4 +54,3 @@ Il sert de base pour le tuning mobile-small sans casser la logique globale respo
 - Les positions sont tokenisees, pas hardcodees.
 - Toute evolution mobile-small doit passer par ces tokens avant de toucher les classes.
 - Les autres breakpoints gardent leurs tokens globaux existants.
-

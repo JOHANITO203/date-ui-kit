@@ -4,6 +4,7 @@ import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
+import NameWithBadge from './ui/NameWithBadge';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -91,7 +92,9 @@ const ProfileScreen = () => {
                 
                 <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
                   <div>
-                    <h3 className="text-4xl font-black tracking-tighter text-white mb-1">Alex, 26</h3>
+                    <div className="mb-1">
+                      <NameWithBadge name="Alex" age={26} verified size="xl" />
+                    </div>
                     <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
                       <ICONS.MapPin size={12} className="text-pink-500" /> Paris, FR
                     </div>
