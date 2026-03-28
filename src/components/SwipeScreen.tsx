@@ -74,7 +74,7 @@ const SwipeScreen = () => {
           e.stopPropagation();
           swipe('left');
         }}
-        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-11 h-9 rounded-xl'} flex items-center justify-center text-red-500 border-2 border-red-500/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(239,68,68,0.15)] hover:bg-red-500/10 transition-all duration-300`}
+        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-[var(--discover-action-mobile-w)] h-[var(--discover-action-mobile-h)] rounded-[var(--discover-action-mobile-radius)]'} flex items-center justify-center text-red-500 border-2 border-red-500/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(239,68,68,0.15)] hover:bg-red-500/10 transition-all duration-300`}
       >
         <ICONS.X size={isLarge ? 26 : 22} />
       </motion.button>
@@ -87,7 +87,7 @@ const SwipeScreen = () => {
           e.stopPropagation();
           swipe('up');
         }}
-        className={`${isLarge ? 'w-[var(--discover-action-main-size)] h-[var(--discover-action-main-size)] rounded-full' : 'w-12 h-10 rounded-2xl'} flex items-center justify-center text-white gradient-premium opacity-90 shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden`}
+        className={`${isLarge ? 'w-[var(--discover-action-main-size)] h-[var(--discover-action-main-size)] rounded-full' : 'w-[var(--discover-action-mobile-main-w)] h-[var(--discover-action-mobile-main-h)] rounded-[var(--discover-action-mobile-main-radius)]'} flex items-center justify-center text-white gradient-premium opacity-90 shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden`}
       >
         <ICONS.Star size={isLarge ? 20 : 18} fill="currentColor" className="relative z-10" />
       </motion.button>
@@ -98,7 +98,7 @@ const SwipeScreen = () => {
           e.stopPropagation();
           swipe('right');
         }}
-        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-11 h-9 rounded-xl'} flex items-center justify-center text-blue-400 border-2 border-blue-400/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(59,130,246,0.15)] hover:bg-blue-400/10 transition-all duration-300`}
+        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-[var(--discover-action-mobile-w)] h-[var(--discover-action-mobile-h)] rounded-[var(--discover-action-mobile-radius)]'} flex items-center justify-center text-blue-400 border-2 border-blue-400/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(59,130,246,0.15)] hover:bg-blue-400/10 transition-all duration-300`}
       >
         <ICONS.Likes size={isLarge ? 26 : 22} fill="currentColor" />
       </motion.button>
@@ -233,10 +233,10 @@ const SwipeScreen = () => {
                     <div className={`flex justify-between gap-2 w-full ${isLarge ? 'items-end' : 'items-start'}`}>
                       <h2 className={`text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none ${isLarge ? '' : 'max-w-[75%]'}`}>{user.name}, {user.age}</h2>
                       {user.verified && (
-                        <div className={`w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 ${isLarge ? '' : 'mt-0.5'}`}>
-                          <ICONS.CheckCircle2 size={14} className="text-white" />
-                        </div>
-                      )}
+                    <div className={`w-[var(--discover-verified-size)] h-[var(--discover-verified-size)] rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 ${isLarge ? '' : 'mt-0.5'}`}>
+                      <ICONS.CheckCircle2 size={14} className="text-white" />
+                    </div>
+                  )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
@@ -260,7 +260,7 @@ const SwipeScreen = () => {
                       {user.interests.length > 2 && <span className="px-2 py-1 rounded-full bg-white/5 text-[9px] font-black text-white/30">+{user.interests.length - 2}</span>}
                     </div>
                   </div>
-                  <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
+                  <div className="relative w-[var(--discover-compat-size)] h-[var(--discover-compat-size)] flex items-center justify-center shrink-0">
                     <svg className="w-full h-full -rotate-90">
                       <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/10" />
                       <motion.circle
