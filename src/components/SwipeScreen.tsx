@@ -263,7 +263,7 @@ const SwipeScreen = () => {
                     </div>
                   </div>
                   <div className="relative w-[var(--discover-compat-size)] h-[var(--discover-compat-size)] flex items-center justify-center shrink-0">
-                    <svg className="w-full h-full -rotate-90">
+                    <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
                       <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/10" />
                       <motion.circle
                         cx="32"
@@ -281,8 +281,8 @@ const SwipeScreen = () => {
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-xs font-black text-white leading-none">{user.compatibility}%</span>
-                      <span className="text-[6px] font-bold uppercase tracking-widest text-white/40">Match</span>
+                      <span className="text-[length:var(--discover-compat-value-size)] font-black text-white leading-none">{user.compatibility}%</span>
+                      <span className="text-[length:var(--discover-compat-label-size)] font-bold uppercase tracking-widest text-white/40">Match</span>
                     </div>
                   </div>
                 </div>
@@ -396,8 +396,8 @@ const SwipeScreen = () => {
                     </div>
                   </div>
 
-                  <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
-                    <svg className="w-full h-full -rotate-90">
+                  <div className="relative w-[var(--discover-compat-size)] h-[var(--discover-compat-size)] flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
                       <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/10" />
                       <motion.circle
                         cx="32"
@@ -415,8 +415,8 @@ const SwipeScreen = () => {
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-xs font-black text-white leading-none">{user.compatibility}%</span>
-                      <span className="text-[6px] font-bold uppercase tracking-widest text-white/40">Match</span>
+                      <span className="text-[length:var(--discover-compat-value-size)] font-black text-white leading-none">{user.compatibility}%</span>
+                      <span className="text-[length:var(--discover-compat-label-size)] font-bold uppercase tracking-widest text-white/40">Match</span>
                     </div>
                   </div>
                 </div>

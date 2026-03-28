@@ -62,6 +62,8 @@
     --discover-action-mobile-main-radius: 1rem;
     --discover-verified-size: 1.5rem;
     --discover-compat-size: 3.5rem;
+    --discover-compat-value-size: 0.88rem;
+    --discover-compat-label-size: 0.42rem;
     --messages-header-top: 1rem;
     --messages-header-gap: 1.25rem;
     --messages-title-size: 2.15rem;
@@ -132,6 +134,8 @@
       --discover-action-mobile-main-radius: 0.95rem;
       --discover-verified-size: 1.5rem;
       --discover-compat-size: 3.35rem;
+      --discover-compat-value-size: 0.84rem;
+      --discover-compat-label-size: 0.4rem;
       --messages-header-top: 0.9rem;
       --messages-header-gap: 1rem;
       --messages-title-size: 2.05rem;
@@ -178,6 +182,8 @@
       --discover-action-mobile-main-radius: 0.9rem;
       --discover-verified-size: 1.5rem;
       --discover-compat-size: 3.2rem;
+      --discover-compat-value-size: 0.8rem;
+      --discover-compat-label-size: 0.38rem;
       --messages-header-top: 0.85rem;
       --messages-header-gap: 0.95rem;
       --messages-title-size: 2rem;
@@ -225,6 +231,8 @@
       --discover-action-mobile-main-radius: 0.9rem;
       --discover-verified-size: 1.5rem;
       --discover-compat-size: 3.2rem;
+      --discover-compat-value-size: 0.8rem;
+      --discover-compat-label-size: 0.38rem;
       --messages-header-top: 0.85rem;
       --messages-header-gap: 0.95rem;
       --messages-title-size: 2rem;
@@ -267,6 +275,8 @@
       --discover-name-size: 2.25rem;
       --discover-title-size: 2rem;
       --discover-compat-size: 3.4rem;
+      --discover-compat-value-size: 0.86rem;
+      --discover-compat-label-size: 0.4rem;
       --discover-action-mobile-w: 2.85rem;
       --discover-action-mobile-h: 2.2rem;
       --discover-action-mobile-main-w: 3.05rem;
@@ -303,6 +313,8 @@
       --discover-name-size: 2.35rem;
       --discover-title-size: 2.05rem;
       --discover-compat-size: 3.5rem;
+      --discover-compat-value-size: 0.9rem;
+      --discover-compat-label-size: 0.42rem;
       --discover-action-mobile-w: 2.95rem;
       --discover-action-mobile-h: 2.25rem;
       --discover-action-mobile-main-w: 3.2rem;
@@ -339,6 +351,8 @@
       --discover-name-size: 2.45rem;
       --discover-title-size: 2.1rem;
       --discover-compat-size: 3.65rem;
+      --discover-compat-value-size: 0.95rem;
+      --discover-compat-label-size: 0.44rem;
       --discover-action-mobile-w: 3rem;
       --discover-action-mobile-h: 2.3rem;
       --discover-action-mobile-main-w: 3.3rem;
@@ -375,6 +389,8 @@
       --discover-name-size: 2.55rem;
       --discover-title-size: 2.15rem;
       --discover-compat-size: 3.8rem;
+      --discover-compat-value-size: 1rem;
+      --discover-compat-label-size: 0.46rem;
       --discover-action-mobile-w: 3.1rem;
       --discover-action-mobile-h: 2.35rem;
       --discover-action-mobile-main-w: 3.4rem;
@@ -407,6 +423,8 @@
       --discover-identity-top: 4.15rem;
       --discover-name-size: 2.1rem;
       --discover-compat-size: 3.2rem;
+      --discover-compat-value-size: 0.82rem;
+      --discover-compat-label-size: 0.38rem;
       --messages-header-top: 0.9rem;
       --messages-header-gap: 1rem;
       --messages-matches-section-gap: 1.2rem;
@@ -507,6 +525,8 @@
       --discover-action-main-size: 3.35rem;
       --discover-action-gap: 1rem;
       --discover-compat-size: 3.7rem;
+      --discover-compat-value-size: 1rem;
+      --discover-compat-label-size: 0.46rem;
       /* Messages - tablet baseline */
       --messages-header-top: 1.2rem;
       --messages-header-gap: 1.45rem;
@@ -566,6 +586,8 @@
       --discover-action-main-size: 3.5rem;
       --discover-action-gap: 1.15rem;
       --discover-compat-size: 3.9rem;
+      --discover-compat-value-size: 1.05rem;
+      --discover-compat-label-size: 0.48rem;
       /* Messages - desktop baseline */
       --messages-header-top: 1.35rem;
       --messages-header-gap: 1.65rem;
