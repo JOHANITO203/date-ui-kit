@@ -44,6 +44,17 @@
     --panel-width-sm: 16rem;
     --panel-width-md: 20rem;
     --panel-width-lg: 22rem;
+    --discover-header-top: 1.5rem;
+    --discover-card-h: min(62dvh, 28rem);
+    --discover-overlay-pad: 2rem;
+    --discover-overlay-top: 8rem;
+    --discover-identity-top: 4.875rem;
+    --discover-name-size: 2.25rem;
+    --discover-title-size: 2rem;
+    --discover-action-size: 4rem;
+    --discover-action-main-size: 3.5rem;
+    --discover-action-gap: 1.25rem;
+    --content-safe-extra: 1rem;
 
     /* Typography */
     --text-xs: clamp(0.75rem, 0.72rem + 0.1vw, 0.8rem);
@@ -72,6 +83,32 @@
       --avatar-size: 3.25rem;
       --cta-height: 2.875rem;
       --content-max-width: 36rem;
+      --discover-header-top: 1.125rem;
+      --discover-card-h: min(56dvh, 24rem);
+      --discover-overlay-pad: 1rem;
+      --discover-overlay-top: 4.75rem;
+      --discover-identity-top: 4.25rem;
+      --discover-name-size: 2rem;
+      --discover-title-size: 1.875rem;
+      --discover-action-size: 3.5rem;
+      --discover-action-main-size: 3.125rem;
+      --discover-action-gap: 0.875rem;
+    }
+  }
+
+  @media (max-height: 40rem) {
+    :root {
+      --discover-header-top: 1rem;
+      --discover-card-h: min(64dvh, 24.5rem);
+      --discover-overlay-pad: 0.875rem;
+      --discover-overlay-top: 5rem;
+      --discover-identity-top: 3.9rem;
+      --discover-name-size: 1.875rem;
+      --discover-title-size: 1.75rem;
+      --discover-action-size: 2.625rem;
+      --discover-action-main-size: 2.375rem;
+      --discover-action-gap: 0.75rem;
+      --content-safe-extra: 0.25rem;
     }
   }
 
@@ -278,7 +315,7 @@
   }
 
   .content-safe {
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem);
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--content-safe-extra));
   }
 
   .app-container {

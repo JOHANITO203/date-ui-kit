@@ -70,37 +70,46 @@ const SwipeScreen = () => {
     <>
       <motion.button
         whileTap={{ scale: 0.85 }}
-        onClick={() => swipe('left')}
-        className="w-16 h-16 rounded-full flex items-center justify-center text-red-500 border-2 border-red-500/20 bg-black/40 backdrop-blur-xl shadow-[0_10px_25px_rgba(239,68,68,0.15)] hover:bg-red-500/10 transition-all duration-300"
+        onClick={(e) => {
+          e.stopPropagation();
+          swipe('left');
+        }}
+        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-11 h-9 rounded-xl'} flex items-center justify-center text-red-500 border-2 border-red-500/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(239,68,68,0.15)] hover:bg-red-500/10 transition-all duration-300`}
       >
-        <ICONS.X size={32} />
+        <ICONS.X size={isLarge ? 26 : 22} />
       </motion.button>
 
       <motion.button
         whileTap={{ scale: 0.9, rotate: 12 }}
         animate={{ boxShadow: ['0 0 18px rgba(255, 20, 147, 0.2)', '0 0 34px rgba(255, 20, 147, 0.35)', '0 0 18px rgba(255, 20, 147, 0.2)'] }}
         transition={{ boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' } }}
-        onClick={() => swipe('up')}
-        className="w-14 h-14 rounded-full flex items-center justify-center text-white gradient-premium shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden"
+        onClick={(e) => {
+          e.stopPropagation();
+          swipe('up');
+        }}
+        className={`${isLarge ? 'w-[var(--discover-action-main-size)] h-[var(--discover-action-main-size)] rounded-full' : 'w-12 h-10 rounded-2xl'} flex items-center justify-center text-white gradient-premium opacity-90 shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden`}
       >
-        <ICONS.Star size={24} fill="currentColor" className="relative z-10" />
+        <ICONS.Star size={isLarge ? 20 : 18} fill="currentColor" className="relative z-10" />
       </motion.button>
 
       <motion.button
         whileTap={{ scale: 0.9 }}
-        onClick={() => swipe('right')}
-        className="w-16 h-16 rounded-full flex items-center justify-center text-blue-400 border-2 border-blue-400/20 bg-black/40 backdrop-blur-xl shadow-[0_10px_25px_rgba(59,130,246,0.15)] hover:bg-blue-400/10 transition-all duration-300"
+        onClick={(e) => {
+          e.stopPropagation();
+          swipe('right');
+        }}
+        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-11 h-9 rounded-xl'} flex items-center justify-center text-blue-400 border-2 border-blue-400/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(59,130,246,0.15)] hover:bg-blue-400/10 transition-all duration-300`}
       >
-        <ICONS.Likes size={32} fill="currentColor" />
+        <ICONS.Likes size={isLarge ? 26 : 22} fill="currentColor" />
       </motion.button>
     </>
   );
 
   return (
-    <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-hidden pb-nav'}`}>
-      <div className="flex items-center justify-between px-[var(--page-x)] pt-6 md:pt-7 lg:pt-8 pb-4 shrink-0 z-20">
+    <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
+      <div className="flex items-center justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-white leading-none">Discover</h1>
+          <h1 className="text-[length:var(--discover-title-size)] font-bold tracking-tight text-white leading-none">Discover</h1>
         </div>
         {!isLarge && (
           <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
@@ -221,10 +230,10 @@ const SwipeScreen = () => {
               <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-4xl font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
+                    <div className={`flex justify-between gap-2 w-full ${isLarge ? 'items-end' : 'items-start'}`}>
+                      <h2 className={`text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none ${isLarge ? '' : 'max-w-[75%]'}`}>{user.name}, {user.age}</h2>
                       {user.verified && (
-                        <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <div className={`w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 ${isLarge ? '' : 'mt-0.5'}`}>
                           <ICONS.CheckCircle2 size={14} className="text-white" />
                         </div>
                       )}
@@ -251,7 +260,7 @@ const SwipeScreen = () => {
                       {user.interests.length > 2 && <span className="px-2 py-1 rounded-full bg-white/5 text-[9px] font-black text-white/30">+{user.interests.length - 2}</span>}
                     </div>
                   </div>
-                  <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+                  <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
                     <svg className="w-full h-full -rotate-90">
                       <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/10" />
                       <motion.circle
@@ -290,8 +299,8 @@ const SwipeScreen = () => {
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 px-[var(--page-x)] relative flex justify-center items-center mb-28 md:mb-32">
-          <div className={`relative w-full max-w-[28rem] sm:max-w-[30rem] aspect-[3/4] ${isLarge ? 'md:max-w-[32rem] lg:max-w-[34rem] xl:max-w-[36rem]' : ''}`}>
+        <div className="flex-1 min-h-0 px-[var(--page-x)] pt-2 pb-1 flex flex-col items-center gap-2 overflow-y-auto no-scrollbar">
+          <div className={`relative w-full max-w-[26rem] sm:max-w-[28rem] h-[var(--discover-card-h)] ${isLarge ? 'md:max-w-[32rem] lg:max-w-[34rem] xl:max-w-[36rem]' : ''}`}>
           <AnimatePresence>
             <motion.div
               key={`next-${nextUser.id}`}
@@ -344,17 +353,30 @@ const SwipeScreen = () => {
                 ))}
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-8 pt-32 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
+              {!isLarge && (
+                <div className="absolute left-[var(--discover-overlay-pad)] right-[var(--discover-overlay-pad)] top-[var(--discover-identity-top)] z-30 flex items-start justify-between pointer-events-none">
+                  <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
+                  {user.verified && (
+                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 mt-0.5">
+                      <ICONS.CheckCircle2 size={14} className="text-white" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+               <div className="absolute bottom-0 left-0 right-0 p-[var(--discover-overlay-pad)] pt-[var(--discover-overlay-top)] pb-16 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-4xl font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
-                      {user.verified && (
-                        <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                          <ICONS.CheckCircle2 size={14} className="text-white" />
-                        </div>
-                      )}
-                    </div>
+                    {isLarge && (
+                      <div className="flex justify-between gap-2 w-full items-end">
+                        <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
+                        {user.verified && (
+                          <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+                            <ICONS.CheckCircle2 size={14} className="text-white" />
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
                       <div className="flex items-center gap-1.5">
@@ -403,12 +425,12 @@ const SwipeScreen = () => {
                   </div>
                 </div>
               </div>
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-3 flex items-center gap-[var(--discover-action-gap)] z-40 pointer-events-auto">
+                {actionButtons}
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>
-          <div className={`absolute left-0 right-0 flex justify-center items-center gap-6 px-8 z-30 ${isLarge ? 'bottom-10' : 'bottom-[calc(env(safe-area-inset-bottom)+1rem)]'}`}>
-            {actionButtons}
-          </div>
         </div>
       )}
 
@@ -452,3 +474,4 @@ const SwipeScreen = () => {
 };
 
 export default SwipeScreen;
+
