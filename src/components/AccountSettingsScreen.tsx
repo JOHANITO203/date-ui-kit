@@ -35,7 +35,7 @@ const AccountSettingsScreen = () => {
   const { category, sub } = useParams();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const isLarge = isDesktop || isTablet;
 
   const sections: SettingSection[] = [
@@ -87,6 +87,13 @@ const AccountSettingsScreen = () => {
           type: 'select',
           options: ['settings.items.men', 'settings.items.women', 'settings.items.everyone'],
           selectedOption: 'settings.items.women',
+        },
+        {
+          labelKey: 'settings.items.language',
+          id: 'language',
+          type: 'select',
+          options: ['locale.en', 'locale.ru'],
+          selectedOption: `locale.${locale}`,
         },
       ],
       path: '/settings/preferences',
@@ -172,6 +179,12 @@ const AccountSettingsScreen = () => {
                   {item.options?.map((optionKey) => (
                     <button
                       key={optionKey}
+                      onClick={() => {
+                        if (item.id === 'language') {
+                          if (optionKey === 'locale.en') setLocale('en');
+                          if (optionKey === 'locale.ru') setLocale('ru');
+                        }
+                      }}
                       className={`p-5 rounded-2xl border text-sm font-bold transition-all flex items-center justify-between ${
                         optionKey === item.selectedOption ? 'bg-pink-500/10 border-pink-500/50 text-white' : 'bg-white/5 border-white/10 text-secondary hover:border-white/20'
                       }`}
