@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
+import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 
 interface ChatScreenProps {
@@ -13,6 +14,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const { userId: routeUserId } = useParams();
   const navigate = useNavigate();
   const [showTranslation, setShowTranslation] = useState(false);
+  const { isTablet } = useDevice();
   
   const userId = propUserId || routeUserId;
   const user = MOCK_USERS.find(u => u.id === userId) || MOCK_USERS[0];
@@ -29,8 +31,8 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   return (
     <motion.div {...containerProps}>
       {/* Header */}
-      <div className={`${embedded ? 'p-4 border-b border-white/10 bg-black/55 backdrop-blur-lg' : 'px-[var(--page-x)] py-4 border-b border-white/10 bg-black/55 backdrop-blur-lg'} flex items-center justify-between shrink-0`}>
-        <div className="flex items-center gap-4">
+      <div className={`${embedded ? (isTablet ? 'p-3.5' : 'p-4') : 'px-[var(--page-x)] py-4'} border-b border-white/10 bg-black/55 backdrop-blur-lg flex items-center justify-between shrink-0`}>
+        <div className={`flex items-center ${isTablet ? 'gap-3' : 'gap-4'}`}>
           {!embedded && (
             <button onClick={() => navigate(-1)} className="p-2 hover-effect rounded-full"><ICONS.ChevronLeft /></button>
           )}
@@ -38,20 +40,20 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             <img src={user.photos[0]} className="w-10 h-10 rounded-[14px] object-cover" alt={user.name} referrerPolicy="no-referrer" />
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
           </div>
-          <div>
-            <NameWithBadge name={user.name} age={user.age} verified={user.verified} size="md" />
-            <span className="text-[9px] text-green-400 uppercase font-black tracking-widest">En ligne</span>
+          <div className="flex flex-col items-start gap-0.5">
+            <NameWithBadge name={user.name} age={user.age} verified={user.verified} size="md" className="w-fit" />
+            <span className="pl-0.5 text-[9px] text-green-400 uppercase font-black tracking-widest">En ligne</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowTranslation(!showTranslation)}
-            className={`p-2.5 rounded-full transition-all ${showTranslation ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' : 'glass text-secondary hover:text-white'}`}
+            className={`w-11 h-11 rounded-full transition-all flex items-center justify-center ${showTranslation ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/30' : 'glass text-secondary hover:text-white'}`}
           >
             <ICONS.Languages size={18} />
           </button>
           {embedded && (
-            <button className="p-2.5 glass rounded-full text-secondary hover:text-white transition-all">
+            <button className="w-11 h-11 glass rounded-full text-secondary hover:text-white transition-all flex items-center justify-center">
               <ICONS.Info size={18} />
             </button>
           )}
@@ -59,7 +61,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       </div>
 
       {/* Messages Area */}
-      <div className={`${embedded ? 'max-w-none pb-6' : 'container-chat pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar`}>
+      <div className={`${embedded ? (isTablet ? 'max-w-none pb-10' : 'max-w-none pb-6') : 'container-chat pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+4.5rem)]'} w-full flex-1 overflow-y-auto px-[var(--page-x)] py-6 space-y-6 no-scrollbar`}>
         <div className="flex justify-center">
           <span className="glass px-4 py-1 rounded-full text-[9px] font-black text-secondary uppercase tracking-[0.2em]">Aujourd'hui</span>
         </div>

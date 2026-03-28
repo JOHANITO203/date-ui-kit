@@ -93,6 +93,10 @@
     --messages-conv-avatar-radius: 1rem;
     --messages-conv-name-size: 1.05rem;
     --messages-conv-preview-size: 0.6875rem;
+    --messages-zone-bg: rgba(22, 25, 33, 0.62);
+    --messages-zone-border: rgba(255, 255, 255, 0.1);
+    --messages-selected-bg: linear-gradient(135deg, rgba(255, 20, 147, 0.22), rgba(0, 191, 255, 0.14));
+    --messages-selected-border: rgba(255, 20, 147, 0.42);
     --boost-page-y: 1.5rem;
     --boost-mobile-section-gap: 1rem;
     --boost-hero-pad: 1rem;
