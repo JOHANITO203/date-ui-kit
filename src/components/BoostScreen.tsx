@@ -4,8 +4,9 @@ import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 
 const BoostScreen = () => {
-  const { isDesktop, isTablet } = useDevice();
+  const { isDesktop, isTablet, isTouch } = useDevice();
   const isLarge = isDesktop || isTablet;
+  const showDesktopRail = isLarge && !isTouch;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -16,13 +17,6 @@ const BoostScreen = () => {
   const [catalogView, setCatalogView] = useState<'instant' | 'passes' | 'bundles'>('instant');
   const hour = new Date().getHours();
   const isPeakNow = hour >= 20 || hour <= 1;
-  const profileViewsToday = 18;
-  const weeklyLikes = 2;
-  const baseViews = 12;
-  const projectedViewsMin = 35;
-  const projectedViewsMax = 50;
-  const projectedLikesMin = 3;
-  const projectedLikesMax = 6;
 
   const instantProducts = [
     {
@@ -222,18 +216,36 @@ const BoostScreen = () => {
         >
           <div className={`${cardBaseClass} surface-card md:col-span-4`}>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Situation actuelle</p>
-            <p className="text-3xl font-black tracking-tight mb-1">{profileViewsToday} vues</p>
-            <p className="text-secondary text-sm">{weeklyLikes} likes cette semaine, activite locale faible</p>
+            <p className="text-2xl font-black tracking-tight mb-2">Visibilite stable</p>
+            <p className="text-secondary text-sm mb-3">Votre profil reste visible, mais sans acceleration notable.</p>
+            <svg viewBox="0 0 180 48" className="w-full h-12" aria-hidden>
+              <path d="M4 34 C36 32, 56 36, 86 33 C115 31, 144 34, 176 32" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <p className="text-[11px] text-secondary">Courbe plate: progression lente et reguliere.</p>
           </div>
           <div className={`${cardBaseClass} surface-card md:col-span-4`}>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Projection boost</p>
-            <p className="text-3xl font-black tracking-tight mb-1">{projectedViewsMin}-{projectedViewsMax} vues</p>
-            <p className="text-secondary text-sm">Vs {baseViews}/jour habituellement, selon activite locale</p>
+            <p className="text-2xl font-black tracking-tight mb-2">Trajectoire acceleree</p>
+            <p className="text-secondary text-sm mb-3">Le Boost augmente nettement la cadence de decouverte du profil.</p>
+            <svg viewBox="0 0 180 48" className="w-full h-12" aria-hidden>
+              <defs>
+                <linearGradient id="boostCurve" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#FF1493" />
+                  <stop offset="100%" stopColor="#00BFFF" />
+                </linearGradient>
+              </defs>
+              <path d="M4 38 C32 37, 56 34, 82 30 C110 26, 138 19, 176 8" fill="none" stroke="url(#boostCurve)" strokeWidth="3.5" strokeLinecap="round" />
+            </svg>
+            <p className="text-[11px] text-secondary">Courbe montante: plus de profils actifs vous voient.</p>
           </div>
           <div className={`${cardBaseClass} surface-card md:col-span-4`}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Likes attendus</p>
-            <p className="text-3xl font-black tracking-tight mb-1">{projectedLikesMin}-{projectedLikesMax} likes</p>
-            <p className="text-secondary text-sm">{isPeakNow ? 'Fenetre active en cours' : 'Plus haut potentiel ce soir'}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary mb-2">Impact relationnel</p>
+            <p className="text-2xl font-black tracking-tight mb-2">Potentiel de matches en hausse</p>
+            <p className="text-secondary text-sm mb-3">{isPeakNow ? 'Fenetre active en cours: excellente opportunite.' : 'Le pic du soir augmente les chances de reponse.'}</p>
+            <svg viewBox="0 0 180 48" className="w-full h-12" aria-hidden>
+              <path d="M4 40 C28 39, 48 34, 70 30 C92 26, 116 25, 136 19 C152 15, 164 13, 176 10" fill="none" stroke="rgba(255,140,0,0.95)" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <p className="text-[11px] text-secondary">Le Boost transforme la visibilite en interactions utiles.</p>
           </div>
         </section>
 
@@ -358,10 +370,10 @@ const BoostScreen = () => {
           )}
         </section>
       </div>
-      {isLarge && (
+      {showDesktopRail && (
         <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
           <div className="group/boost-rail h-full w-full flex items-center justify-center pointer-events-auto">
-            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/boost:opacity-100 group-focus-within/boost:opacity-100 group-hover/boost-rail:opacity-100">
+            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/boost-rail:opacity-100 group-focus-within/boost-rail:opacity-100">
               <div className="rounded-full p-[1px] bg-gradient-to-b from-orange-500 via-amber-400 to-yellow-300 shadow-[0_0_14px_rgba(251,146,60,0.33)]">
                 <div className="relative w-3 h-48 rounded-full bg-[#120a02]/95 overflow-hidden">
                   <div
