@@ -255,6 +255,12 @@
   /* Discover scaling presets by target mobile widths (position set preserved) */
   @media (min-width: 22.5rem) and (max-width: 24.374rem) {
     :root {
+      --page-x: 0.95rem;
+      --section-gap: 1.35rem;
+      --card-gap: 0.7rem;
+      --grid-gap: 0.7rem;
+      --card-radius: 1.2rem;
+      --cta-height: 3rem;
       --discover-card-h: min(66dvh, 25rem);
       --discover-overlay-top: 5.35rem;
       --discover-identity-top: 4.5rem;
@@ -285,6 +291,12 @@
 
   @media (min-width: 24.375rem) and (max-width: 25.749rem) {
     :root {
+      --page-x: 1rem;
+      --section-gap: 1.45rem;
+      --card-gap: 0.75rem;
+      --grid-gap: 0.75rem;
+      --card-radius: 1.25rem;
+      --cta-height: 3.05rem;
       --discover-card-h: min(67dvh, 26rem);
       --discover-overlay-top: 5.5rem;
       --discover-identity-top: 4.65rem;
@@ -315,6 +327,12 @@
 
   @media (min-width: 25.75rem) and (max-width: 26.874rem) {
     :root {
+      --page-x: 1.05rem;
+      --section-gap: 1.5rem;
+      --card-gap: 0.78rem;
+      --grid-gap: 0.78rem;
+      --card-radius: 1.3rem;
+      --cta-height: 3.1rem;
       --discover-card-h: min(68dvh, 27rem);
       --discover-overlay-top: 5.75rem;
       --discover-identity-top: 4.9rem;
@@ -345,6 +363,12 @@
 
   @media (min-width: 26.875rem) and (max-width: 29.9375rem) {
     :root {
+      --page-x: 1.125rem;
+      --section-gap: 1.6rem;
+      --card-gap: 0.82rem;
+      --grid-gap: 0.82rem;
+      --card-radius: 1.35rem;
+      --cta-height: 3.2rem;
       --discover-card-h: min(69dvh, 28rem);
       --discover-overlay-top: 6rem;
       --discover-identity-top: 5.1rem;
@@ -376,6 +400,8 @@
   /* Height bands for requested mobile ranges */
   @media (min-width: 22.5rem) and (max-width: 29.9375rem) and (min-height: 35.5rem) and (max-height: 40rem) {
     :root {
+      --section-gap: 1.25rem;
+      --cta-height: 2.95rem;
       --discover-card-h: min(63dvh, 24.75rem);
       --discover-overlay-top: 5.15rem;
       --discover-identity-top: 4.15rem;
@@ -397,6 +423,8 @@
 
   @media (min-width: 22.5rem) and (max-width: 29.9375rem) and (min-height: 46.25rem) and (max-height: 52.75rem) {
     :root {
+      --section-gap: 1.6rem;
+      --cta-height: 3.1rem;
       --discover-card-h: min(70dvh, 29rem);
       --discover-overlay-top: 6.1rem;
       --discover-identity-top: 5.2rem;
@@ -416,6 +444,8 @@
 
   @media (min-width: 22.5rem) and (max-width: 29.9375rem) and (min-height: 56.25rem) {
     :root {
+      --section-gap: 1.8rem;
+      --cta-height: 3.2rem;
       --discover-card-h: min(72dvh, 31rem);
       --discover-overlay-top: 6.5rem;
       --discover-identity-top: 5.6rem;
@@ -465,6 +495,41 @@
       --touch-target: 3rem;
       --density-comfortable-gap: 1.5rem;
       --density-immersive-gap: 2.25rem;
+      /* Discover - tablet baseline */
+      --discover-header-top: 1.35rem;
+      --discover-card-h: min(72dvh, 33rem);
+      --discover-overlay-pad: 1.5rem;
+      --discover-overlay-top: 8.75rem;
+      --discover-identity-top: 5.4rem;
+      --discover-name-size: 2.4rem;
+      --discover-title-size: 2.1rem;
+      --discover-action-size: 3.75rem;
+      --discover-action-main-size: 3.35rem;
+      --discover-action-gap: 1rem;
+      --discover-compat-size: 3.7rem;
+      /* Messages - tablet baseline */
+      --messages-header-top: 1.2rem;
+      --messages-header-gap: 1.45rem;
+      --messages-title-size: 2.45rem;
+      --messages-matches-section-gap: 1.6rem;
+      --messages-matches-gap: 0.95rem;
+      --messages-match-avatar: 4rem;
+      --messages-conv-gap: 0.7rem;
+      --messages-conv-bottom-pad: 0.8rem;
+      --messages-conv-card-pad: 0.9rem;
+      --messages-conv-card-radius: 1.45rem;
+      --messages-conv-avatar: 3.4rem;
+      --messages-conv-avatar-radius: 1rem;
+      --messages-conv-name-size: 1.12rem;
+      --messages-conv-preview-size: 0.76rem;
+      /* Boost - tablet baseline */
+      --boost-page-y: 1.6rem;
+      --boost-mobile-section-gap: 1.35rem;
+      --boost-hero-pad: 1.25rem;
+      --boost-hero-icon-box: 4.5rem;
+      --boost-title-size: 2.55rem;
+      --boost-desc-size: 0.98rem;
+      --boost-cta-h: 3.2rem;
     }
   }
 
@@ -489,6 +554,41 @@
       --panel-width-lg: 22rem;
       --density-comfortable-gap: 1.75rem;
       --density-immersive-gap: 2.5rem;
+      /* Discover - desktop baseline */
+      --discover-header-top: 1.5rem;
+      --discover-card-h: min(74dvh, 36rem);
+      --discover-overlay-pad: 1.75rem;
+      --discover-overlay-top: 9.25rem;
+      --discover-identity-top: 5.75rem;
+      --discover-name-size: 2.6rem;
+      --discover-title-size: 2.2rem;
+      --discover-action-size: 4rem;
+      --discover-action-main-size: 3.5rem;
+      --discover-action-gap: 1.15rem;
+      --discover-compat-size: 3.9rem;
+      /* Messages - desktop baseline */
+      --messages-header-top: 1.35rem;
+      --messages-header-gap: 1.65rem;
+      --messages-title-size: 2.6rem;
+      --messages-matches-section-gap: 1.8rem;
+      --messages-matches-gap: 1rem;
+      --messages-match-avatar: 4.2rem;
+      --messages-conv-gap: 0.8rem;
+      --messages-conv-bottom-pad: 1rem;
+      --messages-conv-card-pad: 1rem;
+      --messages-conv-card-radius: 1.6rem;
+      --messages-conv-avatar: 3.6rem;
+      --messages-conv-avatar-radius: 1.1rem;
+      --messages-conv-name-size: 1.16rem;
+      --messages-conv-preview-size: 0.8rem;
+      /* Boost - desktop baseline */
+      --boost-page-y: 1.8rem;
+      --boost-mobile-section-gap: 1.5rem;
+      --boost-hero-pad: 1.4rem;
+      --boost-hero-icon-box: 4.85rem;
+      --boost-title-size: 2.75rem;
+      --boost-desc-size: 1.02rem;
+      --boost-cta-h: 3.35rem;
     }
   }
 
@@ -510,6 +610,16 @@
       --panel-width-sm: 17rem;
       --panel-width-md: 21rem;
       --panel-width-lg: 24rem;
+      --discover-card-h: min(76dvh, 38rem);
+      --discover-overlay-top: 9.6rem;
+      --discover-name-size: 2.8rem;
+      --discover-title-size: 2.3rem;
+      --messages-title-size: 2.75rem;
+      --messages-match-avatar: 4.4rem;
+      --messages-conv-avatar: 3.8rem;
+      --boost-title-size: 2.9rem;
+      --boost-desc-size: 1.05rem;
+      --boost-cta-h: 3.5rem;
     }
   }
 
@@ -531,6 +641,11 @@
       --panel-width-sm: 18rem;
       --panel-width-md: 22rem;
       --panel-width-lg: 26rem;
+      --discover-card-h: min(77dvh, 40rem);
+      --discover-overlay-top: 9.9rem;
+      --discover-name-size: 2.95rem;
+      --messages-title-size: 2.9rem;
+      --boost-title-size: 3rem;
     }
   }
 
