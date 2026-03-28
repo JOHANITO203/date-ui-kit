@@ -233,7 +233,7 @@ const SwipeScreen = () => {
                 ))}
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
+              <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 pb-24 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none">
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     <div className={`inline-flex gap-2 ${isLarge ? 'items-center' : 'items-start'}`}>
@@ -287,15 +287,14 @@ const SwipeScreen = () => {
                   </div>
                 </div>
               </div>
+
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-[var(--discover-action-gap)] z-40 pointer-events-auto">
+                {actionButtons}
+              </div>
             </motion.div>
           </AnimatePresence>
             </div>
 
-            </div>
-            <div className="container-deck w-full rounded-2xl glass py-3 px-4">
-              <div className="grid grid-cols-3 gap-4 place-items-center">
-                {actionButtons}
-              </div>
             </div>
           </div>
           </div>
