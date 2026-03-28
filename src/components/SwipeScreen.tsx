@@ -126,7 +126,7 @@ const SwipeScreen = () => {
       </div>
 
       {isLarge ? (
-        <div className="flex-1 min-h-0 px-[var(--page-x)] py-2">
+        <div className={`flex-1 min-h-0 px-[var(--page-x)] pt-2 ${isDesktop ? 'pb-2' : 'pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+0.75rem)]'}`}>
           <div className="container-immersive screen-template-immersive density-immersive h-full">
           <div
             className="h-full grid gap-[var(--grid-gap)] items-start"
@@ -176,7 +176,7 @@ const SwipeScreen = () => {
             </aside>
 
             <div className="w-full flex flex-col items-center density-comfortable min-h-0">
-            <div className="container-deck relative w-full h-[min(68vh,40rem)]">
+            <div className={`container-deck relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(58vh,33rem)]'}`}>
           <AnimatePresence>
             <motion.div
               key={`next-${nextUser.id}`}
