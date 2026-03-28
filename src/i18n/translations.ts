@@ -43,6 +43,7 @@ export const translations: Record<Locale, Dictionary> = {
       continueSwiping: 'Continue swiping',
       sendMessage: 'Send a message',
       itsAMatch: "It's a Match!",
+      matchPair: 'You and {name}',
       matchSubtitle: 'Send a message to break the ice right now.',
       details: {
         distance: '{value}',
@@ -490,6 +491,7 @@ export const translations: Record<Locale, Dictionary> = {
       continueSwiping: 'ÐŸÑ€Ð¾Ð´Ð¾Ð»Ð¶Ð¸Ñ‚ÑŒ ÑÐ²Ð°Ð¹Ð¿',
       sendMessage: 'ÐžÑ‚Ð¿Ñ€Ð°Ð²Ð¸Ñ‚ÑŒ ÑÐ¾Ð¾Ð±Ñ‰ÐµÐ½Ð¸Ðµ',
       itsAMatch: 'Ð­Ñ‚Ð¾ Ð¼Ð°Ñ‚Ñ‡!',
+      matchPair: 'Ð’Ñ‹ Ð¸ {name}',
       matchSubtitle: 'ÐžÑ‚Ð¿Ñ€Ð°Ð²ÑŒÑ‚Ðµ ÑÐ¾Ð¾Ð±Ñ‰ÐµÐ½Ð¸Ðµ Ð¸ Ð½Ð°Ñ‡Ð½Ð¸Ñ‚Ðµ Ð¾Ð±Ñ‰ÐµÐ½Ð¸Ðµ Ð¿Ñ€ÑÐ¼Ð¾ ÑÐµÐ¹Ñ‡Ð°Ñ.',
       details: {
         distance: '{value}',

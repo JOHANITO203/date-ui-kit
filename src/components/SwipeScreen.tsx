@@ -462,7 +462,7 @@ const SwipeScreen = () => {
               </div>
 
               <div className="space-y-3">
-                <h2 className="text-4xl font-bold text-white tracking-tight">Vous et {user.name}</h2>
+                <h2 className="text-4xl font-bold text-white tracking-tight">{t('discover.matchPair', { name: user.name })}</h2>
                 <p className="text-white/40 text-sm max-w-[240px] mx-auto leading-relaxed">{t('discover.matchSubtitle')}</p>
               </div>
 
