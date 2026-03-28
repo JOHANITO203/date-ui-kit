@@ -90,6 +90,7 @@ Les helper styles de `BoostScreen` reutilisent ce schema pour:
 - glow du CTA principal (selon tier actif)
 - glow des cartes produits (instant/passes/bundles)
 - glow harmonise des mini-cartes argumentaires
+- glow au clic sur toutes les cartes (tiers + produits + packs + bundles + arguments)
 
 ---
 
@@ -101,6 +102,9 @@ Defini dans `tiers[]` (BoostScreen):
 - `bulletClass` (couleur puce)
 - `glowToken` (couleur source du glow reutilisable)
 - `ctaButtonClass` (gradient du bouton principal hero)
+
+Prix/chiffres:
+- rendu en `font-mono` (JetBrains Mono charge localement)
 
 ---
 

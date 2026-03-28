@@ -21,6 +21,8 @@ import '@fontsource/inter/cyrillic-ext-600.css';
 import '@fontsource/inter/cyrillic-ext-700.css';
 import '@fontsource/inter/cyrillic-ext-800.css';
 import '@fontsource/inter/cyrillic-ext-900.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/700.css';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(

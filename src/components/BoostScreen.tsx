@@ -114,6 +114,14 @@ const BoostScreen = () => {
     backgroundColor: `rgb(var(${token}) / ${bgAlpha})`,
     borderColor: `rgb(var(${token}) / ${borderAlpha})`,
   });
+  const tapGlow = (token: GlowToken, alpha = 0.42, scale = 0.97) => ({
+    scale,
+    borderColor: `rgb(var(${token}) / 0.45)`,
+    boxShadow: `0 0 28px rgb(var(${token}) / ${alpha})`,
+    transition: { type: 'spring', stiffness: 560, damping: 24 },
+  });
+  const buyBtnBase =
+    'h-10 px-5 rounded-[24px] text-[11px] font-black uppercase tracking-[0.26em] transition-all';
 
   useEffect(() => {
     if (!isBoostActive) return;
@@ -245,11 +253,7 @@ const BoostScreen = () => {
                     hidden: { opacity: 0, y: 20 },
                     show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeInOut' } },
                   }}
-                  whileTap={{
-                    scale: 0.95,
-                    borderColor: 'rgba(255,255,255,0.4)',
-                    transition: { type: 'spring', stiffness: 560, damping: 24 },
-                  }}
+                  whileTap={tapGlow(tier.glowToken, 0.5, 0.95)}
                   onClick={() => handleSelectTier(tier.id)}
                   className={`relative ${isLarge ? '' : 'snap-center shrink-0'} w-[var(--boost-tier-card-w)] md:w-full min-h-[var(--boost-tier-card-min-h)] rounded-[var(--boost-tier-card-radius)] p-[var(--boost-tier-pad)] text-left glass-panel-float ${
                     isActive ? 'scale-100 opacity-100 glass-panel glass-panel-active' : 'scale-95 opacity-60 glass-panel-soft'
@@ -279,7 +283,7 @@ const BoostScreen = () => {
                     </div>
                     <p className={`font-black italic text-[length:var(--boost-tier-title-size)] leading-none tracking-tighter ${isActive ? 'text-white' : 'text-white/65'}`}>{tier.name}</p>
                     <div className="flex items-end gap-2">
-                      <p className={`text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter ${isActive ? 'text-white' : 'text-white/78'}`}>{tier.price}</p>
+                      <p className={`font-mono text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter ${isActive ? 'text-white' : 'text-white/78'}`}>{tier.price}</p>
                       <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.18em] text-white/45 pb-1">{tier.period}</p>
                     </div>
                     <ul className="mt-1 space-y-2.5">
@@ -319,7 +323,11 @@ const BoostScreen = () => {
         </section>
 
         <section className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]">
-          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel p-[var(--glass-card-pad)] border-orange-400/30 bg-orange-500/10" style={glowShadow('--glow-orange', 0.22, 28)}>
+          <motion.div
+            whileTap={tapGlow('--glow-orange', 0.42)}
+            className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-orange-400/30 bg-orange-500/10"
+            style={glowShadow('--glow-orange', 0.22, 28)}
+          >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-[0_10px_24px_rgba(234,88,12,0.35)]">
                 <ICONS.Boost size={24} className="text-black" />
@@ -330,23 +338,23 @@ const BoostScreen = () => {
               </div>
             </div>
             <p className="text-sm text-secondary">Un boost place votre profil dans les zones de decouverte les plus actives pour augmenter la traction.</p>
-          </div>
+          </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-3xl glass-panel p-4" style={glowShadow('--glow-pink', 0.16, 24)}>
+            <motion.div whileTap={tapGlow('--glow-pink', 0.38)} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-pink', 0.16, 24)}>
               <ICONS.Heart size={18} className="text-pink-500 mb-2" />
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Matches</p>
               <p className="text-sm text-secondary mt-1">Plus de rencontres qualifiees</p>
-            </div>
-            <div className="rounded-3xl glass-panel p-4" style={glowShadow('--glow-blue', 0.16, 24)}>
+            </motion.div>
+            <motion.div whileTap={tapGlow('--glow-blue', 0.38)} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-blue', 0.16, 24)}>
               <ICONS.Shield size={18} className="text-blue-500 mb-2" />
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Securite</p>
               <p className="text-sm text-secondary mt-1">Presence premium verifiee</p>
-            </div>
-            <div className="rounded-3xl glass-panel p-4" style={glowShadow('--glow-gold', 0.16, 24)}>
+            </motion.div>
+            <motion.div whileTap={tapGlow('--glow-gold', 0.38)} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-gold', 0.16, 24)}>
               <ICONS.Zap size={18} className="text-amber-500 mb-2" />
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Rythme</p>
               <p className="text-sm text-secondary mt-1">Decisions plus rapides</p>
-            </div>
+            </motion.div>
           </div>
         </section>
 
@@ -378,7 +386,7 @@ const BoostScreen = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
               {instantProducts.map((item) => (
                 <motion.div
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={tapGlow(item.glowToken, 0.42)}
                   key={item.id}
                   className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] transition-colors"
                   style={glowCardStyle(item.glowToken, 0.18, 0.06, 0.24)}
@@ -388,11 +396,11 @@ const BoostScreen = () => {
                       <p className="font-bold text-lg">{item.label}</p>
                       <p className="text-sm text-secondary mt-1">{item.desc}</p>
                     </div>
-                    <p className="text-xl font-black whitespace-nowrap">{item.price}</p>
+                    <p className="font-mono text-xl font-black whitespace-nowrap">{item.price}</p>
                   </div>
                   <div className="mt-4 flex items-center justify-between gap-3">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">{item.meta}</span>
-                    <button className="h-10 px-5 rounded-[24px] border border-white/20 bg-white/8 text-sm font-black uppercase tracking-[0.2em] hover:bg-white/12">
+                    <button className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}>
                       Acheter
                     </button>
                   </div>
@@ -404,15 +412,15 @@ const BoostScreen = () => {
           {catalogView === 'passes' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
               {timePacks.map((item) => (
-                <motion.div whileTap={{ scale: 0.98 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
+                <motion.div whileTap={tapGlow(item.glowToken, 0.4)} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-bold text-lg">{item.label}</p>
                     <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{item.tag}</span>
                   </div>
                   <p className="text-sm text-secondary mt-2">{item.desc}</p>
                   <div className="mt-4 flex items-center justify-between">
-                    <p className="text-2xl font-black">{item.price}</p>
-                    <button className="h-10 px-5 rounded-[24px] bg-gradient-to-r from-pink-500 to-violet-500 text-white text-sm font-black uppercase tracking-[0.18em]">
+                    <p className="font-mono text-2xl font-black">{item.price}</p>
+                    <button className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
                       Choisir
                     </button>
                   </div>
@@ -425,9 +433,9 @@ const BoostScreen = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
               {bundles.map((item) => (
                 <motion.div
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={tapGlow(item.glowToken, item.id === 'pro' ? 0.48 : 0.4)}
                   key={item.id}
-                  className="rounded-[var(--glass-card-radius-soft)] glass-panel p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
+                  className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
                   style={glowCardStyle(item.glowToken, item.id === 'pro' ? 0.24 : 0.16, item.id === 'pro' ? 0.1 : 0.05, item.id === 'pro' ? 0.32 : 0.2)}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -438,8 +446,8 @@ const BoostScreen = () => {
                   </div>
                   <p className="text-secondary text-sm mt-2">{item.desc}</p>
                   <div className="mt-auto flex flex-col gap-3">
-                    <p className="text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{item.price}</p>
-                    <button className={`h-10 w-full rounded-[24px] text-sm font-black uppercase tracking-[0.2em] ${item.id === 'pro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
+                    <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{item.price}</p>
+                    <button className={`${buyBtnBase} w-full ${item.id === 'pro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
                       Prendre ce bundle
                     </button>
                   </div>

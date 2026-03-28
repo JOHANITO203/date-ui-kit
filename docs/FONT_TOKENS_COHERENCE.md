@@ -43,13 +43,16 @@ Valeur actuelle:
 ### 5) Font embedding local (repo)
 - Dependance ajoutee:
   - `@fontsource/inter` dans `package.json`
+  - `@fontsource/jetbrains-mono` dans `package.json`
 - Chargement explicite dans `src/main.tsx`:
   - poids: `400, 500, 600, 700, 800, 900` + `italic`
   - subsets: `latin` (par defaut package), `cyrillic`, `cyrillic-ext`
+  - JetBrains Mono: poids `500` et `700`
 
 Objectif:
 - eliminer la variabilite de rendu liee aux polices systeme
 - garantir un affichage stable pour les textes FR/EN + contenus cyrilliques
+- garantir une hierarchie editoriale: Inter (titres) + JetBrains Mono (prix/chiffres)
 
 ## Coherence verifiee
 
