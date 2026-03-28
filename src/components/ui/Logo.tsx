@@ -13,42 +13,48 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText = true 
       <motion.div 
         className="relative shrink-0"
         style={{ width: size, height: size }}
-        whileHover={{ scale: 1.05 }}
+        whileHover={{ scale: 1.04 }}
       >
-        {/* Background Glow */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-pink-500 to-violet-500 blur-lg opacity-40 rounded-xl" />
-        
-        {/* Logo Symbol: Two overlapping cards representing the swipe motion */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-pink-500/35 via-violet-500/30 to-cyan-400/30 blur-lg" />
         <svg 
           viewBox="0 0 100 100" 
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
           className="relative z-10 w-full h-full"
         >
-          {/* Back Card */}
-          <rect 
-            x="20" y="15" width="50" height="70" rx="12" 
-            className="fill-white/10 stroke-white/20" 
-            strokeWidth="2"
-          />
-          
-          {/* Front Card (Swiping) + Heart */}
+          <defs>
+            <linearGradient id="swipe-logo-bg" x1="12" y1="12" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#FF1493" />
+              <stop offset="0.55" stopColor="#8B5CF6" />
+              <stop offset="1" stopColor="#00BFFF" />
+            </linearGradient>
+            <linearGradient id="swipe-logo-card" x1="40" y1="18" x2="76" y2="72" gradientUnits="userSpaceOnUse">
+              <stop stopColor="white" stopOpacity="0.98" />
+              <stop offset="1" stopColor="white" stopOpacity="0.82" />
+            </linearGradient>
+          </defs>
+
+          <rect x="8" y="8" width="84" height="84" rx="24" fill="url(#swipe-logo-bg)" />
+          <rect x="22" y="18" width="34" height="52" rx="11" fill="white" fillOpacity="0.14" stroke="white" strokeOpacity="0.32" strokeWidth="2" />
+
           <motion.g
             initial={{ x: 0, rotate: 0 }}
-            animate={{ x: [0, 10, 0], rotate: [0, 8, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            style={{ transformBox: "fill-box", transformOrigin: "60px 45px" }}
+            animate={{ x: [0, 8, 0], rotate: [0, 7, 0] }}
+            transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
+            style={{ transformBox: "fill-box", transformOrigin: "62px 46px" }}
           >
             <rect
-              x="35" y="10" width="50" height="70" rx="12"
-              className="fill-white stroke-white"
-              strokeWidth="1"
+              x="40" y="14" width="38" height="58" rx="12"
+              fill="url(#swipe-logo-card)"
+              stroke="white"
+              strokeOpacity="0.8"
+              strokeWidth="1.25"
             />
             <motion.path
-              d="M60 35C58 33 55 33 53 35L50 38L47 35C45 33 42 33 40 35C38 37 38 40 40 42L50 52L60 42C62 40 62 37 60 35Z"
+              d="M65 36C62.8 33.8 59.2 33.8 57 36L55.5 37.5L54 36C51.8 33.8 48.2 33.8 46 36C43.8 38.2 43.8 41.8 46 44L55.5 53.5L65 44C67.2 41.8 67.2 38.2 65 36Z"
               fill="#EC4899"
               animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
               style={{ transformBox: "fill-box", transformOrigin: "center" }}
             />
           </motion.g>
