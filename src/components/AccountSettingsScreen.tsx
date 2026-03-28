@@ -176,12 +176,12 @@ const AccountSettingsScreen = () => {
         return (
           <div className={`${isEmbedded ? 'p-8' : 'p-6'} space-y-8`}>
             {isEmbedded && <h2 className="text-2xl font-bold">Paramètres {section?.title}</h2>}
-            <div className="glass rounded-[32px] overflow-hidden border border-white/5">
+            <div className="rounded-[32px] overflow-hidden border border-[var(--menu-premium-border)] bg-[rgba(18,22,30,0.78)] backdrop-blur-xl">
               {section?.items.map((item, i, arr) => (
                 <button 
                   key={item.id} 
                   onClick={() => navigate(`${section.path}/${item.id}`)}
-                  className={`w-full p-6 flex items-center justify-between hover:bg-white/5 transition-colors ${i !== arr.length - 1 ? 'border-b border-white/5' : ''}`}
+                  className={`w-full p-6 flex items-center justify-between hover:bg-white/7 transition-colors ${i !== arr.length - 1 ? 'border-b border-white/8' : ''}`}
                 >
                   <div className="flex flex-col items-start text-left">
                     <span className="text-sm font-bold text-white">{item.label}</span>
@@ -203,7 +203,7 @@ const AccountSettingsScreen = () => {
     return (
       <div className="h-full flex overflow-hidden">
         {/* Master: Settings Sidebar */}
-        <div className="w-[320px] border-r border-white/5 flex flex-col p-8 shrink-0">
+        <div className="w-[320px] border-r border-[var(--menu-premium-border)] bg-[rgba(16,19,25,0.92)] flex flex-col p-8 shrink-0">
           <div className="flex items-center gap-4 mb-10">
             <button onClick={() => navigate('/profile')} className="p-2 hover-effect rounded-full glass">
               <ICONS.ChevronLeft />
@@ -218,8 +218,8 @@ const AccountSettingsScreen = () => {
                 onClick={() => navigate(section.path)}
                 className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${
                   category === section.id || (!category && section.id === 'account')
-                    ? 'bg-white/10 text-white shadow-lg'
-                    : 'text-secondary hover:bg-white/5 hover:text-white'
+                    ? 'bg-gradient-to-r from-pink-500/18 to-blue-500/14 border border-pink-400/35 text-white shadow-[0_0_18px_rgba(236,72,153,0.2)]'
+                    : 'text-secondary border border-transparent hover:bg-white/5 hover:border-white/10 hover:text-white'
                 }`}
               >
                 <div className={`p-2 rounded-xl ${category === section.id || (!category && section.id === 'account') ? 'bg-pink-500/20 text-pink-500' : 'bg-white/5'}`}>
@@ -242,7 +242,7 @@ const AccountSettingsScreen = () => {
         </div>
 
         {/* Detail: Settings Content */}
-        <div className="flex-1 overflow-y-auto no-scrollbar bg-white/[0.02]">
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-[rgba(24,28,36,0.55)]">
           {renderDetail()}
         </div>
       </div>
@@ -290,12 +290,12 @@ const AccountSettingsScreen = () => {
         {sections.map(section => (
           <div key={section.id} className="space-y-4">
             <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] px-2">{section.title}</h3>
-            <div className="glass rounded-[32px] overflow-hidden">
+            <div className="rounded-[32px] overflow-hidden border border-[var(--menu-premium-border)] bg-[rgba(18,22,30,0.82)] backdrop-blur-xl">
               {section.items.map((item, i) => (
                 <button 
                   key={item.id} 
                   onClick={() => navigate(`${section.path}/${item.id}`)}
-                  className={`w-full p-5 text-left flex items-center justify-between hover:bg-white/5 active:bg-white/10 transition-colors ${i !== section.items.length - 1 ? 'border-b border-white/5' : ''}`}
+                  className={`w-full p-5 text-left flex items-center justify-between hover:bg-white/7 active:bg-white/10 transition-colors ${i !== section.items.length - 1 ? 'border-b border-white/8' : ''}`}
                 >
                   <span className="text-sm font-medium">{item.label}</span>
                   <ICONS.ChevronLeft className="rotate-180 text-white/20" size={16} />
