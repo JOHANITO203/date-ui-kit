@@ -32,30 +32,26 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText = true 
             strokeWidth="2"
           />
           
-          {/* Front Card (Swiping) */}
-          <motion.rect 
-            x="35" y="10" width="50" height="70" rx="12" 
-            className="fill-white stroke-white" 
-            strokeWidth="1"
-            initial={{ x: 35, rotate: 0 }}
-            animate={{ 
-              x: [35, 45, 35],
-              rotate: [0, 8, 0]
-            }}
-            transition={{ 
-              duration: 4, 
-              repeat: Infinity, 
-              ease: "easeInOut" 
-            }}
-          />
-          
-          {/* Heart Icon on Front Card */}
-          <motion.path 
-            d="M60 35C58 33 55 33 53 35L50 38L47 35C45 33 42 33 40 35C38 37 38 40 40 42L50 52L60 42C62 40 62 37 60 35Z" 
-            fill="#EC4899"
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
+          {/* Front Card (Swiping) + Heart */}
+          <motion.g
+            initial={{ x: 0, rotate: 0 }}
+            animate={{ x: [0, 10, 0], rotate: [0, 8, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            style={{ transformBox: "fill-box", transformOrigin: "60px 45px" }}
+          >
+            <rect
+              x="35" y="10" width="50" height="70" rx="12"
+              className="fill-white stroke-white"
+              strokeWidth="1"
+            />
+            <motion.path
+              d="M60 35C58 33 55 33 53 35L50 38L47 35C45 33 42 33 40 35C38 37 38 40 40 42L50 52L60 42C62 40 62 37 60 35Z"
+              fill="#EC4899"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              style={{ transformBox: "fill-box", transformOrigin: "center" }}
+            />
+          </motion.g>
         </svg>
       </motion.div>
 
@@ -66,10 +62,10 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText = true 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            Swipe
+            SWIPE
           </motion.span>
           <span className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.4em] text-pink-500 leading-none mt-1">
-            Exotique Dating
+            EXOTIQUE DATING
           </span>
         </div>
       )}
