@@ -105,6 +105,12 @@ const SwipeScreen = () => {
     </>
   );
 
+  const verifiedBadge = (
+    <div className="w-[var(--discover-verified-size)] h-[var(--discover-verified-size)] rounded-full bg-[#1D9BF0] border border-white/35 flex items-center justify-center shadow-[0_6px_16px_rgba(29,155,240,0.35)] shrink-0">
+      <span className="text-white font-black leading-none text-[10px]">✓</span>
+    </div>
+  );
+
   return (
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
       <div className="flex items-center justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
@@ -232,11 +238,7 @@ const SwipeScreen = () => {
                   <div className="flex-1 space-y-3">
                     <div className={`flex justify-between gap-2 w-full ${isLarge ? 'items-end' : 'items-start'}`}>
                       <h2 className={`text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none ${isLarge ? '' : 'max-w-[75%]'}`}>{user.name}, {user.age}</h2>
-                      {user.verified && (
-                    <div className={`w-[var(--discover-verified-size)] h-[var(--discover-verified-size)] rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 ${isLarge ? '' : 'mt-0.5'}`}>
-                      <ICONS.CheckCircle2 size={14} className="text-white" />
-                    </div>
-                  )}
+                      {user.verified && <div className={isLarge ? '' : 'mt-0.5'}>{verifiedBadge}</div>}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
@@ -354,13 +356,11 @@ const SwipeScreen = () => {
               </div>
 
               {!isLarge && (
-                <div className="absolute left-[var(--discover-overlay-pad)] right-[var(--discover-overlay-pad)] top-[var(--discover-identity-top)] z-30 flex items-start justify-between pointer-events-none">
-                  <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
-                  {user.verified && (
-                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0 mt-0.5">
-                      <ICONS.CheckCircle2 size={14} className="text-white" />
-                    </div>
-                  )}
+                <div className="absolute left-[var(--discover-overlay-pad)] right-[var(--discover-overlay-pad)] top-[var(--discover-identity-top)] z-30 pointer-events-none">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
+                    {user.verified && <div className="mt-0.5">{verifiedBadge}</div>}
+                  </div>
                 </div>
               )}
 
@@ -368,13 +368,9 @@ const SwipeScreen = () => {
                 <div className="flex items-end justify-between gap-4">
                   <div className="flex-1 space-y-3">
                     {isLarge && (
-                      <div className="flex justify-between gap-2 w-full items-end">
+                      <div className="flex items-end gap-2 w-full">
                         <h2 className="text-[length:var(--discover-name-size)] font-black text-white tracking-tight leading-none">{user.name}, {user.age}</h2>
-                        {user.verified && (
-                          <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
-                            <ICONS.CheckCircle2 size={14} className="text-white" />
-                          </div>
-                        )}
+                        {user.verified && verifiedBadge}
                       </div>
                     )}
 
