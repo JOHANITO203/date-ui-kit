@@ -112,7 +112,11 @@ const SwipeScreen = () => {
 
       {isLarge ? (
         <div className="flex-1 min-h-0 px-[var(--page-x)] py-2">
-          <div className="h-full grid grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)] gap-5 items-start">
+          <div className="container-immersive screen-template-immersive density-immersive h-full">
+          <div
+            className="h-full grid gap-[var(--grid-gap)] items-start"
+            style={{ gridTemplateColumns: `${isDesktop ? 'var(--panel-width-md)' : 'var(--panel-width-sm)'} minmax(0, 1fr)` }}
+          >
             <aside className="glass rounded-[28px] p-5 space-y-5 h-fit">
               <div className="flex items-center">
                 <button
@@ -156,8 +160,8 @@ const SwipeScreen = () => {
               </div>
             </aside>
 
-            <div className="w-full flex flex-col items-center gap-4 min-h-0">
-            <div className="relative w-full max-w-[34rem] h-[min(68vh,40rem)]">
+            <div className="w-full flex flex-col items-center density-comfortable min-h-0">
+            <div className="container-deck relative w-full h-[min(68vh,40rem)]">
           <AnimatePresence>
             <motion.div
               key={`next-${nextUser.id}`}
@@ -277,11 +281,12 @@ const SwipeScreen = () => {
             </div>
 
             </div>
-            <div className="w-full max-w-[34rem] rounded-2xl glass py-3 px-4">
+            <div className="container-deck w-full rounded-2xl glass py-3 px-4">
               <div className="grid grid-cols-3 gap-4 place-items-center">
                 {actionButtons}
               </div>
             </div>
+          </div>
           </div>
         </div>
       ) : (

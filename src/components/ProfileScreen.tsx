@@ -66,7 +66,8 @@ const ProfileScreen = () => {
         </div>
       </div>
 
-      <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)]' : 'grid-cols-1 gap-[var(--section-gap)]'}`}>
+      <div className={`${isLarge ? 'container-dashboard screen-template-dashboard density-comfortable' : ''}`}>
+      <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)] density-comfortable' : 'grid-cols-1 gap-[var(--section-gap)]'}`}>
         {/* Left Column: Identity & Status */}
         <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
           <div
@@ -142,7 +143,7 @@ const ProfileScreen = () => {
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]"
           >
-            <div className="glass p-8 rounded-[var(--card-radius)] space-y-4 hover:bg-white/[0.05] transition-colors group">
+            <div className="p-8 rounded-[var(--card-radius)] space-y-4 bg-[#10131b]/95 border border-white/10 hover:bg-[#131723] transition-colors group">
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
                   <ICONS.Eye size={24} />
@@ -155,7 +156,7 @@ const ProfileScreen = () => {
               </div>
             </div>
             
-            <div className="glass p-8 rounded-[var(--card-radius)] space-y-4 hover:bg-white/[0.05] transition-colors group">
+            <div className="p-8 rounded-[var(--card-radius)] space-y-4 bg-[#10131b]/95 border border-white/10 hover:bg-[#131723] transition-colors group">
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-pink-500/10 text-pink-400 group-hover:scale-110 transition-transform">
                   <ICONS.Heart size={24} />
@@ -174,7 +175,7 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[3] = el;
             }}
-            className="glass p-6 md:p-8 rounded-[var(--card-radius)] space-y-8 relative overflow-hidden"
+            className="p-6 md:p-8 rounded-[var(--card-radius)] space-y-8 relative overflow-hidden bg-[#0d0f16]/95 border border-white/10"
           >
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
@@ -217,7 +218,7 @@ const ProfileScreen = () => {
             ].map((action, i) => (
               <button 
                 key={i}
-                className="glass p-6 rounded-[var(--card-radius)] flex flex-col items-center gap-3 hover:bg-white/10 transition-all group"
+                className="p-6 rounded-[var(--card-radius)] flex flex-col items-center gap-3 bg-[#0f1118]/92 border border-white/10 hover:bg-[#151925] transition-all group"
               >
                 <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
                   {action.icon}
@@ -227,6 +228,7 @@ const ProfileScreen = () => {
             ))}
           </div>
         </div>
+      </div>
       </div>
 
       {isLarge && (

@@ -70,7 +70,7 @@ const BoostScreen = () => {
 
   return (
     <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-6 pb-nav">
-      <div className={`${isLarge ? 'container-wide' : 'container-content'} layout-stack px-[var(--page-x)]`}>
+      <div className={`${isLarge ? 'screen-template-commerce container-commerce' : 'container-content layout-stack'} px-[var(--page-x)]`}>
         <section
           ref={(el) => {
             sectionRefs.current[0] = el;
