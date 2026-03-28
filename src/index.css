@@ -62,6 +62,29 @@
     --discover-action-mobile-main-radius: 1rem;
     --discover-verified-size: 1.5rem;
     --discover-compat-size: 3.5rem;
+    --messages-header-top: 1rem;
+    --messages-header-gap: 1.25rem;
+    --messages-title-size: 2.15rem;
+    --messages-settings-pad: 0.5rem;
+    --messages-matches-section-gap: 1.5rem;
+    --messages-matches-gap: 0.75rem;
+    --messages-match-avatar: 3.5rem;
+    --messages-conv-gap: 0.5rem;
+    --messages-conv-bottom-pad: 0.5rem;
+    --messages-conv-card-gap: 0.75rem;
+    --messages-conv-card-pad: 0.75rem;
+    --messages-conv-card-radius: 1.5rem;
+    --messages-conv-avatar: 3rem;
+    --messages-conv-avatar-radius: 1rem;
+    --messages-conv-name-size: 1.05rem;
+    --messages-conv-preview-size: 0.6875rem;
+    --boost-page-y: 1.5rem;
+    --boost-mobile-section-gap: 1rem;
+    --boost-hero-pad: 1rem;
+    --boost-hero-icon-box: 4rem;
+    --boost-title-size: 2.25rem;
+    --boost-desc-size: 0.9rem;
+    --boost-cta-h: 2.75rem;
     --content-safe-extra: 1rem;
 
     /* Typography */
@@ -109,6 +132,29 @@
       --discover-action-mobile-main-radius: 0.95rem;
       --discover-verified-size: 1.5rem;
       --discover-compat-size: 3.35rem;
+      --messages-header-top: 0.9rem;
+      --messages-header-gap: 1rem;
+      --messages-title-size: 2.05rem;
+      --messages-settings-pad: 0.45rem;
+      --messages-matches-section-gap: 1.25rem;
+      --messages-matches-gap: 0.7rem;
+      --messages-match-avatar: 3.35rem;
+      --messages-conv-gap: 0.5rem;
+      --messages-conv-bottom-pad: 0.4rem;
+      --messages-conv-card-gap: 0.7rem;
+      --messages-conv-card-pad: 0.7rem;
+      --messages-conv-card-radius: 1.35rem;
+      --messages-conv-avatar: 2.85rem;
+      --messages-conv-avatar-radius: 0.95rem;
+      --messages-conv-name-size: 1rem;
+      --messages-conv-preview-size: 0.66rem;
+      --boost-page-y: 1.25rem;
+      --boost-mobile-section-gap: 0.9rem;
+      --boost-hero-pad: 0.95rem;
+      --boost-hero-icon-box: 3.75rem;
+      --boost-title-size: 2.05rem;
+      --boost-desc-size: 0.86rem;
+      --boost-cta-h: 2.65rem;
     }
   }
 
@@ -132,6 +178,29 @@
       --discover-action-mobile-main-radius: 0.9rem;
       --discover-verified-size: 1.5rem;
       --discover-compat-size: 3.2rem;
+      --messages-header-top: 0.85rem;
+      --messages-header-gap: 0.95rem;
+      --messages-title-size: 2rem;
+      --messages-settings-pad: 0.42rem;
+      --messages-matches-section-gap: 1.1rem;
+      --messages-matches-gap: 0.65rem;
+      --messages-match-avatar: 3.2rem;
+      --messages-conv-gap: 0.45rem;
+      --messages-conv-bottom-pad: 0.25rem;
+      --messages-conv-card-gap: 0.65rem;
+      --messages-conv-card-pad: 0.65rem;
+      --messages-conv-card-radius: 1.25rem;
+      --messages-conv-avatar: 2.75rem;
+      --messages-conv-avatar-radius: 0.85rem;
+      --messages-conv-name-size: 0.95rem;
+      --messages-conv-preview-size: 0.64rem;
+      --boost-page-y: 1rem;
+      --boost-mobile-section-gap: 0.8rem;
+      --boost-hero-pad: 0.875rem;
+      --boost-hero-icon-box: 3.5rem;
+      --boost-title-size: 1.95rem;
+      --boost-desc-size: 0.82rem;
+      --boost-cta-h: 2.5rem;
       --content-safe-extra: 0.25rem;
     }
   }
@@ -156,7 +225,211 @@
       --discover-action-mobile-main-radius: 0.9rem;
       --discover-verified-size: 1.5rem;
       --discover-compat-size: 3.2rem;
+      --messages-header-top: 0.85rem;
+      --messages-header-gap: 0.95rem;
+      --messages-title-size: 2rem;
+      --messages-settings-pad: 0.42rem;
+      --messages-matches-section-gap: 1.1rem;
+      --messages-matches-gap: 0.65rem;
+      --messages-match-avatar: 3.2rem;
+      --messages-conv-gap: 0.45rem;
+      --messages-conv-bottom-pad: 0.25rem;
+      --messages-conv-card-gap: 0.65rem;
+      --messages-conv-card-pad: 0.65rem;
+      --messages-conv-card-radius: 1.25rem;
+      --messages-conv-avatar: 2.75rem;
+      --messages-conv-avatar-radius: 0.85rem;
+      --messages-conv-name-size: 0.95rem;
+      --messages-conv-preview-size: 0.64rem;
+      --boost-page-y: 1rem;
+      --boost-mobile-section-gap: 0.8rem;
+      --boost-hero-pad: 0.875rem;
+      --boost-hero-icon-box: 3.5rem;
+      --boost-title-size: 1.95rem;
+      --boost-desc-size: 0.82rem;
+      --boost-cta-h: 2.5rem;
       --content-safe-extra: 0.25rem;
+    }
+  }
+
+  /* Discover scaling presets by target mobile widths (position set preserved) */
+  @media (min-width: 22.5rem) and (max-width: 24.374rem) {
+    :root {
+      --discover-card-h: min(66dvh, 25rem);
+      --discover-overlay-top: 5.35rem;
+      --discover-identity-top: 4.5rem;
+      --discover-name-size: 2.25rem;
+      --discover-title-size: 2rem;
+      --discover-compat-size: 3.4rem;
+      --discover-action-mobile-w: 2.85rem;
+      --discover-action-mobile-h: 2.2rem;
+      --discover-action-mobile-main-w: 3.05rem;
+      --discover-action-mobile-main-h: 2.4rem;
+      --messages-title-size: 2.2rem;
+      --messages-match-avatar: 3.45rem;
+      --messages-matches-gap: 0.75rem;
+      --messages-conv-card-pad: 0.72rem;
+      --messages-conv-avatar: 2.9rem;
+      --messages-conv-name-size: 1rem;
+      --messages-conv-preview-size: 0.67rem;
+      --boost-page-y: 1.1rem;
+      --boost-mobile-section-gap: 0.9rem;
+      --boost-hero-pad: 0.95rem;
+      --boost-hero-icon-box: 3.75rem;
+      --boost-title-size: 2.1rem;
+      --boost-desc-size: 0.86rem;
+      --boost-cta-h: 2.65rem;
+      --content-safe-extra: 0.5rem;
+    }
+  }
+
+  @media (min-width: 24.375rem) and (max-width: 25.749rem) {
+    :root {
+      --discover-card-h: min(67dvh, 26rem);
+      --discover-overlay-top: 5.5rem;
+      --discover-identity-top: 4.65rem;
+      --discover-name-size: 2.35rem;
+      --discover-title-size: 2.05rem;
+      --discover-compat-size: 3.5rem;
+      --discover-action-mobile-w: 2.95rem;
+      --discover-action-mobile-h: 2.25rem;
+      --discover-action-mobile-main-w: 3.2rem;
+      --discover-action-mobile-main-h: 2.5rem;
+      --messages-title-size: 2.3rem;
+      --messages-match-avatar: 3.6rem;
+      --messages-matches-gap: 0.8rem;
+      --messages-conv-card-pad: 0.76rem;
+      --messages-conv-avatar: 3rem;
+      --messages-conv-name-size: 1.02rem;
+      --messages-conv-preview-size: 0.68rem;
+      --boost-page-y: 1.2rem;
+      --boost-mobile-section-gap: 0.95rem;
+      --boost-hero-pad: 1rem;
+      --boost-hero-icon-box: 3.95rem;
+      --boost-title-size: 2.2rem;
+      --boost-desc-size: 0.88rem;
+      --boost-cta-h: 2.75rem;
+      --content-safe-extra: 0.6rem;
+    }
+  }
+
+  @media (min-width: 25.75rem) and (max-width: 26.874rem) {
+    :root {
+      --discover-card-h: min(68dvh, 27rem);
+      --discover-overlay-top: 5.75rem;
+      --discover-identity-top: 4.9rem;
+      --discover-name-size: 2.45rem;
+      --discover-title-size: 2.1rem;
+      --discover-compat-size: 3.65rem;
+      --discover-action-mobile-w: 3rem;
+      --discover-action-mobile-h: 2.3rem;
+      --discover-action-mobile-main-w: 3.3rem;
+      --discover-action-mobile-main-h: 2.55rem;
+      --messages-title-size: 2.35rem;
+      --messages-match-avatar: 3.7rem;
+      --messages-matches-gap: 0.82rem;
+      --messages-conv-card-pad: 0.8rem;
+      --messages-conv-avatar: 3.1rem;
+      --messages-conv-name-size: 1.04rem;
+      --messages-conv-preview-size: 0.69rem;
+      --boost-page-y: 1.3rem;
+      --boost-mobile-section-gap: 1rem;
+      --boost-hero-pad: 1.05rem;
+      --boost-hero-icon-box: 4.1rem;
+      --boost-title-size: 2.3rem;
+      --boost-desc-size: 0.9rem;
+      --boost-cta-h: 2.85rem;
+      --content-safe-extra: 0.65rem;
+    }
+  }
+
+  @media (min-width: 26.875rem) and (max-width: 29.9375rem) {
+    :root {
+      --discover-card-h: min(69dvh, 28rem);
+      --discover-overlay-top: 6rem;
+      --discover-identity-top: 5.1rem;
+      --discover-name-size: 2.55rem;
+      --discover-title-size: 2.15rem;
+      --discover-compat-size: 3.8rem;
+      --discover-action-mobile-w: 3.1rem;
+      --discover-action-mobile-h: 2.35rem;
+      --discover-action-mobile-main-w: 3.4rem;
+      --discover-action-mobile-main-h: 2.6rem;
+      --messages-title-size: 2.45rem;
+      --messages-match-avatar: 3.85rem;
+      --messages-matches-gap: 0.9rem;
+      --messages-conv-card-pad: 0.85rem;
+      --messages-conv-avatar: 3.25rem;
+      --messages-conv-name-size: 1.07rem;
+      --messages-conv-preview-size: 0.72rem;
+      --boost-page-y: 1.4rem;
+      --boost-mobile-section-gap: 1.1rem;
+      --boost-hero-pad: 1.125rem;
+      --boost-hero-icon-box: 4.25rem;
+      --boost-title-size: 2.4rem;
+      --boost-desc-size: 0.92rem;
+      --boost-cta-h: 2.95rem;
+      --content-safe-extra: 0.75rem;
+    }
+  }
+
+  /* Height bands for requested mobile ranges */
+  @media (min-width: 22.5rem) and (max-width: 29.9375rem) and (min-height: 35.5rem) and (max-height: 40rem) {
+    :root {
+      --discover-card-h: min(63dvh, 24.75rem);
+      --discover-overlay-top: 5.15rem;
+      --discover-identity-top: 4.15rem;
+      --discover-name-size: 2.1rem;
+      --discover-compat-size: 3.2rem;
+      --messages-header-top: 0.9rem;
+      --messages-header-gap: 1rem;
+      --messages-matches-section-gap: 1.2rem;
+      --messages-conv-bottom-pad: 0.3rem;
+      --boost-page-y: 1rem;
+      --boost-mobile-section-gap: 0.85rem;
+      --boost-hero-pad: 0.9rem;
+      --boost-title-size: 2.05rem;
+      --boost-desc-size: 0.84rem;
+      --boost-cta-h: 2.6rem;
+      --content-safe-extra: 0.35rem;
+    }
+  }
+
+  @media (min-width: 22.5rem) and (max-width: 29.9375rem) and (min-height: 46.25rem) and (max-height: 52.75rem) {
+    :root {
+      --discover-card-h: min(70dvh, 29rem);
+      --discover-overlay-top: 6.1rem;
+      --discover-identity-top: 5.2rem;
+      --messages-header-top: 1rem;
+      --messages-header-gap: 1.2rem;
+      --messages-matches-section-gap: 1.4rem;
+      --messages-conv-bottom-pad: 0.5rem;
+      --boost-page-y: 1.35rem;
+      --boost-mobile-section-gap: 1.05rem;
+      --boost-hero-pad: 1.08rem;
+      --boost-title-size: 2.3rem;
+      --boost-desc-size: 0.9rem;
+      --boost-cta-h: 2.85rem;
+      --content-safe-extra: 0.85rem;
+    }
+  }
+
+  @media (min-width: 22.5rem) and (max-width: 29.9375rem) and (min-height: 56.25rem) {
+    :root {
+      --discover-card-h: min(72dvh, 31rem);
+      --discover-overlay-top: 6.5rem;
+      --discover-identity-top: 5.6rem;
+      --messages-header-top: 1.1rem;
+      --messages-header-gap: 1.35rem;
+      --messages-matches-section-gap: 1.6rem;
+      --messages-conv-bottom-pad: 0.75rem;
+      --boost-page-y: 1.5rem;
+      --boost-mobile-section-gap: 1.2rem;
+      --boost-hero-pad: 1.2rem;
+      --boost-title-size: 2.45rem;
+      --boost-desc-size: 0.95rem;
+      --boost-cta-h: 3rem;
+      --content-safe-extra: 1rem;
     }
   }
 

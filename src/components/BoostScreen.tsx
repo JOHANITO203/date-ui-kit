@@ -69,23 +69,25 @@ const BoostScreen = () => {
   };
 
   return (
-    <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-6 pb-nav">
-      <div className={`${isLarge ? 'screen-template-commerce container-commerce' : 'container-content layout-stack'} px-[var(--page-x)]`}>
+    <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-[var(--boost-page-y)]">
+      <div className={`${isLarge ? 'screen-template-commerce container-commerce' : 'container-content flex flex-col gap-[var(--boost-mobile-section-gap)]'} px-[var(--page-x)]`}>
         <section
           ref={(el) => {
             sectionRefs.current[0] = el;
           }}
-          className={`glass rounded-[var(--card-radius)] p-6 md:p-8 lg:p-10 border-orange-500/30 transition-all ${isBoostActive ? 'bg-orange-500/10 shadow-[0_0_40px_rgba(251,146,60,0.22)]' : 'bg-orange-500/5'}`}
+          className={`glass rounded-[var(--card-radius)] ${isLarge ? 'p-6 md:p-8 lg:p-10' : 'p-[var(--boost-hero-pad)]'} border-orange-500/30 transition-all ${isBoostActive ? 'bg-orange-500/10 shadow-[0_0_40px_rgba(251,146,60,0.22)]' : 'bg-orange-500/5'}`}
         >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className={`w-20 h-20 md:w-24 md:h-24 gradient-boost rounded-[28px] flex items-center justify-center shadow-2xl shadow-orange-500/30 shrink-0 ${isBoostActive ? 'animate-pulse' : 'animate-float'}`}>
-                <ICONS.Boost size={42} className="text-black" />
+          <div className={`flex ${isLarge ? 'flex-col md:flex-row md:items-center md:justify-between gap-6' : 'flex-col gap-4'}`}>
+            <div className={`flex ${isLarge ? 'items-start gap-4' : 'flex-col items-start gap-3'}`}>
+              <div className={`${isLarge ? 'w-20 h-20 md:w-24 md:h-24 rounded-[28px]' : 'w-[var(--boost-hero-icon-box)] h-[var(--boost-hero-icon-box)] rounded-[1.25rem]'} gradient-boost flex items-center justify-center shadow-2xl shadow-orange-500/30 shrink-0 ${isBoostActive ? 'animate-pulse' : 'animate-float'}`}>
+                <ICONS.Boost size={isLarge ? 42 : 30} className="text-black" />
               </div>
               <div className="space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Visibilite acceleree</p>
-                <h2 className="fluid-title font-bold">{isBoostActive ? 'Vous etes en avant maintenant' : 'Boostez votre profil maintenant'}</h2>
-                <p className="text-secondary fluid-subtitle max-w-lg">
+                <h2 className={`${isLarge ? 'fluid-title' : 'text-[length:var(--boost-title-size)] leading-[1.04]'} font-bold`}>
+                  {isBoostActive ? 'Vous etes en avant maintenant' : 'Boostez votre profil maintenant'}
+                </h2>
+                <p className={`text-secondary ${isLarge ? 'fluid-subtitle max-w-lg' : 'text-[length:var(--boost-desc-size)] leading-relaxed max-w-none'}`}>
                   {isBoostActive
                     ? 'Votre profil passe en priorite dans votre zone. Le rythme des vues augmente pendant toute la session.'
                     : 'Mettez votre profil en tete des decouvertes pendant 30 minutes et captez plus de vues immediates.'}
@@ -104,7 +106,7 @@ const BoostScreen = () => {
                 </div>
               </div>
             </div>
-            <GlassButton onClick={activateBoost} variant="boost" className="w-full md:w-auto min-w-[14rem] h-[var(--cta-height)] text-base md:text-lg font-bold animate-[pulse_3s_ease-in-out_infinite]">
+            <GlassButton onClick={activateBoost} variant="boost" className={`w-full md:w-auto min-w-[14rem] ${isLarge ? 'h-[var(--cta-height)] text-base md:text-lg' : 'h-[var(--boost-cta-h)] text-[1.1rem]'} font-bold animate-[pulse_3s_ease-in-out_infinite]`}>
               {isBoostActive ? 'Ajouter 30 min' : 'Activer le Boost'}
             </GlassButton>
           </div>
