@@ -91,6 +91,7 @@ Les helper styles de `BoostScreen` reutilisent ce schema pour:
 - glow des cartes produits (instant/passes/bundles)
 - glow harmonise des mini-cartes argumentaires
 - glow au clic sur toutes les cartes (tiers + produits + packs + bundles + arguments)
+- glow au hover sur toutes les cartes produits restantes (hors tiers Essential/Gold/Platinum)
 
 ---
 
@@ -105,6 +106,11 @@ Defini dans `tiers[]` (BoostScreen):
 
 Prix/chiffres:
 - rendu en `font-mono` (JetBrains Mono charge localement)
+- devise unifiee en `₽` sur tous les items de la page Boost
+
+Descriptions enrichies:
+- bundles: ajout de listes a puces colorees (meme logique visuelle que les cartes tiers)
+- instant/passes/flash: puces colorees harmonieuses avec variation chromatique
 
 ---
 

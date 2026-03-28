@@ -27,7 +27,7 @@ const tiers: TierDef[] = [
     id: 'essential',
     name: 'VIBE Essential',
     tierTag: 'BASIQUE',
-    price: '9.99\u20AC',
+    price: '999₽',
     period: '/ MOIS',
     features: ['Voir qui vous a like', '5 Super Likes par jour', 'Likes illimites', 'Zero publicite'],
     tagClass: 'bg-slate-300 text-black',
@@ -39,7 +39,7 @@ const tiers: TierDef[] = [
     id: 'gold',
     name: 'VIBE Gold',
     tierTag: 'POPULAIRE',
-    price: '19.99\u20AC',
+    price: '1999₽',
     period: '/ MOIS',
     features: ['Tout de Essential', 'Passeport (Monde entier)', 'Rewind illimite', '1 Boost gratuit par mois', 'Cacher son age/distance'],
     hasStar: true,
@@ -52,7 +52,7 @@ const tiers: TierDef[] = [
     id: 'platinum',
     name: 'VIBE Platinum',
     tierTag: 'ELITE',
-    price: '34.99\u20AC',
+    price: '3499₽',
     period: '/ MOIS',
     features: ['Tout de Gold', 'Priorite sur les Likes', 'Message avant le match', 'Voir qui est en ligne', '2 Boosts gratuits par mois'],
     tagClass: 'bg-cyan-400 text-black',
@@ -63,22 +63,102 @@ const tiers: TierDef[] = [
 ];
 
 const instantProducts = [
-  { id: 'boost', label: 'Boost visibilite', desc: 'Passe devant plus de profils actifs pendant 30 minutes.', price: '3,99 EUR', meta: 'Impact immediat', glowToken: '--glow-orange' as GlowToken },
-  { id: 'premium', label: 'Premium verified', desc: 'Badge verified + conversations sans restriction.', price: '9,99 EUR', meta: 'Mensuel', glowToken: '--glow-pink' as GlowToken },
-  { id: 'superlike', label: 'SuperLike tokens', desc: 'Apparition top conversation avec message prioritaire.', price: '4,99 EUR', meta: '5 tokens', glowToken: '--glow-blue' as GlowToken },
-  { id: 'rewind', label: 'Rewind tokens', desc: 'Annule un swipe. Inclus premium, vendable separement.', price: '2,99 EUR', meta: '5 tokens', glowToken: '--glow-silver' as GlowToken },
+  {
+    id: 'boost',
+    label: 'Boost visibilite',
+    desc: 'Passe devant plus de profils actifs pendant 30 minutes.',
+    details: ['Placement prioritaire dans Discover', 'Activation instantanee'],
+    price: '399₽',
+    meta: 'Impact immediat',
+    glowToken: '--glow-orange' as GlowToken,
+  },
+  {
+    id: 'premium',
+    label: 'Premium verified',
+    desc: 'Badge verified + conversations sans restriction.',
+    details: ['Badge verified visible', 'Acces sans restriction aux conversations'],
+    price: '999₽',
+    meta: 'Mensuel',
+    glowToken: '--glow-pink' as GlowToken,
+  },
+  {
+    id: 'superlike',
+    label: 'SuperLike tokens',
+    desc: 'Apparition top conversation avec message prioritaire.',
+    details: ['Remontee de priorite', 'Message visible avant la concurrence'],
+    price: '499₽',
+    meta: '5 tokens',
+    glowToken: '--glow-blue' as GlowToken,
+  },
+  {
+    id: 'rewind',
+    label: 'Rewind tokens',
+    desc: 'Annule un swipe. Inclus premium, vendable separement.',
+    details: ['Recuperation du profil passe', 'Utilisable a tout moment'],
+    price: '299₽',
+    meta: '5 tokens',
+    glowToken: '--glow-silver' as GlowToken,
+  },
 ];
 
 const timePacks = [
-  { id: 'day', label: 'Pass Jour', desc: 'Mini premium + 1 boost', price: '5,99 EUR', tag: '24h', glowToken: '--glow-silver' as GlowToken },
-  { id: 'week', label: 'Pass Semaine', desc: 'Premium temporaire + tokens', price: '14,99 EUR', tag: '7 jours', glowToken: '--glow-gold' as GlowToken },
-  { id: 'month', label: 'Pass Mois', desc: 'Premium complet + dotation incluse', price: '29,99 EUR', tag: '30 jours', glowToken: '--glow-blue' as GlowToken },
+  {
+    id: 'day',
+    label: 'Pass Jour',
+    desc: 'Mini premium + 1 boost',
+    details: ['Acces premium temporaire', '1 boost inclus'],
+    price: '599₽',
+    tag: '24h',
+    glowToken: '--glow-silver' as GlowToken,
+  },
+  {
+    id: 'week',
+    label: 'Pass Semaine',
+    desc: 'Premium temporaire + tokens',
+    details: ['7 jours de confort premium', 'Dotation de tokens incluse'],
+    price: '1499₽',
+    tag: '7 jours',
+    glowToken: '--glow-gold' as GlowToken,
+  },
+  {
+    id: 'month',
+    label: 'Pass Mois',
+    desc: 'Premium complet + dotation incluse',
+    details: ['Pack complet conversion', 'Meilleure continuite d usage'],
+    price: '2999₽',
+    tag: '30 jours',
+    glowToken: '--glow-blue' as GlowToken,
+  },
 ];
 
 const bundles = [
-  { id: 'starter', label: 'Starter', desc: '1 Boost + 5 SuperLikes', price: '7,99 EUR', tag: 'Premier achat', glowToken: '--glow-silver' as GlowToken },
-  { id: 'pro', label: 'Dating Pro', desc: '5 Boosts + 20 SuperLikes + 10 Rewinds', price: '24,99 EUR', tag: 'Meilleur rapport', glowToken: '--glow-pink' as GlowToken },
-  { id: 'premiumplus', label: 'Premium+', desc: 'Premium mensuel + 4 boosts + tokens mensuels', price: '39,99 EUR', tag: 'Valeur maximale', glowToken: '--glow-cyan' as GlowToken },
+  {
+    id: 'starter',
+    label: 'Starter',
+    desc: '1 Boost + 5 SuperLikes',
+    details: ['Pack de demarrage', 'Ideal premier achat'],
+    price: '799₽',
+    tag: 'Premier achat',
+    glowToken: '--glow-silver' as GlowToken,
+  },
+  {
+    id: 'pro',
+    label: 'Dating Pro',
+    desc: '5 Boosts + 20 SuperLikes + 10 Rewinds',
+    details: ['Meilleur ratio valeur/prix', 'Optimise pour reachat'],
+    price: '2499₽',
+    tag: 'Meilleur rapport',
+    glowToken: '--glow-pink' as GlowToken,
+  },
+  {
+    id: 'premiumplus',
+    label: 'Premium+',
+    desc: 'Premium mensuel + 4 boosts + tokens mensuels',
+    details: ['Experience premium continue', 'Pack complet haute conversion'],
+    price: '3999₽',
+    tag: 'Valeur maximale',
+    glowToken: '--glow-cyan' as GlowToken,
+  },
 ];
 
 const BoostScreen = () => {
@@ -114,6 +194,9 @@ const BoostScreen = () => {
     backgroundColor: `rgb(var(${token}) / ${bgAlpha})`,
     borderColor: `rgb(var(${token}) / ${borderAlpha})`,
   });
+  const dotPalette: GlowToken[] = ['--glow-pink', '--glow-blue', '--glow-gold', '--glow-cyan', '--glow-orange', '--glow-silver'];
+  const dotTokenAt = (seed: number): GlowToken => dotPalette[seed % dotPalette.length];
+  const dotStyle = (token: GlowToken) => ({ backgroundColor: `rgb(var(${token}) / 0.95)` });
   const tapGlow = (token: GlowToken, alpha = 0.42, scale = 0.97) => ({
     scale,
     borderColor: `rgb(var(${token}) / 0.45)`,
@@ -325,6 +408,7 @@ const BoostScreen = () => {
         <section className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]">
           <motion.div
             whileTap={tapGlow('--glow-orange', 0.42)}
+            whileHover={{ ...glowShadow('--glow-orange', 0.32, 34), scale: 1.01 }}
             className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-orange-400/30 bg-orange-500/10"
             style={glowShadow('--glow-orange', 0.22, 28)}
           >
@@ -338,19 +422,27 @@ const BoostScreen = () => {
               </div>
             </div>
             <p className="text-sm text-secondary">Un boost place votre profil dans les zones de decouverte les plus actives pour augmenter la traction.</p>
+            <ul className="mt-3 space-y-2">
+              {['Priorite locale immediate', 'Meilleure exposition au bon moment'].map((line, idx) => (
+                <li key={line} className="flex items-center gap-2 text-sm text-white/78">
+                  <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(idx + 1))} />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
           </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <motion.div whileTap={tapGlow('--glow-pink', 0.38)} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-pink', 0.16, 24)}>
+            <motion.div whileTap={tapGlow('--glow-pink', 0.38)} whileHover={{ ...glowShadow('--glow-pink', 0.3, 30), scale: 1.01 }} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-pink', 0.16, 24)}>
               <ICONS.Heart size={18} className="text-pink-500 mb-2" />
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Matches</p>
               <p className="text-sm text-secondary mt-1">Plus de rencontres qualifiees</p>
             </motion.div>
-            <motion.div whileTap={tapGlow('--glow-blue', 0.38)} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-blue', 0.16, 24)}>
+            <motion.div whileTap={tapGlow('--glow-blue', 0.38)} whileHover={{ ...glowShadow('--glow-blue', 0.3, 30), scale: 1.01 }} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-blue', 0.16, 24)}>
               <ICONS.Shield size={18} className="text-blue-500 mb-2" />
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Securite</p>
               <p className="text-sm text-secondary mt-1">Presence premium verifiee</p>
             </motion.div>
-            <motion.div whileTap={tapGlow('--glow-gold', 0.38)} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-gold', 0.16, 24)}>
+            <motion.div whileTap={tapGlow('--glow-gold', 0.38)} whileHover={{ ...glowShadow('--glow-gold', 0.3, 30), scale: 1.01 }} className="rounded-3xl glass-panel glass-panel-float p-4" style={glowShadow('--glow-gold', 0.16, 24)}>
               <ICONS.Zap size={18} className="text-amber-500 mb-2" />
               <p className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">Rythme</p>
               <p className="text-sm text-secondary mt-1">Decisions plus rapides</p>
@@ -387,6 +479,7 @@ const BoostScreen = () => {
               {instantProducts.map((item) => (
                 <motion.div
                   whileTap={tapGlow(item.glowToken, 0.42)}
+                  whileHover={{ ...glowShadow(item.glowToken, 0.34, 34), scale: 1.01 }}
                   key={item.id}
                   className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] transition-colors"
                   style={glowCardStyle(item.glowToken, 0.18, 0.06, 0.24)}
@@ -395,6 +488,14 @@ const BoostScreen = () => {
                     <div>
                       <p className="font-bold text-lg">{item.label}</p>
                       <p className="text-sm text-secondary mt-1">{item.desc}</p>
+                      <ul className="mt-2 space-y-1.5">
+                        {item.details.map((detail, detailIdx) => (
+                          <li key={detail} className="flex items-center gap-2 text-[0.86rem] text-white/76">
+                            <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(detailIdx + 2))} />
+                            <span>{detail}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                     <p className="font-mono text-xl font-black whitespace-nowrap">{item.price}</p>
                   </div>
@@ -412,12 +513,20 @@ const BoostScreen = () => {
           {catalogView === 'passes' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
               {timePacks.map((item) => (
-                <motion.div whileTap={tapGlow(item.glowToken, 0.4)} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
+                <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-bold text-lg">{item.label}</p>
                     <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{item.tag}</span>
                   </div>
                   <p className="text-sm text-secondary mt-2">{item.desc}</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {item.details.map((detail, detailIdx) => (
+                      <li key={detail} className="flex items-center gap-2 text-[0.86rem] text-white/76">
+                        <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(detailIdx + 3))} />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
                   <div className="mt-4 flex items-center justify-between">
                     <p className="font-mono text-2xl font-black">{item.price}</p>
                     <button className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
@@ -434,6 +543,7 @@ const BoostScreen = () => {
               {bundles.map((item) => (
                 <motion.div
                   whileTap={tapGlow(item.glowToken, item.id === 'pro' ? 0.48 : 0.4)}
+                  whileHover={{ ...glowShadow(item.glowToken, item.id === 'pro' ? 0.38 : 0.3, 34), scale: 1.01 }}
                   key={item.id}
                   className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
                   style={glowCardStyle(item.glowToken, item.id === 'pro' ? 0.24 : 0.16, item.id === 'pro' ? 0.1 : 0.05, item.id === 'pro' ? 0.32 : 0.2)}
@@ -444,7 +554,17 @@ const BoostScreen = () => {
                       {item.tag}
                     </span>
                   </div>
-                  <p className="text-secondary text-sm mt-2">{item.desc}</p>
+                  <div className="text-secondary text-sm mt-2">
+                    <p>{item.desc}</p>
+                    <ul className="mt-2 space-y-1.5">
+                      {item.details.map((detail, detailIdx) => (
+                        <li key={detail} className="flex items-center gap-2 text-[0.86rem] text-white/76">
+                          <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(detailIdx + 4))} />
+                          <span>{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                   <div className="mt-auto flex flex-col gap-3">
                     <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{item.price}</p>
                     <button className={`${buyBtnBase} w-full ${item.id === 'pro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
