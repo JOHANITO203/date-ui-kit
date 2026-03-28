@@ -297,7 +297,7 @@ const BoostScreen = () => {
                   Activez Votre <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">Potentiel</span>
                 </h1>
                 <p className="mt-3 text-sm md:text-base text-secondary max-w-xl">
-                  Ne vendez pas un clic. Activez une fenetre de visibilite premium pour capter plus de likes, de matchs et de conversations.
+                  Activez votre Boost pour mettre votre profil en avant, obtenir plus de likes, creer plus de matchs et lancer plus de conversations.
                 </p>
               </div>
               <motion.div whileTap={{ scale: 0.95 }} className="w-full md:w-auto">
