@@ -4,11 +4,13 @@ import { ICONS, MOCK_USERS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import ChatScreen from './ChatScreen';
 import NameWithBadge from './ui/NameWithBadge';
+import { useI18n } from '../i18n/I18nProvider';
 
 const MessagesScreen = () => {
   const navigate = useNavigate();
   const { userId: urlUserId } = useParams();
   const { isDesktop, isTablet, isTouch } = useDevice();
+  const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   
   // For Master-Detail on large screens
@@ -81,13 +83,13 @@ const MessagesScreen = () => {
       {/* List Area (Master) */}
       <div className={`group/messages-pane relative flex flex-col ${isLarge ? (isTablet ? 'w-full md:w-[calc(var(--panel-width-md)+2rem)] xl:w-[calc(var(--panel-width-lg)+1rem)]' : 'w-full md:w-[var(--panel-width-md)] xl:w-[var(--panel-width-lg)]') + ' border-r border-white/5 overflow-hidden pb-6 pt-6' : 'w-full overflow-y-auto no-scrollbar pt-[var(--messages-header-top)]'} h-full px-[var(--page-x)]`}>
         <div className={`flex items-center justify-between ${isLarge ? (isTablet ? 'mb-6' : 'mb-8') : 'mb-[var(--messages-header-gap)]'}`}>
-          <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>Messages</h2>
+          <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>{t('messages.title')}</h2>
           <button onClick={() => navigate('/settings')} className={`glass rounded-full hover-effect flex items-center justify-center ${isLarge ? 'w-12 h-12' : 'w-11 h-11'}`}><ICONS.Settings size={isLarge ? 20 : 18} /></button>
         </div>
 
         {/* New Matches */}
         <div className={`${isLarge ? 'mb-10' : 'mb-[var(--messages-matches-section-gap)]'} group/matches relative`}>
-          <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4">Nouveaux matches</h3>
+          <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4">{t('messages.newMatches')}</h3>
           <div
             ref={matchesRef}
             className={`flex ${isLarge ? (isTablet ? 'gap-3.5' : 'gap-5') : 'gap-[var(--messages-matches-gap)]'} overflow-x-auto no-scrollbar pb-2 touch-pan-x`}
@@ -99,7 +101,7 @@ const MessagesScreen = () => {
                   <ICONS.Likes size={isLarge ? 24 : 20} className="text-white" />
                 </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider">99+ Likes</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('messages.likesCounter')}</span>
             </div>
             {MOCK_USERS.map(user => (
               <div 
@@ -131,7 +133,7 @@ const MessagesScreen = () => {
                       node.scrollLeft = next * matchesMaxScroll;
                     }}
                     className="absolute inset-0 h-full w-full cursor-ew-resize appearance-none bg-transparent [&::-webkit-slider-runnable-track]:h-2.5 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-r [&::-webkit-slider-thumb]:from-pink-400 [&::-webkit-slider-thumb]:via-fuchsia-400 [&::-webkit-slider-thumb]:to-blue-400 [&::-webkit-slider-thumb]:shadow-[0_0_12px_rgba(236,72,153,0.45)] [&::-moz-range-track]:h-2.5 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-10 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-pink-400"
-                    aria-label="Naviguer entre les nouveaux matches"
+                    aria-label={t('messages.matchesSliderAria')}
                   />
                   <div
                     className="pointer-events-none absolute top-[2px] bottom-[2px] left-[2px] rounded-full bg-gradient-to-r from-pink-500/75 via-fuchsia-500/75 to-blue-500/75"
@@ -146,7 +148,7 @@ const MessagesScreen = () => {
         {/* Conversations */}
         <div className={`${isLarge ? 'space-y-3' : 'space-y-[var(--messages-conv-gap)]'} flex-1 min-h-0 relative`}>
           <div className={`${isLarge ? 'rounded-[26px] border border-[var(--messages-zone-border)] bg-[var(--messages-zone-bg)] p-3 h-full min-h-0 flex flex-col' : ''}`}>
-          <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4 shrink-0">Conversations</h3>
+          <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4 shrink-0">{t('messages.conversations')}</h3>
           <div
             ref={conversationsRef}
             className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
@@ -181,7 +183,7 @@ const MessagesScreen = () => {
                     />
                     <span className="text-[10px] text-secondary font-bold shrink-0">14:20</span>
                   </div>
-                  <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>Hey! I saw your profile and loved your photography...</p>
+                  <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>{t('messages.preview')}</p>
                 </div>
                 <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>2</div>
               </div>
@@ -210,7 +212,7 @@ const MessagesScreen = () => {
                     className={`w-2 h-2 rounded-full transition-all ${
                       selectedUserId === user.id ? 'bg-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.6)]' : 'bg-white/30 hover:bg-white/60'
                     }`}
-                    aria-label={`Aller a la conversation ${user.name}`}
+                    aria-label={t('messages.jumpConversation', { name: user.name })}
                   />
                 ))}
               </div>
@@ -230,8 +232,8 @@ const MessagesScreen = () => {
               <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-white/20">
                 <ICONS.Messages size={40} />
               </div>
-              <h3 className="text-xl font-bold">Sélectionnez une conversation</h3>
-              <p className="text-secondary text-sm max-w-xs">Choisissez un match à gauche pour commencer à discuter.</p>
+              <h3 className="text-xl font-bold">{t('messages.selectTitle')}</h3>
+              <p className="text-secondary text-sm max-w-xs">{t('messages.selectSubtitle')}</p>
             </div>
           )}
         </div>

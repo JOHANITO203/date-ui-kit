@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Heart, Star, Eye } from 'lucide-react';
 import { useDevice } from '../hooks/useDevice';
+import { useI18n } from '../i18n/I18nProvider';
 
 const lockedLikes = [
   {
@@ -56,6 +57,7 @@ const lockedLikes = [
 
 const MatchesScreen: React.FC = () => {
   const { isDesktop, isTablet } = useDevice();
+  const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
@@ -100,14 +102,14 @@ const MatchesScreen: React.FC = () => {
           className="flex items-end justify-between gap-4"
         >
           <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Activité</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('likes.eyebrow')}</p>
             <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">
-              TES LIKES
+              {t('likes.title')}
             </h1>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-pink-500/35 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.12)]">
             <Heart size={12} fill="currentColor" className="text-pink-400" />
-            <span className="text-[10px] font-black text-pink-300">24 Nouveaux</span>
+            <span className="text-[10px] font-black text-pink-300">{t('likes.newLikes', { count: 24 })}</span>
           </div>
         </header>
 
@@ -132,7 +134,7 @@ const MatchesScreen: React.FC = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
 
                   <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
-                    Verrouille
+                    {t('likes.unlock.locked')}
                   </div>
 
                   <div className="absolute top-14 left-1/2 -translate-x-1/2">
@@ -143,9 +145,9 @@ const MatchesScreen: React.FC = () => {
 
                   <div className="absolute inset-x-4 top-[48%] text-center">
                     <p className="mx-auto max-w-[12ch] text-[clamp(0.92rem,1.15vw,1.08rem)] leading-[1.18] font-black text-white">
-                      Debloquez pour voir ce profil
+                      {t('likes.unlock.cta')}
                     </p>
-                    <p className="text-xs text-white/62 mt-1.5">{like.city}</p>
+                    <p className="text-xs text-white/62 mt-1.5">{t('likes.unlock.city', { city: like.city })}</p>
                   </div>
 
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
@@ -166,22 +168,22 @@ const MatchesScreen: React.FC = () => {
                 <div className="inline-flex p-2 rounded-xl bg-white/5 mb-3">
                   <Star className="text-[#FFD166]" fill="#FFD166" size={18} />
                 </div>
-                <h2 className="text-2xl font-black tracking-tight mb-2">Passez Premium</h2>
+                <h2 className="text-2xl font-black tracking-tight mb-2">{t('likes.premium.title')}</h2>
                 <p className="text-secondary text-sm leading-relaxed mb-5">
-                  Voyez tous vos likes, matchez instantanement et boostez votre visibilite.
+                  {t('likes.premium.subtitle')}
                 </p>
                 <button className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]">
-                  Debloquer mes likes
+                  {t('likes.premium.buttonLarge')}
                 </button>
               </section>
 
               <section className="glass-panel rounded-[var(--card-radius)] p-5 space-y-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Inclut</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('likes.premium.includes')}</p>
                 {[
-                  'Voir tous les likes recus',
-                  'Likes illimites',
-                  'Filtres avances',
-                  'Boost hebdomadaire',
+                  t('likes.includes.likesReceived'),
+                  t('likes.includes.unlimitedLikes'),
+                  t('likes.includes.advancedFilters'),
+                  t('likes.includes.weeklyBoost'),
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-white/80">
                     <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
@@ -207,7 +209,7 @@ const MatchesScreen: React.FC = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
 
                   <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
-                    Verrouille
+                    {t('likes.unlock.locked')}
                   </div>
 
                   <div className="absolute top-12 left-1/2 -translate-x-1/2">
@@ -218,9 +220,9 @@ const MatchesScreen: React.FC = () => {
 
                   <div className="absolute inset-x-3 top-[48%] text-center">
                     <p className="mx-auto max-w-[11ch] text-[0.84rem] leading-[1.18] font-black text-white">
-                      Debloquez pour voir ce profil
+                      {t('likes.unlock.cta')}
                     </p>
-                    <p className="text-[11px] text-white/62 mt-1">{like.city}</p>
+                    <p className="text-[11px] text-white/62 mt-1">{t('likes.unlock.city', { city: like.city })}</p>
                   </div>
 
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
@@ -235,10 +237,10 @@ const MatchesScreen: React.FC = () => {
               <div className="inline-flex p-3 rounded-2xl bg-white/5 mb-4">
                 <Star className="text-[#FFD166]" fill="#FFD166" />
               </div>
-              <h2 className="text-xl font-black mb-2">Passez Premium</h2>
-              <p className="text-secondary text-sm mb-6">Voyez tous vos likes et matchez instantanement.</p>
+              <h2 className="text-xl font-black mb-2">{t('likes.premium.title')}</h2>
+              <p className="text-secondary text-sm mb-6">{t('likes.premium.subtitle')}</p>
               <button className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]">
-                Debloquer
+                {t('likes.premium.button')}
               </button>
             </section>
           </>

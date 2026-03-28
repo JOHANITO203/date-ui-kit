@@ -5,16 +5,24 @@ import { ICONS, MOCK_USERS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
+import { useI18n } from '../i18n/I18nProvider';
 
 const SwipeScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
+  const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
-  const quickFilters = ['Tout', 'A proximite', 'Nouveaux', 'En ligne', 'Verifies'];
-  const [activeFilters, setActiveFilters] = useState<string[]>(['Tout']);
+  const quickFilters = [
+    { id: 'all', labelKey: 'discover.quickFilters.all' },
+    { id: 'nearby', labelKey: 'discover.quickFilters.nearby' },
+    { id: 'new', labelKey: 'discover.quickFilters.new' },
+    { id: 'online', labelKey: 'discover.quickFilters.online' },
+    { id: 'verified', labelKey: 'discover.quickFilters.verified' },
+  ];
+  const [activeFilterIds, setActiveFilterIds] = useState<string[]>(['all']);
 
   const user = MOCK_USERS[currentIndex % MOCK_USERS.length];
   const nextUser = MOCK_USERS[(currentIndex + 1) % MOCK_USERS.length];
@@ -61,9 +69,9 @@ const SwipeScreen = () => {
     }
   };
 
-  const toggleFilter = (label: string) => {
-    setActiveFilters((prev) =>
-      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
+  const toggleFilter = (id: string) => {
+    setActiveFilterIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
@@ -110,28 +118,28 @@ const SwipeScreen = () => {
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
       <div className="flex items-end justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
         <div className="flex flex-col gap-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">Explorer</p>
-          <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">DISCOVER</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('discover.eyebrow')}</p>
+          <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">{t('discover.title')}</h1>
         </div>
         <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
           <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">Boost</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">{t('discover.boost')}</span>
         </button>
       </div>
 
       <div className="px-[var(--page-x)] pb-2 shrink-0">
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {quickFilters.map((label) => (
+          {quickFilters.map((filter) => (
             <button
-              key={`filter-${label}`}
-              onClick={() => toggleFilter(label)}
+              key={`filter-${filter.id}`}
+              onClick={() => toggleFilter(filter.id)}
               className={`shrink-0 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.14em] whitespace-nowrap transition-all ${
-                activeFilters.includes(label)
+                activeFilterIds.includes(filter.id)
                   ? 'bg-white text-[#090909] border border-white shadow-[0_8px_24px_rgba(255,255,255,0.16)]'
                   : 'bg-[#0E1116]/90 border border-white/10 text-white/68 hover:text-white hover:border-white/25'
               }`}
             >
-              {label}
+              {t(filter.labelKey)}
             </button>
           ))}
         </div>
@@ -155,31 +163,31 @@ const SwipeScreen = () => {
                 </button>
               </div>
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Filtres actifs</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('discover.activeFilters')}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {activeFilters.map((label) => (
+                  {activeFilterIds.map((id) => (
                     <span
-                      key={`active-${label}`}
+                      key={`active-${id}`}
                       className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] bg-white/10 border border-white/15 text-white/80"
                     >
-                      {label}
+                      {t(`discover.quickFilters.${id}`)}
                     </span>
                   ))}
-                  {activeFilters.length === 0 && (
-                    <span className="text-[11px] text-white/45">Aucun filtre actif</span>
+                  {activeFilterIds.length === 0 && (
+                    <span className="text-[11px] text-white/45">{t('discover.noActiveFilters')}</span>
                   )}
                 </div>
               </div>
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">Activite</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('discover.activity')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
                     <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>24</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/45">Likes recents</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/45">{t('discover.likesRecent')}</p>
                   </div>
                   <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
                     <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>7</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/45">Matches</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/45">{t('discover.matches')}</p>
                   </div>
                 </div>
               </div>
@@ -294,7 +302,7 @@ const SwipeScreen = () => {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-[length:var(--discover-compat-value-size)] font-black text-white leading-none">{user.compatibility}%</span>
-                      <span className="text-[length:var(--discover-compat-label-size)] font-bold uppercase tracking-widest text-white/40">Match</span>
+                      <span className="text-[length:var(--discover-compat-label-size)] font-bold uppercase tracking-widest text-white/40">{t('discover.match')}</span>
                     </div>
                   </div>
                 </div>
@@ -420,7 +428,7 @@ const SwipeScreen = () => {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-[length:var(--discover-compat-value-size)] font-black text-white leading-none">{user.compatibility}%</span>
-                      <span className="text-[length:var(--discover-compat-label-size)] font-bold uppercase tracking-widest text-white/40">Match</span>
+                      <span className="text-[length:var(--discover-compat-label-size)] font-bold uppercase tracking-widest text-white/40">{t('discover.match')}</span>
                     </div>
                   </div>
                 </div>
@@ -448,21 +456,21 @@ const SwipeScreen = () => {
                   </motion.div>
                 </div>
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="absolute bottom-0 z-20 bg-white text-black px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs shadow-2xl">
-                  C'est un Match !
+                  {t('discover.itsAMatch')}
                 </motion.div>
               </div>
 
               <div className="space-y-3">
                 <h2 className="text-4xl font-bold text-white tracking-tight">Vous et {user.name}</h2>
-                <p className="text-white/40 text-sm max-w-[240px] mx-auto leading-relaxed">Envoyez un message pour briser la glace des maintenant.</p>
+                <p className="text-white/40 text-sm max-w-[240px] mx-auto leading-relaxed">{t('discover.matchSubtitle')}</p>
               </div>
 
               <div className="space-y-4">
                 <GlassButton variant="premium" className="w-full py-5 text-sm font-bold uppercase tracking-widest">
-                  Envoyer un message
+                  {t('discover.sendMessage')}
                 </GlassButton>
                 <button onClick={() => setShowMatch(false)} className="w-full py-2 text-white/30 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
-                  Continuer a swiper
+                  {t('discover.continueSwiping')}
                 </button>
               </div>
             </motion.div>

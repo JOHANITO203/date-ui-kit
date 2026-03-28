@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
+import { useI18n } from '../i18n/I18nProvider';
 
 type CatalogView = 'instant' | 'passes' | 'bundles';
 type TierId = 'essential' | 'gold' | 'platinum';
@@ -163,6 +164,7 @@ const bundles = [
 
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
+  const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   const showDesktopRail = isLarge && !isTouch;
 
@@ -289,15 +291,16 @@ const BoostScreen = () => {
           <div className="relative z-10 flex flex-col gap-5 md:gap-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1">
               <ICONS.Star size={14} className="text-amber-400" />
-              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Offres Premium</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">{t('boost.badge')}</span>
             </div>
             <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div className="max-w-2xl">
                 <h1 className="text-[clamp(2rem,4vw,3.2rem)] italic uppercase font-black tracking-tighter leading-[0.95]">
-                  Activez Votre <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">Potentiel</span>
+                  {t('boost.heroLead')}{' '}
+                  <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">{t('boost.heroAccent')}</span>
                 </h1>
                 <p className="mt-3 text-sm md:text-base text-secondary max-w-xl">
-                  Activez votre Boost pour mettre votre profil en avant, obtenir plus de likes, creer plus de matchs et lancer plus de conversations.
+                  {t('boost.heroSubtitle')}
                 </p>
               </div>
               <motion.div whileTap={{ scale: 0.95 }} className="w-full md:w-auto">
@@ -307,7 +310,7 @@ const BoostScreen = () => {
                   className={`w-full md:w-auto min-w-[14rem] h-[var(--boost-cta-h)] md:h-[var(--cta-height)] text-sm md:text-base font-black uppercase tracking-[0.18em] transition-[background,box-shadow,color] duration-500 ease-in-out border-0 ${selectedTier.ctaButtonClass}`}
                   style={glowShadow(selectedTier.glowToken, 0.3, 36)}
                 >
-                  {isBoostActive ? `Boost actif ${timer}` : 'Activer Boost'}
+                  {isBoostActive ? t('boost.boostActive', { timer }) : t('boost.activateBoost')}
                 </GlassButton>
               </motion.div>
             </div>
@@ -388,7 +391,7 @@ const BoostScreen = () => {
               className="w-full h-[var(--boost-tier-cta-h)] rounded-[24px] border border-white/15 bg-black/65 text-[length:var(--boost-tier-cta-size)] font-black uppercase"
               style={{ letterSpacing: 'var(--boost-tier-cta-track)' }}
             >
-              {`S'ABONNER A ${activeTier.toUpperCase()}`}
+              {`${t('boost.subscribePrefix')}${activeTier.toUpperCase()}`}
             </button>
             <div
               className="pointer-events-none absolute left-10 right-10"
@@ -400,7 +403,7 @@ const BoostScreen = () => {
               }}
             />
             <p className="mt-7 text-center text-[length:var(--boost-tier-disclaimer-size)] font-black uppercase tracking-[0.22em] text-white/35">
-              Annulation possible a tout moment • Paiement securise
+              {t('boost.secureHint')}
             </p>
           </div>
         </section>
@@ -458,9 +461,9 @@ const BoostScreen = () => {
         >
           <div className="w-fit rounded-full p-1 border border-[var(--menu-premium-border)] bg-[var(--menu-premium-gray)]/85 backdrop-blur-xl flex flex-wrap gap-1">
             {[
-              { id: 'instant', label: 'Items instantanes' },
-              { id: 'passes', label: 'Packs temps' },
-              { id: 'bundles', label: 'Bundles' },
+              { id: 'instant', label: t('boost.catalog.instant') },
+              { id: 'passes', label: t('boost.catalog.passes') },
+              { id: 'bundles', label: t('boost.catalog.bundles') },
             ].map((item) => (
               <button
                 key={item.id}
@@ -502,7 +505,7 @@ const BoostScreen = () => {
                   <div className="mt-4 flex items-center justify-between gap-3">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">{item.meta}</span>
                     <button className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}>
-                      Acheter
+                      {t('boost.buy.buy')}
                     </button>
                   </div>
                 </motion.div>
@@ -530,7 +533,7 @@ const BoostScreen = () => {
                   <div className="mt-4 flex items-center justify-between">
                     <p className="font-mono text-2xl font-black">{item.price}</p>
                     <button className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
-                      Choisir
+                      {t('boost.buy.choose')}
                     </button>
                   </div>
                 </motion.div>
@@ -568,7 +571,7 @@ const BoostScreen = () => {
                   <div className="mt-auto flex flex-col gap-3">
                     <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{item.price}</p>
                     <button className={`${buyBtnBase} w-full ${item.id === 'pro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
-                      Prendre ce bundle
+                      {t('boost.buy.bundle')}
                     </button>
                   </div>
                 </motion.div>

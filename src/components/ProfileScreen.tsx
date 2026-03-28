@@ -5,10 +5,12 @@ import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
 import NameWithBadge from './ui/NameWithBadge';
+import { useI18n } from '../i18n/I18nProvider';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet, isTouch } = useDevice();
+  const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -48,14 +50,14 @@ const ProfileScreen = () => {
       {/* Header Section */}
       <div className="flex items-center justify-between mb-8 md:mb-10 px-[var(--page-x)]">
         <div>
-          <h2 className="text-4xl font-black tracking-tighter mb-1">Mon Espace</h2>
-          <p className="text-secondary text-xs uppercase tracking-[0.3em] font-bold">Gestion du compte</p>
+          <h2 className="text-4xl font-black tracking-tighter mb-1">{t('profile.title')}</h2>
+          <p className="text-secondary text-xs uppercase tracking-[0.3em] font-bold">{t('profile.subtitle')}</p>
         </div>
         <div className="flex gap-3">
           {isDesktop && (
             <div className="hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] text-secondary uppercase tracking-widest font-black">Serveur: Paris-01</span>
+              <span className="text-[10px] text-secondary uppercase tracking-widest font-black">{t('profile.server')}</span>
             </div>
           )}
           <button 
@@ -96,7 +98,7 @@ const ProfileScreen = () => {
                       <NameWithBadge name="Alex" age={26} verified size="xl" />
                     </div>
                     <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
-                      <ICONS.MapPin size={12} className="text-pink-500" /> Paris, FR
+                      <ICONS.MapPin size={12} className="text-pink-500" /> {t('profile.city')}
                     </div>
                   </div>
                   <button 
@@ -124,12 +126,12 @@ const ProfileScreen = () => {
                 <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/20">
                   <ICONS.Star size={20} className="text-white" />
                 </div>
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-pink-500">Membre Gold</span>
+                <span className="text-xs font-black uppercase tracking-[0.2em] text-pink-500">{t('profile.premiumTag')}</span>
               </div>
-              <h4 className="text-2xl font-bold mb-2">Passez au niveau supérieur</h4>
-              <p className="text-secondary text-sm leading-relaxed mb-6">Débloquez les likes illimités, les boosts mensuels et voyez qui vous a liké.</p>
+              <h4 className="text-2xl font-bold mb-2">{t('profile.premiumTitle')}</h4>
+              <p className="text-secondary text-sm leading-relaxed mb-6">{t('profile.premiumSubtitle')}</p>
               <GlassButton className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-pink-500 hover:text-white transition-all">
-                Voir les avantages
+                {t('profile.premiumButton')}
               </GlassButton>
             </div>
             {/* Abstract background shape */}
@@ -155,7 +157,7 @@ const ProfileScreen = () => {
               </div>
               <div>
                 <span className="text-4xl font-black tracking-tighter block">1,284</span>
-                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">Vues du profil</span>
+                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">{t('profile.profileViews')}</span>
               </div>
             </div>
             
@@ -168,7 +170,7 @@ const ProfileScreen = () => {
               </div>
               <div>
                 <span className="text-4xl font-black tracking-tighter block">48</span>
-                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">Nouveaux Matches</span>
+                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">{t('profile.newMatches')}</span>
               </div>
             </div>
           </div>
@@ -182,8 +184,8 @@ const ProfileScreen = () => {
           >
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
-                <h4 className="text-2xl font-bold">Score de visibilité</h4>
-                <p className="text-secondary text-sm">Votre profil est presque parfait. Ajoutez une vidéo pour booster votre visibilité.</p>
+                <h4 className="text-2xl font-bold">{t('profile.visibilityTitle')}</h4>
+                <p className="text-secondary text-sm">{t('profile.visibilitySubtitle')}</p>
               </div>
               <div className="text-right">
                 <span className="text-5xl font-black tracking-tighter text-pink-500">85%</span>
@@ -199,10 +201,10 @@ const ProfileScreen = () => {
             </div>
             <div className="flex gap-4 relative z-10">
               <button className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
-                Améliorer
+                {t('profile.improve')}
               </button>
               <button className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
-                Aperçu
+                {t('profile.preview')}
               </button>
             </div>
           </div>
@@ -215,9 +217,9 @@ const ProfileScreen = () => {
             className="grid grid-cols-2 md:grid-cols-3 gap-[var(--grid-gap)]"
           >
             {[
-              { icon: <ICONS.Shield size={20} />, label: 'Sécurité', color: 'text-blue-400' },
-              { icon: <ICONS.Zap size={20} />, label: 'Boost', color: 'text-orange-400' },
-              { icon: <ICONS.HelpCircle size={20} />, label: 'Aide', color: 'text-green-400' }
+              { icon: <ICONS.Shield size={20} />, label: t('profile.quickActions.security'), color: 'text-blue-400' },
+              { icon: <ICONS.Zap size={20} />, label: t('profile.quickActions.boost'), color: 'text-orange-400' },
+              { icon: <ICONS.HelpCircle size={20} />, label: t('profile.quickActions.help'), color: 'text-green-400' }
             ].map((action, i) => (
               <button 
                 key={i}

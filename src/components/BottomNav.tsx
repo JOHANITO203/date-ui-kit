@@ -1,17 +1,19 @@
 import { motion } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ICONS } from '../types';
+import { useI18n } from '../i18n/I18nProvider';
 
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
 
   const tabs = [
-    { id: 'discover', icon: ICONS.Discover, label: 'Discover', path: '/discover' },
-    { id: 'likes', icon: ICONS.Likes, label: 'Likes', badge: true, path: '/likes' },
-    { id: 'messages', icon: ICONS.Messages, label: 'Messages', badge: true, path: '/messages' },
-    { id: 'boost', icon: ICONS.Boost, label: 'Boost', path: '/boost' },
-    { id: 'profile', icon: ICONS.Profile, label: 'Profile', path: '/profile' },
+    { id: 'discover', icon: ICONS.Discover, label: t('nav.discover'), path: '/discover' },
+    { id: 'likes', icon: ICONS.Likes, label: t('nav.likes'), badge: true, path: '/likes' },
+    { id: 'messages', icon: ICONS.Messages, label: t('nav.messages'), badge: true, path: '/messages' },
+    { id: 'boost', icon: ICONS.Boost, label: t('nav.boost'), path: '/boost' },
+    { id: 'profile', icon: ICONS.Profile, label: t('nav.profile'), path: '/profile' },
   ];
 
   return (
@@ -24,6 +26,7 @@ const BottomNav = () => {
             key={tab.id}
             onClick={() => navigate(tab.path)}
             className="relative flex flex-col items-center justify-center w-12 h-12"
+            aria-label={tab.label}
           >
             <Icon 
               size={24} 

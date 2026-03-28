@@ -1,15 +1,18 @@
-﻿import React from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { ICONS } from '../types';
 import { motion } from 'motion/react';
+import { useI18n } from '../i18n/I18nProvider';
 
 const Sidebar: React.FC = () => {
+  const { t } = useI18n();
+
   const navItems = [
-    { path: '/discover', icon: ICONS.Discover, label: 'Decouvrir' },
-    { path: '/likes', icon: ICONS.Likes, label: 'Likes' },
-    { path: '/messages', icon: ICONS.Messages, label: 'Messages' },
-    { path: '/boost', icon: ICONS.Boost, label: 'Boost' },
-    { path: '/profile', icon: ICONS.Profile, label: 'Profil' },
+    { path: '/discover', icon: ICONS.Discover, label: t('nav.discover') },
+    { path: '/likes', icon: ICONS.Likes, label: t('nav.likes') },
+    { path: '/messages', icon: ICONS.Messages, label: t('nav.messages') },
+    { path: '/boost', icon: ICONS.Boost, label: t('nav.boost') },
+    { path: '/profile', icon: ICONS.Profile, label: t('nav.profile') },
   ];
 
   return (
@@ -62,7 +65,7 @@ const Sidebar: React.FC = () => {
           }
         >
           <ICONS.Settings size={20} className="group-hover:rotate-45 transition-transform duration-500" />
-          <span className="font-medium">Parametres</span>
+          <span className="font-medium">{t('nav.settings')}</span>
         </NavLink>
       </div>
     </aside>

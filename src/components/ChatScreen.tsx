@@ -5,6 +5,7 @@ import { ICONS, MOCK_USERS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
+import { useI18n } from '../i18n/I18nProvider';
 
 interface ChatScreenProps {
   embedded?: boolean;
@@ -17,6 +18,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const [showTranslation, setShowTranslation] = useState(false);
   const { isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
+  const { t } = useI18n();
   
   const userId = propUserId || routeUserId;
   const user = MOCK_USERS.find(u => u.id === userId) || MOCK_USERS[0];
@@ -44,7 +46,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </div>
           <div className="flex flex-col items-start gap-0.5">
             <NameWithBadge name={user.name} age={user.age} verified={user.verified} size="md" className="w-fit" />
-            <span className="pl-0.5 text-[9px] text-green-400 uppercase font-black tracking-widest">En ligne</span>
+            <span className="pl-0.5 text-[9px] text-green-400 uppercase font-black tracking-widest">{t('chat.online')}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -72,14 +74,14 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
         }
       >
         <div className="flex justify-center">
-          <span className="glass px-4 py-1 rounded-full text-[9px] font-black text-secondary uppercase tracking-[0.2em]">Aujourd'hui</span>
+          <span className="glass px-4 py-1 rounded-full text-[9px] font-black text-secondary uppercase tracking-[0.2em]">{t('chat.today')}</span>
         </div>
 
         <div className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
           <img src={user.photos[0]} className="w-8 h-8 rounded-xl object-cover self-end shrink-0" alt="" referrerPolicy="no-referrer" />
           <div className="space-y-1.5">
             <div className="p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed bg-[#111319] border border-white/10">
-              Hey! I saw your profile and loved your photography. Where was that last photo taken?
+              {t('chat.sample.incoming')}
             </div>
             {showTranslation && (
               <motion.div 
@@ -87,7 +89,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-[10px] text-pink-400 font-bold px-3 flex items-center gap-1.5"
               >
-                <ICONS.Languages size={10} /> Traduction: Salut ! J'ai vu ton profil et j'ai adoré tes photos...
+                <ICONS.Languages size={10} /> {t('chat.translationLabel')}: {t('chat.sample.incomingTranslated')}
               </motion.div>
             )}
           </div>
@@ -95,15 +97,15 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
 
         <div className="flex flex-col items-end gap-1.5 ml-auto max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
           <div className="gradient-premium p-4 rounded-[24px] rounded-br-none text-sm leading-relaxed shadow-lg shadow-pink-500/10">
-            Thanks! It was taken in Iceland last summer. Have you ever been there?
+            {t('chat.sample.outgoing')}
           </div>
-          <span className="text-[9px] font-bold text-secondary pr-2 uppercase tracking-widest">Lu 14:25</span>
+          <span className="text-[9px] font-bold text-secondary pr-2 uppercase tracking-widest">{t('chat.readAt')}</span>
         </div>
 
         <div className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
           <img src={user.photos[0]} className="w-8 h-8 rounded-xl object-cover self-end shrink-0" alt="" referrerPolicy="no-referrer" />
           <div className="p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed bg-[#111319] border border-white/10">
-            Not yet, but it's on my bucket list! 🇮🇸
+            {t('chat.sample.incoming2')}
           </div>
         </div>
       </div>
@@ -119,7 +121,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </button>
           <input 
             type="text" 
-            placeholder="Écrire un message..." 
+            placeholder={t('chat.placeholder')} 
             className="flex-1 bg-transparent outline-none text-sm px-2 placeholder:text-white/20"
           />
           <button className="w-11 h-11 gradient-premium rounded-full flex items-center justify-center shadow-xl shadow-pink-500/20 active:scale-90 transition-transform">

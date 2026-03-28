@@ -38,7 +38,7 @@ const NameWithBadge: React.FC<NameWithBadgeProps> = ({
         <div
           className={`w-[var(--verified-badge-size)] h-[var(--verified-badge-size)] rounded-full bg-[#1D9BF0] border border-white/35 flex items-center justify-center shadow-[0_6px_16px_rgba(29,155,240,0.35)] shrink-0 ${badgeClassName}`}
         >
-          <span className="text-white font-black leading-none text-[10px]">✓</span>
+          <span className="text-white font-black leading-none text-[10px]">?</span>
         </div>
       )}
     </div>
@@ -46,4 +46,3 @@ const NameWithBadge: React.FC<NameWithBadgeProps> = ({
 };
 
 export default NameWithBadge;
-
