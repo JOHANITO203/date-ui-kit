@@ -1,6 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { Camera, Plus, ChevronLeft, Trash2, GripVertical } from 'lucide-react';
+import { Plus, ChevronLeft, Trash2, GripVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import GlassButton from './ui/GlassButton';

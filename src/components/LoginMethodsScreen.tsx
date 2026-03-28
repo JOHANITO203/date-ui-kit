@@ -1,7 +1,6 @@
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
-import GlassButton from './ui/GlassButton';
 
 const LoginMethodsScreen = () => {
   const navigate = useNavigate();
