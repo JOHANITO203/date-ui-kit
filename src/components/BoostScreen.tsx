@@ -370,9 +370,11 @@ const BoostScreen = () => {
                       )}
                     </div>
                     <p className={`font-black italic text-[length:var(--boost-tier-title-size)] leading-none tracking-tighter ${isActive ? 'text-white' : 'text-white/65'}`}>{t(tier.nameKey)}</p>
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-end gap-1.5">
                       <p className={`font-mono text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter whitespace-nowrap ${isActive ? 'text-white' : 'text-white/78'}`}>{price(tier.priceKey)}</p>
-                      <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.18em] text-white/45 pb-1">{t(tier.periodKey)}</p>
+                      <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.18em] text-white/45 whitespace-nowrap leading-none shrink-0 self-end pb-[0.15em]">
+                        {t(tier.periodKey)}
+                      </p>
                     </div>
                     <ul className="mt-1 space-y-2.5">
                       {tier.featureKeys.map((featureKey) => (
