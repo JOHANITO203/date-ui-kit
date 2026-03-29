@@ -35,6 +35,7 @@ type FormState = {
   interfaceLang: 'fr' | 'en' | 'ru';
   targetLang: 'fr' | 'en' | 'ru';
   autoTranslate: boolean;
+  autoDetectLanguage: boolean;
   verifyNow: boolean;
   preciseLocation: boolean;
   notifications: boolean;
@@ -45,6 +46,28 @@ const PHOTO_SLOTS = 5;
 const AGE_RANGE_MAX = 65;
 const LANGS = ['Francais', 'Anglais', 'Russe', 'Espagnol', 'Allemand', 'Italien', 'Chinois', 'Japonais'];
 const INTERESTS = ['Musique', 'Sport', 'Business', 'Voyage', 'Cinema', 'Food', 'Mode', 'Spiritualite', 'Tech', 'Art', 'Danse', 'Lifestyle'];
+const INTENT_OPTIONS = [
+  {
+    id: 'serieuse',
+    title: 'Relation serieuse',
+    subtitle: 'Rencontres avec intention claire',
+  },
+  {
+    id: 'connexion',
+    title: 'Flirt',
+    subtitle: 'Leger, fun et conversation spontanee',
+  },
+  {
+    id: 'decouverte',
+    title: 'Exotic',
+    subtitle: 'Ouverture interculturelle autour de toi',
+  },
+  {
+    id: 'verrai',
+    title: 'Open',
+    subtitle: 'Flexible selon le feeling',
+  },
+] as const;
 
 type CityOption = {
   name: string;
@@ -261,6 +284,7 @@ const OnboardingScreen = () => {
     interfaceLang: 'fr',
     targetLang: 'en',
     autoTranslate: true,
+    autoDetectLanguage: true,
     verifyNow: false,
     preciseLocation: false,
     notifications: false,
@@ -901,15 +925,18 @@ const OnboardingScreen = () => {
 
               {step === 7 && (
                 <div className="space-y-3">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Ce que tu cherches</h2>
-                  {[
-                    { id: 'serieuse', label: 'Relation serieuse' },
-                    { id: 'connexion', label: 'Discussion / Connexion' },
-                    { id: 'decouverte', label: 'Decouverte / Rencontres' },
-                    { id: 'verrai', label: 'Je verrai' },
-                  ].map((it) => (
-                    <button key={`intent-${it.id}`} onClick={() => setField('intent', it.id as FormState['intent'])} className={`w-full rounded-[18px] border px-4 py-4 text-left ${form.intent === it.id ? 'border-pink-500/50 bg-pink-500/10' : 'border-white/10 bg-white/5'}`}>
-                      {it.label}
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Ce que tu recherches</h2>
+                  <p className="text-white/60">Choisis une intention precise pour un matching plus pertinent.</p>
+                  {INTENT_OPTIONS.map((intentOption) => (
+                    <button
+                      key={`intent-${intentOption.id}`}
+                      onClick={() => setField('intent', intentOption.id as FormState['intent'])}
+                      className={`w-full rounded-[18px] border px-4 py-3.5 text-left transition-all ${
+                        form.intent === intentOption.id ? 'border-pink-500/50 bg-pink-500/10 shadow-[0_10px_24px_rgba(236,72,153,0.15)]' : 'border-white/10 bg-white/5 hover:border-white/25'
+                      }`}
+                    >
+                      <p className="text-sm font-black uppercase tracking-[0.08em]">{intentOption.title}</p>
+                      <p className="text-xs text-white/55 mt-1">{intentOption.subtitle}</p>
                     </button>
                   ))}
                 </div>
@@ -933,19 +960,28 @@ const OnboardingScreen = () => {
               {step === 9 && (
                 <div className="space-y-4">
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">Traduction du chat</h2>
-                  <select className={fieldClass} value={form.interfaceLang} onChange={(e) => setField('interfaceLang', e.target.value as FormState['interfaceLang'])}>
-                    <option value="fr">Francais</option>
-                    <option value="en">English</option>
-                    <option value="ru">Russkiy</option>
-                  </select>
-                  <select className={fieldClass} value={form.targetLang} onChange={(e) => setField('targetLang', e.target.value as FormState['targetLang'])}>
-                    <option value="en">English</option>
-                    <option value="fr">Francais</option>
-                    <option value="ru">Russkiy</option>
-                  </select>
-                  <button onClick={() => setField('autoTranslate', !form.autoTranslate)} className="w-full rounded-[18px] border border-white/10 bg-white/5 p-4 text-left">
-                    {`Traduction automatique : ${form.autoTranslate ? 'ON' : 'OFF'}`}
+                  <p className="text-white/60">Le systeme detecte automatiquement la langue de vos echanges.</p>
+
+                  <button
+                    onClick={() => setField('autoDetectLanguage', !form.autoDetectLanguage)}
+                    className="w-full rounded-[18px] border border-white/10 bg-white/5 p-4 flex items-center justify-between text-left"
+                  >
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.08em]">Detection automatique de langue</p>
+                      <p className="text-xs text-white/50 mt-1">Recommande pour des conversations fluides</p>
+                    </div>
+                    <span className={`text-xs font-black uppercase ${form.autoDetectLanguage ? 'text-pink-300' : 'text-white/55'}`}>
+                      {form.autoDetectLanguage ? 'Active' : 'Desactive'}
+                    </span>
                   </button>
+
+                  <div className="w-full rounded-[18px] border border-sky-400/25 bg-gradient-to-r from-sky-500/10 to-pink-500/10 p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.08em]">Traduction automatique</p>
+                      <p className="text-xs text-white/50 mt-1">Toujours activee pendant le chat</p>
+                    </div>
+                    <span className="text-xs font-black uppercase text-sky-300">ON</span>
+                  </div>
                 </div>
               )}
 
