@@ -817,7 +817,7 @@ const OnboardingScreen = () => {
                 <div className="space-y-4">
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">Ajout photo</h2>
                   <p className="text-white/60">Les profils avec 3 photos ou plus performent mieux.</p>
-                  <div className="grid grid-cols-3 grid-rows-3 gap-3">
+                  <div className="grid grid-cols-3 auto-rows-[88px] sm:auto-rows-[96px] md:auto-rows-[110px] gap-3 max-w-[32rem]">
                     {Array.from({ length: PHOTO_SLOTS }).map((_, index) => {
                       const slotNumber = index + 1;
                       const isFilled = form.photos >= slotNumber;
@@ -838,7 +838,7 @@ const OnboardingScreen = () => {
                           key={`photo-slot-${slotNumber}`}
                           type="button"
                           onClick={() => setField('photos', isFilled ? slotNumber - 1 : slotNumber)}
-                          className={`${slotLayout} relative rounded-[20px] border border-dashed transition-all overflow-hidden ${
+                          className={`${slotLayout} relative h-full min-h-[88px] rounded-[20px] border border-dashed transition-all overflow-hidden ${
                             isFilled
                               ? 'border-pink-500/45 bg-gradient-to-br from-pink-500/20 to-sky-500/20'
                               : 'border-white/20 bg-white/[0.02] hover:border-pink-500/35'
