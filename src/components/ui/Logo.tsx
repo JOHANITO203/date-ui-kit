@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface LogoProps {
   className?: string;
@@ -8,6 +9,8 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText = true }) => {
+  const { t } = useI18n();
+
   return (
     <div className={`flex items-center gap-2 md:gap-3 ${className}`}>
       <motion.div 
@@ -15,7 +18,6 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText = true 
         style={{ width: size, height: size }}
         whileHover={{ scale: 1.04 }}
       >
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-pink-500/35 via-violet-500/30 to-cyan-400/30 blur-lg" />
         <svg 
           viewBox="0 0 100 100" 
           fill="none" 
@@ -68,10 +70,10 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 40, showText = true 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
           >
-            SWIPE
+            {t('brand.logoWordmark')}
           </motion.span>
           <span className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.4em] text-pink-500 leading-none mt-1">
-            EXOTIQUE DATING
+            {t('brand.logoTagline')}
           </span>
         </div>
       )}
