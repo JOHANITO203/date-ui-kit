@@ -100,15 +100,40 @@ const AccountSettingsScreen = () => {
     },
   ];
 
-  const getSection = () => sections.find((section) => section.id === (category as SectionId)) ?? sections[0];
+  const currentSection = sections.find((section) => section.id === (category as SectionId));
+  const activeSection = currentSection ?? sections[0];
+  const hasInvalidCategory = Boolean(category) && !currentSection;
+  const currentSubItem = sub ? activeSection.items.find((entry) => entry.id === sub) : undefined;
+  const hasInvalidSub = Boolean(sub) && !currentSubItem;
+
+  const getSection = () => activeSection;
   const getSectionTitle = (section: SettingSection) => t(section.titleKey);
+
+  const renderInvalidRouteState = () => (
+    <div className="p-6 md:p-8">
+      <div className="glass rounded-[28px] border border-white/10 p-6 md:p-8 text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-white/5 mx-auto flex items-center justify-center text-white/65">
+          <ICONS.Info size={20} />
+        </div>
+        <h3 className="text-lg font-black">{t('settings.invalidTitle')}</h3>
+        <p className="text-sm text-secondary">{t('settings.invalidSubtitle')}</p>
+        <GlassButton onClick={() => navigate('/settings/account')} className="w-full md:w-auto px-6 py-3 rounded-2xl text-xs uppercase tracking-[0.18em]">
+          {t('settings.backToSettings')}
+        </GlassButton>
+      </div>
+    </div>
+  );
 
   const renderDetail = () => {
     const isEmbedded = isLarge;
     const section = getSection();
 
+    if (hasInvalidCategory || hasInvalidSub) {
+      return renderInvalidRouteState();
+    }
+
     if (sub) {
-      const item = section.items.find((entry) => entry.id === sub);
+      const item = currentSubItem;
       const itemLabel = item ? t(item.labelKey) : sub;
 
       return (
@@ -297,13 +322,13 @@ const AccountSettingsScreen = () => {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="h-full flex flex-col p-6 pb-28 overflow-y-auto no-scrollbar"
-      style={isTouch && isKeyboardOpen ? { paddingBottom: `calc(7rem + ${keyboardInset}px)` } : undefined}
-    >
-      <div className="flex items-center justify-between mb-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="h-full flex flex-col p-6 pb-28 overflow-y-auto no-scrollbar"
+        style={isTouch && isKeyboardOpen ? { paddingBottom: `calc(7rem + ${keyboardInset}px)` } : undefined}
+      >
+        <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/profile')} className="p-2 hover-effect rounded-full glass">
             <ICONS.ChevronLeft />
@@ -311,20 +336,42 @@ const AccountSettingsScreen = () => {
           <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
         </div>
         <GlassButton className="py-2 px-4 rounded-full text-xs">{t('settings.save')}</GlassButton>
-      </div>
+        </div>
 
-      <div className="space-y-8">
-        {sections.map((section) => (
-          <div key={section.id} className="space-y-4">
-            <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] px-2">{getSectionTitle(section)}</h3>
-            <div className="rounded-[32px] overflow-hidden border border-[var(--menu-premium-border)] bg-[rgba(18,22,30,0.82)] backdrop-blur-xl">
+        <div className="mb-6 flex flex-wrap gap-2">
+          {sections.map((section) => {
+            const isActive = section.id === activeSection.id;
+            return (
+              <button
+                key={`settings-chip-${section.id}`}
+                onClick={() => navigate(section.path)}
+                className={`px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border transition-colors ${
+                  isActive
+                    ? 'text-white border-pink-400/45 bg-gradient-to-r from-pink-500/20 to-blue-500/20'
+                    : 'text-secondary border-white/10 bg-white/5'
+                }`}
+              >
+                {getSectionTitle(section)}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-8">
+          {sections.map((section) => (
+            <div key={section.id} className="space-y-4">
+              <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] px-2">{getSectionTitle(section)}</h3>
+              <div className="rounded-[32px] overflow-hidden border border-[var(--menu-premium-border)] bg-[rgba(18,22,30,0.82)] backdrop-blur-xl">
               {section.items.map((item, i) => (
                 <button
                   key={item.id}
                   onClick={() => navigate(`${section.path}/${item.id}`)}
                   className={`w-full p-5 text-left flex items-center justify-between hover:bg-white/7 active:bg-white/10 transition-colors ${i !== section.items.length - 1 ? 'border-b border-white/8' : ''}`}
                 >
-                  <span className="text-sm font-medium">{t(item.labelKey)}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-white/45">{section.icon}</span>
+                    <span className="text-sm font-medium">{t(item.labelKey)}</span>
+                  </span>
                   <ICONS.ChevronLeft className="rotate-180 text-white/20" size={16} />
                 </button>
               ))}

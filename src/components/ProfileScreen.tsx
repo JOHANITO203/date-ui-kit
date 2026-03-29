@@ -130,7 +130,10 @@ const ProfileScreen = () => {
               </div>
               <h4 className="text-2xl font-bold mb-2">{t('profile.premiumTitle')}</h4>
               <p className="text-secondary text-sm leading-relaxed mb-6">{t('profile.premiumSubtitle')}</p>
-              <GlassButton className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-pink-500 hover:text-white transition-all">
+              <GlassButton
+                onClick={() => navigate('/boost')}
+                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-pink-500 hover:text-white transition-all"
+              >
                 {t('profile.premiumButton')}
               </GlassButton>
             </div>
@@ -200,11 +203,37 @@ const ProfileScreen = () => {
               />
             </div>
             <div className="flex gap-4 relative z-10">
-              <button className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+              <button
+                onClick={() => navigate('/profile/edit')}
+                className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+              >
                 {t('profile.improve')}
               </button>
-              <button className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+              <button
+                onClick={() => navigate('/discover')}
+                className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+              >
                 {t('profile.preview')}
+              </button>
+            </div>
+          </div>
+
+          {/* Public Profile */}
+          <div className="p-6 md:p-8 rounded-[var(--card-radius)] bg-[#0f1118]/92 border border-white/10 space-y-5">
+            <h4 className="text-xl font-bold">{t('editProfile.title')}</h4>
+            <p className="text-sm text-secondary">{t('editProfile.subtitle')}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => navigate('/discover')}
+                className="py-3 rounded-2xl glass text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+              >
+                {t('profile.preview')}
+              </button>
+              <button
+                onClick={() => navigate('/profile/edit')}
+                className="py-3 rounded-2xl glass text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+              >
+                {t('editProfile.save')}
               </button>
             </div>
           </div>
@@ -217,18 +246,43 @@ const ProfileScreen = () => {
             className="grid grid-cols-2 md:grid-cols-3 gap-[var(--grid-gap)]"
           >
             {[
-              { icon: <ICONS.Shield size={20} />, label: t('profile.quickActions.security'), color: 'text-blue-400' },
-              { icon: <ICONS.Zap size={20} />, label: t('profile.quickActions.boost'), color: 'text-orange-400' },
-              { icon: <ICONS.HelpCircle size={20} />, label: t('profile.quickActions.help'), color: 'text-green-400' }
+              { icon: <ICONS.Shield size={20} />, label: t('profile.quickActions.security'), color: 'text-blue-400', to: '/settings/privacy' },
+              { icon: <ICONS.Zap size={20} />, label: t('profile.quickActions.boost'), color: 'text-orange-400', to: '/boost' },
+              { icon: <ICONS.HelpCircle size={20} />, label: t('profile.quickActions.help'), color: 'text-green-400', to: '/settings/account' }
             ].map((action, i) => (
               <button 
                 key={i}
+                onClick={() => navigate(action.to)}
                 className="p-6 rounded-[var(--card-radius)] flex flex-col items-center gap-3 bg-[#0f1118]/92 border border-white/10 hover:bg-[#151925] transition-all group"
               >
                 <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
                   {action.icon}
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest">{action.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Options */}
+          <div className="rounded-[var(--card-radius)] bg-[#0f1118]/92 border border-white/10 overflow-hidden">
+            {[
+              { icon: <ICONS.Profile size={16} />, label: t('settings.sections.account'), to: '/settings/account' },
+              { icon: <ICONS.Shield size={16} />, label: t('settings.sections.privacy'), to: '/settings/privacy' },
+              { icon: <ICONS.Bell size={16} />, label: t('settings.sections.notifications'), to: '/settings/notifications' },
+              { icon: <ICONS.Settings size={16} />, label: t('settings.sections.preferences'), to: '/settings/preferences' },
+            ].map((item, index, arr) => (
+              <button
+                key={item.to}
+                onClick={() => navigate(item.to)}
+                className={`w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors ${
+                  index < arr.length - 1 ? 'border-b border-white/5' : ''
+                }`}
+              >
+                <span className="flex items-center gap-3 text-sm font-semibold">
+                  <span className="text-white/70">{item.icon}</span>
+                  {item.label}
+                </span>
+                <ICONS.ChevronLeft size={16} className="text-white/35 rotate-180" />
               </button>
             ))}
           </div>

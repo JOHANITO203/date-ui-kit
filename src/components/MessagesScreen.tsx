@@ -69,6 +69,40 @@ const MessagesScreen = () => {
     };
   }, [isLarge]);
 
+  useEffect(() => {
+    if (!isLarge) return;
+    const matchesNode = matchesRef.current;
+    const convNode = conversationsRef.current;
+    if (!matchesNode || !convNode) return;
+
+    const matchesMax = Math.max(0, matchesNode.scrollWidth - matchesNode.clientWidth);
+    const matchesValue = matchesMax <= 0 ? 0 : matchesNode.scrollLeft / matchesMax;
+    setMatchesMaxScroll(matchesMax);
+    setMatchesProgress(Math.min(1, Math.max(0, matchesValue)));
+
+    const convMax = Math.max(0, convNode.scrollHeight - convNode.clientHeight);
+    const convValue = convMax <= 0 ? 0 : convNode.scrollTop / convMax;
+    const convSize = convNode.scrollHeight <= 0 ? 100 : (convNode.clientHeight / convNode.scrollHeight) * 100;
+    setConversationsProgress(Math.min(1, Math.max(0, convValue)));
+    setConversationsThumb(Math.max(20, Math.min(100, convSize)));
+  }, [isLarge, isLoading]);
+
+  useEffect(() => {
+    const node = matchesRef.current;
+    if (!node) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if (!isLarge) return;
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (node.scrollWidth <= node.clientWidth) return;
+      event.preventDefault();
+      node.scrollLeft += event.deltaY;
+    };
+
+    node.addEventListener('wheel', onWheel, { passive: false });
+    return () => node.removeEventListener('wheel', onWheel);
+  }, [isLarge]);
+
   const handleUserSelect = (id: string) => {
     if (isLarge) {
       setSelectedUserId(id);
@@ -98,7 +132,7 @@ const MessagesScreen = () => {
         </div>
 
         {/* New Matches */}
-        <div className={`${isLarge ? 'mb-10' : 'mb-[var(--messages-matches-section-gap)]'} group/matches relative`}>
+        <div className={`${isLarge ? 'mb-10' : 'mb-[var(--messages-matches-section-gap)]'} group relative`}>
           <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4">{t('messages.newMatches')}</h3>
           {isLoading ? (
             <div className="glass rounded-2xl border border-white/10 p-4 flex items-center gap-3">
@@ -138,9 +172,9 @@ const MessagesScreen = () => {
             ))}
           </div>
           )}
-          {isLarge && !isTouch && showContent && hasMatches && (
-            <div className="mt-3 px-1 h-4 group/matches-slider">
-              <div className="rounded-full p-[1px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-blue-500/90 shadow-[0_0_12px_rgba(236,72,153,0.3)] opacity-0 transition-opacity duration-200 group-hover/matches-slider:opacity-100 group-focus-within/matches-slider:opacity-100">
+          {isLarge && showContent && hasMatches && (
+            <div className="mt-3 px-1 h-4">
+              <div className="rounded-full p-[1px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-blue-500/90 shadow-[0_0_12px_rgba(236,72,153,0.3)] opacity-0 transition-opacity duration-200 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
                 <div className="relative h-2.5 rounded-full bg-[#09090c]/95 overflow-hidden">
                   <input
                     type="range"
@@ -148,13 +182,14 @@ const MessagesScreen = () => {
                     max={100}
                     step={1}
                     value={Math.round(matchesProgress * 100)}
+                    disabled={matchesMaxScroll <= 0}
                     onChange={(e) => {
                       const next = Number(e.target.value) / 100;
                       const node = matchesRef.current;
                       if (!node) return;
                       node.scrollLeft = next * matchesMaxScroll;
                     }}
-                    className="absolute inset-0 h-full w-full cursor-ew-resize appearance-none bg-transparent [&::-webkit-slider-runnable-track]:h-2.5 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-r [&::-webkit-slider-thumb]:from-pink-400 [&::-webkit-slider-thumb]:via-fuchsia-400 [&::-webkit-slider-thumb]:to-blue-400 [&::-webkit-slider-thumb]:shadow-[0_0_12px_rgba(236,72,153,0.45)] [&::-moz-range-track]:h-2.5 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-10 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-pink-400"
+                    className="absolute inset-0 h-full w-full cursor-ew-resize appearance-none bg-transparent disabled:cursor-default disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-2.5 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gradient-to-r [&::-webkit-slider-thumb]:from-pink-400 [&::-webkit-slider-thumb]:via-fuchsia-400 [&::-webkit-slider-thumb]:to-blue-400 [&::-webkit-slider-thumb]:shadow-[0_0_12px_rgba(236,72,153,0.45)] [&::-moz-range-track]:h-2.5 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-10 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-pink-400"
                     aria-label={t('messages.matchesSliderAria')}
                   />
                   <div
