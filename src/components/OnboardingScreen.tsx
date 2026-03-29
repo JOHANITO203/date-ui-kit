@@ -41,93 +41,101 @@ type FormState = {
 };
 
 const TOTAL_STEPS = 12;
+const PHOTO_SLOTS = 5;
+const AGE_RANGE_MAX = 65;
 const LANGS = ['Francais', 'Anglais', 'Russe', 'Espagnol', 'Allemand', 'Italien', 'Chinois', 'Japonais'];
 const INTERESTS = ['Musique', 'Sport', 'Business', 'Voyage', 'Cinema', 'Food', 'Mode', 'Spiritualite', 'Tech', 'Art', 'Danse', 'Lifestyle'];
 
 type CityOption = {
   name: string;
-  flag: string;
+  flagCode: string;
 };
 
 type NationalityOption = {
   name: string;
-  flag: string;
+  flagCode: string;
   category: string;
 };
 
 const LAUNCH_CITIES: CityOption[] = [
-  { name: 'Voronej', flag: '🇷🇺' },
-  { name: 'Moscou', flag: '🇷🇺' },
-  { name: 'Saint-Petersbourg', flag: '🇷🇺' },
-  { name: 'Sotchi', flag: '🇷🇺' },
+  { name: 'Voronej', flagCode: 'RU' },
+  { name: 'Moscou', flagCode: 'RU' },
+  { name: 'Saint-Petersbourg', flagCode: 'RU' },
+  { name: 'Sotchi', flagCode: 'RU' },
 ];
 
 const NATIONALITIES: NationalityOption[] = [
-  { name: 'Russe', flag: '🇷🇺', category: 'Russie' },
-  { name: 'Nigerian', flag: '🇳🇬', category: 'Afrique de l Ouest' },
-  { name: 'Ghaneen', flag: '🇬🇭', category: 'Afrique de l Ouest' },
-  { name: 'Beninois', flag: '🇧🇯', category: 'Afrique de l Ouest' },
-  { name: 'Senegalais', flag: '🇸🇳', category: 'Afrique de l Ouest' },
-  { name: 'Ivoirien', flag: '🇨🇮', category: 'Afrique de l Ouest' },
-  { name: 'Guineen', flag: '🇬🇳', category: 'Afrique de l Ouest' },
-  { name: 'Malien', flag: '🇲🇱', category: 'Afrique de l Ouest' },
-  { name: 'Camerounais', flag: '🇨🇲', category: 'Afrique Centrale' },
-  { name: 'Congolais RDC', flag: '🇨🇩', category: 'Afrique Centrale' },
-  { name: 'Congolais RC', flag: '🇨🇬', category: 'Afrique Centrale' },
-  { name: 'Gabonais', flag: '🇬🇦', category: 'Afrique Centrale' },
-  { name: 'Angolais', flag: '🇦🇴', category: 'Afrique Centrale' },
-  { name: 'Tchadien', flag: '🇹🇩', category: 'Afrique Centrale' },
-  { name: 'Ethiopien', flag: '🇪🇹', category: 'Afrique de l Est' },
-  { name: 'Kenyan', flag: '🇰🇪', category: 'Afrique de l Est' },
-  { name: 'Rwandais', flag: '🇷🇼', category: 'Afrique de l Est' },
-  { name: 'Ougandais', flag: '🇺🇬', category: 'Afrique de l Est' },
-  { name: 'Tanzanien', flag: '🇹🇿', category: 'Afrique de l Est' },
-  { name: 'Egyptien', flag: '🇪🇬', category: 'Afrique du Nord' },
-  { name: 'Marocain', flag: '🇲🇦', category: 'Afrique du Nord' },
-  { name: 'Algerien', flag: '🇩🇿', category: 'Afrique du Nord' },
-  { name: 'Tunisien', flag: '🇹🇳', category: 'Afrique du Nord' },
-  { name: 'Ouzbek', flag: '🇺🇿', category: 'Asie Centrale' },
-  { name: 'Tadjik', flag: '🇹🇯', category: 'Asie Centrale' },
-  { name: 'Kirghize', flag: '🇰🇬', category: 'Asie Centrale' },
-  { name: 'Kazakh', flag: '🇰🇿', category: 'Asie Centrale' },
-  { name: 'Turkmene', flag: '🇹🇲', category: 'Asie Centrale' },
-  { name: 'Chinois', flag: '🇨🇳', category: 'Asie de l Est' },
-  { name: 'Coreen du Nord', flag: '🇰🇵', category: 'Asie de l Est' },
-  { name: 'Vietnamien', flag: '🇻🇳', category: 'Asie de l Est' },
-  { name: 'Indien', flag: '🇮🇳', category: 'Asie du Sud' },
-  { name: 'Pakistanais', flag: '🇵🇰', category: 'Asie du Sud' },
-  { name: 'Bangladais', flag: '🇧🇩', category: 'Asie du Sud' },
-  { name: 'Bielorusse', flag: '🇧🇾', category: 'Europe de l Est' },
-  { name: 'Moldave', flag: '🇲🇩', category: 'Europe de l Est' },
-  { name: 'Armenien', flag: '🇦🇲', category: 'Europe de l Est' },
-  { name: 'Azeri', flag: '🇦🇿', category: 'Europe de l Est' },
-  { name: 'Georgien', flag: '🇬🇪', category: 'Europe de l Est' },
-  { name: 'Allemand', flag: '🇩🇪', category: 'Europe' },
-  { name: 'Francais', flag: '🇫🇷', category: 'Europe' },
-  { name: 'Italien', flag: '🇮🇹', category: 'Europe' },
-  { name: 'Serbe', flag: '🇷🇸', category: 'Europe' },
-  { name: 'Ukrainien', flag: '🇺🇦', category: 'Europe' },
-  { name: 'Cubain', flag: '🇨🇺', category: 'Amerique Latine et Caraibes' },
-  { name: 'Bresilien', flag: '🇧🇷', category: 'Amerique Latine et Caraibes' },
-  { name: 'Colombien', flag: '🇨🇴', category: 'Amerique Latine et Caraibes' },
-  { name: 'Equatorien', flag: '🇪🇨', category: 'Amerique Latine et Caraibes' },
-  { name: 'Venezuelien', flag: '🇻🇪', category: 'Amerique Latine et Caraibes' },
+  { name: 'Russe', flagCode: 'RU', category: 'Russie' },
+  { name: 'Nigerian', flagCode: 'NG', category: 'Afrique de l Ouest' },
+  { name: 'Ghaneen', flagCode: 'GH', category: 'Afrique de l Ouest' },
+  { name: 'Beninois', flagCode: 'BJ', category: 'Afrique de l Ouest' },
+  { name: 'Senegalais', flagCode: 'SN', category: 'Afrique de l Ouest' },
+  { name: 'Ivoirien', flagCode: 'CI', category: 'Afrique de l Ouest' },
+  { name: 'Guineen', flagCode: 'GN', category: 'Afrique de l Ouest' },
+  { name: 'Malien', flagCode: 'ML', category: 'Afrique de l Ouest' },
+  { name: 'Camerounais', flagCode: 'CM', category: 'Afrique Centrale' },
+  { name: 'Congolais RDC', flagCode: 'CD', category: 'Afrique Centrale' },
+  { name: 'Congolais RC', flagCode: 'CG', category: 'Afrique Centrale' },
+  { name: 'Gabonais', flagCode: 'GA', category: 'Afrique Centrale' },
+  { name: 'Angolais', flagCode: 'AO', category: 'Afrique Centrale' },
+  { name: 'Tchadien', flagCode: 'TD', category: 'Afrique Centrale' },
+  { name: 'Ethiopien', flagCode: 'ET', category: 'Afrique de l Est' },
+  { name: 'Kenyan', flagCode: 'KE', category: 'Afrique de l Est' },
+  { name: 'Rwandais', flagCode: 'RW', category: 'Afrique de l Est' },
+  { name: 'Ougandais', flagCode: 'UG', category: 'Afrique de l Est' },
+  { name: 'Tanzanien', flagCode: 'TZ', category: 'Afrique de l Est' },
+  { name: 'Egyptien', flagCode: 'EG', category: 'Afrique du Nord' },
+  { name: 'Marocain', flagCode: 'MA', category: 'Afrique du Nord' },
+  { name: 'Algerien', flagCode: 'DZ', category: 'Afrique du Nord' },
+  { name: 'Tunisien', flagCode: 'TN', category: 'Afrique du Nord' },
+  { name: 'Ouzbek', flagCode: 'UZ', category: 'Asie Centrale' },
+  { name: 'Tadjik', flagCode: 'TJ', category: 'Asie Centrale' },
+  { name: 'Kirghize', flagCode: 'KG', category: 'Asie Centrale' },
+  { name: 'Kazakh', flagCode: 'KZ', category: 'Asie Centrale' },
+  { name: 'Turkmene', flagCode: 'TM', category: 'Asie Centrale' },
+  { name: 'Chinois', flagCode: 'CN', category: 'Asie de l Est' },
+  { name: 'Coreen du Nord', flagCode: 'KP', category: 'Asie de l Est' },
+  { name: 'Vietnamien', flagCode: 'VN', category: 'Asie de l Est' },
+  { name: 'Indien', flagCode: 'IN', category: 'Asie du Sud' },
+  { name: 'Pakistanais', flagCode: 'PK', category: 'Asie du Sud' },
+  { name: 'Bangladais', flagCode: 'BD', category: 'Asie du Sud' },
+  { name: 'Bielorusse', flagCode: 'BY', category: 'Europe de l Est' },
+  { name: 'Moldave', flagCode: 'MD', category: 'Europe de l Est' },
+  { name: 'Armenien', flagCode: 'AM', category: 'Europe de l Est' },
+  { name: 'Azeri', flagCode: 'AZ', category: 'Europe de l Est' },
+  { name: 'Georgien', flagCode: 'GE', category: 'Europe de l Est' },
+  { name: 'Allemand', flagCode: 'DE', category: 'Europe' },
+  { name: 'Francais', flagCode: 'FR', category: 'Europe' },
+  { name: 'Italien', flagCode: 'IT', category: 'Europe' },
+  { name: 'Serbe', flagCode: 'RS', category: 'Europe' },
+  { name: 'Ukrainien', flagCode: 'UA', category: 'Europe' },
+  { name: 'Cubain', flagCode: 'CU', category: 'Amerique Latine et Caraibes' },
+  { name: 'Bresilien', flagCode: 'BR', category: 'Amerique Latine et Caraibes' },
+  { name: 'Colombien', flagCode: 'CO', category: 'Amerique Latine et Caraibes' },
+  { name: 'Equatorien', flagCode: 'EC', category: 'Amerique Latine et Caraibes' },
+  { name: 'Venezuelien', flagCode: 'VE', category: 'Amerique Latine et Caraibes' },
 ];
 
+
 const zodiacList = [
-  { symbol: '♈', label: 'Belier', start: [3, 21], end: [4, 19] },
-  { symbol: '♉', label: 'Taureau', start: [4, 20], end: [5, 20] },
-  { symbol: '♊', label: 'Gemeaux', start: [5, 21], end: [6, 20] },
-  { symbol: '♋', label: 'Cancer', start: [6, 21], end: [7, 22] },
-  { symbol: '♌', label: 'Lion', start: [7, 23], end: [8, 22] },
-  { symbol: '♍', label: 'Vierge', start: [8, 23], end: [9, 22] },
-  { symbol: '♎', label: 'Balance', start: [9, 23], end: [10, 22] },
-  { symbol: '♏', label: 'Scorpion', start: [10, 23], end: [11, 21] },
-  { symbol: '♐', label: 'Sagittaire', start: [11, 22], end: [12, 21] },
-  { symbol: '♑', label: 'Capricorne', start: [12, 22], end: [1, 19] },
-  { symbol: '♒', label: 'Verseau', start: [1, 20], end: [2, 18] },
-  { symbol: '♓', label: 'Poissons', start: [2, 19], end: [3, 20] },
+  { symbol: '\u2648', label: 'Belier', start: [3, 21], end: [4, 19] },
+  { symbol: '\u2649', label: 'Taureau', start: [4, 20], end: [5, 20] },
+  { symbol: '\u264A', label: 'Gemeaux', start: [5, 21], end: [6, 20] },
+  { symbol: '\u264B', label: 'Cancer', start: [6, 21], end: [7, 22] },
+  { symbol: '\u264C', label: 'Lion', start: [7, 23], end: [8, 22] },
+  { symbol: '\u264D', label: 'Vierge', start: [8, 23], end: [9, 22] },
+  { symbol: '\u264E', label: 'Balance', start: [9, 23], end: [10, 22] },
+  { symbol: '\u264F', label: 'Scorpion', start: [10, 23], end: [11, 21] },
+  { symbol: '\u2650', label: 'Sagittaire', start: [11, 22], end: [12, 21] },
+  { symbol: '\u2651', label: 'Capricorne', start: [12, 22], end: [1, 19] },
+  { symbol: '\u2652', label: 'Verseau', start: [1, 20], end: [2, 18] },
+  { symbol: '\u2653', label: 'Poissons', start: [2, 19], end: [3, 20] },
 ];
+
+const MONTHS = ['Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'];
+
+const YEARS = Array.from({ length: 83 }, (_, index) => new Date().getFullYear() - 18 - index);
+
 
 const fieldClass =
   'w-full rounded-[18px] border border-white/10 bg-white/5 backdrop-blur-xl px-4 py-3.5 text-white placeholder:text-white/35 outline-none focus:border-pink-500/50 transition-colors';
@@ -189,17 +197,47 @@ const isRussianPhoneValid = (value: string) => {
   return digits.length === 11 && digits.startsWith('7');
 };
 
+
+const flagFromCode = (code: string) =>
+  String.fromCodePoint(...code.toUpperCase().split('').map((char) => 127397 + char.charCodeAt(0)));
+
+const formatDate = (date: string) => {
+  if (!date) return '';
+  const [year, month, day] = date.split('-');
+  if (!year || !month || !day) return '';
+  return `${day}/${month}/${year}`;
+};
+
+const getDaysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
+
+const parseIsoDate = (date: string) => {
+  if (!date) {
+    const now = new Date();
+    return { day: now.getDate(), month: now.getMonth() + 1, year: now.getFullYear() - 24 };
+  }
+  const [year, month, day] = date.split('-').map(Number);
+  if (!year || !month || !day) {
+    const now = new Date();
+    return { day: now.getDate(), month: now.getMonth() + 1, year: now.getFullYear() - 24 };
+  }
+  return { day, month, year };
+};
+
+const toIsoDate = (day: number, month: number, year: number) =>
+  `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
 const OnboardingScreen = () => {
   const navigate = useNavigate();
   const { isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
 
   const [step, setStep] = useState<Step>(1);
-  const [dateFocused, setDateFocused] = useState(false);
   const [citySearch, setCitySearch] = useState('');
   const [nationalitySearch, setNationalitySearch] = useState('');
+  const [isDateSelectorOpen, setIsDateSelectorOpen] = useState(false);
   const [isCitySelectorOpen, setIsCitySelectorOpen] = useState(false);
   const [isNationalitySelectorOpen, setIsNationalitySelectorOpen] = useState(false);
+  const [dateDraft, setDateDraft] = useState(() => parseIsoDate(''));
   const [form, setForm] = useState<FormState>({
     consentAge: false,
     consentTerms: false,
@@ -216,7 +254,7 @@ const OnboardingScreen = () => {
     photos: 0,
     lookingFor: 'tous',
     ageMin: 18,
-    ageMax: 35,
+    ageMax: AGE_RANGE_MAX,
     distance: 50,
     intent: '',
     interests: [],
@@ -242,6 +280,8 @@ const OnboardingScreen = () => {
     () => NATIONALITIES.filter((nationality) => nationality.name.toLowerCase().includes(nationalitySearch.trim().toLowerCase())),
     [nationalitySearch],
   );
+  const daysInDraftMonth = useMemo(() => getDaysInMonth(dateDraft.year, dateDraft.month), [dateDraft.month, dateDraft.year]);
+  const draftDays = useMemo(() => Array.from({ length: daysInDraftMonth }, (_, index) => index + 1), [daysInDraftMonth]);
 
   const canContinue = useMemo(() => {
     if (step === 2) return form.consentAge && form.consentTerms;
@@ -267,6 +307,36 @@ const OnboardingScreen = () => {
     });
   };
 
+  const openDateSelector = () => {
+    setDateDraft(parseIsoDate(form.birthDate));
+    setIsDateSelectorOpen(true);
+  };
+
+  const closeDateSelector = () => {
+    setIsDateSelectorOpen(false);
+  };
+
+  const updateDraftMonth = (month: number) => {
+    setDateDraft((prev) => ({
+      ...prev,
+      month,
+      day: Math.min(prev.day, getDaysInMonth(prev.year, month)),
+    }));
+  };
+
+  const updateDraftYear = (year: number) => {
+    setDateDraft((prev) => ({
+      ...prev,
+      year,
+      day: Math.min(prev.day, getDaysInMonth(year, prev.month)),
+    }));
+  };
+
+  const applyDateSelection = () => {
+    setField('birthDate', toIsoDate(dateDraft.day, dateDraft.month, dateDraft.year));
+    closeDateSelector();
+  };
+
   const next = () => {
     if (!canContinue) return;
     if (step < TOTAL_STEPS) {
@@ -286,6 +356,102 @@ const OnboardingScreen = () => {
 
   return (
     <div className="screen-safe h-full bg-black text-white px-[var(--page-x)] pt-5 pb-3 overflow-hidden">
+      <AnimatePresence>
+        {isDateSelectorOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md p-4 flex items-end sm:items-center sm:justify-center"
+            onClick={closeDateSelector}
+          >
+            <motion.div
+              initial={{ y: 48, opacity: 0.8 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 48, opacity: 0.8 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 230 }}
+              className="w-full sm:max-w-[34rem] rounded-t-[30px] sm:rounded-[30px] border border-white/10 bg-[#0e0f13]/90 backdrop-blur-2xl p-5 max-h-[84dvh] flex flex-col"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-xl font-black italic uppercase tracking-tight">Date de naissance</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Selection premium style calendrier</p>
+                </div>
+                <button className="h-9 w-9 rounded-full border border-white/15 bg-white/5 flex items-center justify-center" onClick={closeDateSelector} aria-label="Fermer le calendrier">
+                  <ICONS.X size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="rounded-[18px] border border-white/10 bg-white/5 p-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">Jour</p>
+                  <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-1">
+                    {draftDays.map((day) => (
+                      <button
+                        key={`draft-day-${day}`}
+                        onClick={() => setDateDraft((prev) => ({ ...prev, day }))}
+                        className={`w-full rounded-xl px-2 py-2 text-sm font-black transition-all ${
+                          dateDraft.day === day ? 'gradient-premium text-white' : 'bg-white/0 text-white/65 hover:bg-white/10'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-white/10 bg-white/5 p-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">Mois</p>
+                  <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-1">
+                    {MONTHS.map((month, index) => {
+                      const monthNumber = index + 1;
+                      return (
+                        <button
+                          key={`draft-month-${month}`}
+                          onClick={() => updateDraftMonth(monthNumber)}
+                          className={`w-full rounded-xl px-2 py-2 text-sm font-black transition-all ${
+                            dateDraft.month === monthNumber ? 'gradient-premium text-white' : 'bg-white/0 text-white/65 hover:bg-white/10'
+                          }`}
+                        >
+                          {month.slice(0, 3)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-white/10 bg-white/5 p-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">Annee</p>
+                  <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-1">
+                    {YEARS.map((year) => (
+                      <button
+                        key={`draft-year-${year}`}
+                        onClick={() => updateDraftYear(year)}
+                        className={`w-full rounded-xl px-2 py-2 text-sm font-black transition-all ${
+                          dateDraft.year === year ? 'gradient-premium text-white' : 'bg-white/0 text-white/65 hover:bg-white/10'
+                        }`}
+                      >
+                        {year}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[18px] border border-pink-500/20 bg-gradient-to-r from-pink-500/10 to-sky-500/10 p-3 mb-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45 mb-1">Date choisie</p>
+                <p className="text-lg font-black tracking-tight">{formatDate(toIsoDate(dateDraft.day, dateDraft.month, dateDraft.year))}</p>
+              </div>
+
+              <button onClick={applyDateSelection} className="w-full h-[var(--cta-height)] rounded-[22px] gradient-premium font-black uppercase tracking-[0.16em] text-white shadow-[0_14px_30px_rgba(236,72,153,0.25)]">
+                Confirmer la date
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isCitySelectorOpen && (
           <motion.div
@@ -349,7 +515,7 @@ const OnboardingScreen = () => {
                         isActive ? 'border-pink-500/45 bg-gradient-to-r from-pink-500/20 to-sky-500/20' : 'border-white/10 bg-white/5 hover:border-pink-500/30'
                       }`}
                     >
-                      <span className="text-2xl leading-none">{city.flag}</span>
+                      <span className="text-2xl leading-none">{flagFromCode(city.flagCode)}</span>
                       <div className="flex flex-col">
                         <span className="text-sm font-black tracking-wide">{city.name}</span>
                         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Serveur launch</span>
@@ -430,7 +596,7 @@ const OnboardingScreen = () => {
                         isActive ? 'border-pink-500/45 bg-gradient-to-r from-pink-500/20 to-sky-500/20' : 'border-white/10 bg-white/5 hover:border-pink-500/30'
                       }`}
                     >
-                      <span className="text-2xl leading-none">{nationality.flag}</span>
+                      <span className="text-2xl leading-none">{flagFromCode(nationality.flagCode)}</span>
                       <div className="flex flex-col">
                         <span className="text-sm font-black tracking-wide">{nationality.name}</span>
                         <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{nationality.category}</span>
@@ -541,17 +707,10 @@ const OnboardingScreen = () => {
 
                     <div className="space-y-2">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">Date de naissance</p>
-                      <div className="relative">
-                        <input
-                          className={`${fieldClass} onboarding-date-input pr-12`}
-                          type="date"
-                          value={form.birthDate}
-                          onFocus={() => setDateFocused(true)}
-                          onBlur={() => setDateFocused(false)}
-                          onChange={(e) => setField('birthDate', e.target.value)}
-                        />
-                        <CalendarDays size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 pointer-events-none" />
-                      </div>
+                      <button type="button" className={`${fieldClass} h-[50px] flex items-center justify-between text-left`} onClick={openDateSelector}>
+                        <span className={form.birthDate ? 'text-white' : 'text-white/35'}>{form.birthDate ? formatDate(form.birthDate) : 'Selectionner une date'}</span>
+                        <CalendarDays size={18} className="text-white/60" />
+                      </button>
                     </div>
                   </div>
 
@@ -570,7 +729,7 @@ const OnboardingScreen = () => {
                           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">ans</p>
                         </div>
                       </div>
-                      {!dateFocused && age > 0 && age < 18 && <p className="mt-2 text-xs text-red-300">18+ requis pour continuer.</p>}
+                      {age > 0 && age < 18 && <p className="mt-2 text-xs text-red-300">18+ requis pour continuer.</p>}
                     </motion.div>
                   )}
 
@@ -591,7 +750,7 @@ const OnboardingScreen = () => {
                         className={`${fieldClass} h-[50px] flex items-center justify-between text-left`}
                       >
                         <span className={form.city ? 'text-white' : 'text-white/35'}>
-                          {selectedCity ? `${selectedCity.flag} ${selectedCity.name}` : 'Selectionner une ville'}
+                          {selectedCity ? `${flagFromCode(selectedCity.flagCode)} ${selectedCity.name}` : 'Selectionner une ville'}
                         </span>
                         <ChevronsUpDown size={16} className="text-white/45" />
                       </button>
@@ -605,7 +764,7 @@ const OnboardingScreen = () => {
                         className={`${fieldClass} h-[50px] flex items-center justify-between text-left`}
                       >
                         <span className={form.originCountry ? 'text-white' : 'text-white/35'}>
-                          {selectedNationality ? `${selectedNationality.flag} ${selectedNationality.name}` : 'Selectionner une nationalite'}
+                          {selectedNationality ? `${flagFromCode(selectedNationality.flagCode)} ${selectedNationality.name}` : 'Selectionner une nationalite'}
                         </span>
                         <ChevronsUpDown size={16} className="text-white/45" />
                       </button>
@@ -615,7 +774,7 @@ const OnboardingScreen = () => {
                   <div className="flex flex-wrap gap-2">
                     {LAUNCH_CITIES.map((city) => (
                       <button key={`quick-city-${city.name}`} onClick={() => setField('city', city.name)} className={pillClass(form.city === city.name)}>
-                        {`${city.flag} ${city.name}`}
+                        {`${flagFromCode(city.flagCode)} ${city.name}`}
                       </button>
                     ))}
                   </div>
@@ -634,10 +793,50 @@ const OnboardingScreen = () => {
                 <div className="space-y-4">
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">Ajout photo</h2>
                   <p className="text-white/60">Les profils avec 3 photos ou plus performent mieux.</p>
-                  <button className="w-full h-44 rounded-[22px] border border-dashed border-white/20 bg-white/[0.02] flex items-center justify-center text-white/45" onClick={() => setField('photos', Math.min(form.photos + 1, 6))}>
-                    <ICONS.Camera size={28} />
-                  </button>
-                  <p className="text-sm text-white/55">{`${form.photos}/6 photo(s) ajoutee(s)`}</p>
+                  <div className="grid grid-cols-3 grid-rows-3 gap-3">
+                    {Array.from({ length: PHOTO_SLOTS }).map((_, index) => {
+                      const slotNumber = index + 1;
+                      const isFilled = form.photos >= slotNumber;
+                      const isMain = index === 0;
+                      const slotLayout =
+                        index === 0
+                          ? 'col-span-2 row-span-2'
+                          : index === 1
+                          ? 'col-start-3 row-start-1'
+                          : index === 2
+                          ? 'col-start-3 row-start-2'
+                          : index === 3
+                          ? 'col-start-1 row-start-3'
+                          : 'col-start-2 row-start-3';
+
+                      return (
+                        <button
+                          key={`photo-slot-${slotNumber}`}
+                          type="button"
+                          onClick={() => setField('photos', isFilled ? slotNumber - 1 : slotNumber)}
+                          className={`${slotLayout} relative rounded-[20px] border border-dashed transition-all overflow-hidden ${
+                            isFilled
+                              ? 'border-pink-500/45 bg-gradient-to-br from-pink-500/20 to-sky-500/20'
+                              : 'border-white/20 bg-white/[0.02] hover:border-pink-500/35'
+                          }`}
+                        >
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                            <div
+                              className={`rounded-full flex items-center justify-center ${
+                                isMain ? 'w-12 h-12' : 'w-9 h-9'
+                              } ${isFilled ? 'bg-pink-500/25 text-pink-200' : 'bg-white/5 text-white/45'}`}
+                            >
+                              {isFilled ? <Check size={isMain ? 22 : 16} /> : <ICONS.Camera size={isMain ? 22 : 16} />}
+                            </div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
+                              {isMain ? 'Photo principale' : `Photo ${slotNumber}`}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-sm text-white/55">{`${form.photos}/${PHOTO_SLOTS} photo(s) ajoutee(s)`}</p>
                 </div>
               )}
 
@@ -652,9 +851,44 @@ const OnboardingScreen = () => {
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-pink-400 font-black">{`${form.ageMin} - ${form.ageMax} ans`}</p>
-                  <input type="range" min={18} max={70} value={form.ageMin} onChange={(e) => setField('ageMin', Math.min(Number(e.target.value), form.ageMax - 1))} className="w-full accent-pink-500" />
-                  <input type="range" min={19} max={75} value={form.ageMax} onChange={(e) => setField('ageMax', Math.max(Number(e.target.value), form.ageMin + 1))} className="w-full accent-sky-400" />
+                  <div className="space-y-3 rounded-[18px] border border-white/10 bg-white/5 backdrop-blur-xl p-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">Tranche d'age</p>
+                      <p className="text-sm text-pink-300 font-black">{`${form.ageMin} - ${form.ageMax} ans`}</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-white/70">
+                        <span>Age minimum</span>
+                        <span className="font-black text-pink-300">{form.ageMin}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={18}
+                        max={Math.max(form.ageMax - 1, 18)}
+                        value={form.ageMin}
+                        onChange={(e) => setField('ageMin', Math.min(Number(e.target.value), form.ageMax - 1))}
+                        className="w-full accent-pink-500"
+                        aria-label="Age minimum"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-white/70">
+                        <span>Age maximum</span>
+                        <span className="font-black text-sky-300">{form.ageMax}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={Math.min(form.ageMin + 1, AGE_RANGE_MAX)}
+                        max={AGE_RANGE_MAX}
+                        value={form.ageMax}
+                        onChange={(e) => setField('ageMax', Math.max(Number(e.target.value), form.ageMin + 1))}
+                        className="w-full accent-sky-400"
+                        aria-label="Age maximum"
+                      />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {([25, 50, 100] as const).map((distance) => (
                       <button key={`distance-${distance}`} onClick={() => setField('distance', distance)} className={tileClass(form.distance === distance)}>
