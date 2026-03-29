@@ -388,3 +388,16 @@ Exemple :
 - Onboarding découplé du paywall principal
 - Tracking analytics dès V1 sur chaque step (view, complete, skip, fail-validation)
 
+
+---
+
+## 20. Reality Alignment Addendum (2026-03-29)
+
+Ce bloc aligne la spec onboarding avec l'implementation actuelle.
+
+- Orientation: non demandee explicitement dans le flow onboarding V1.
+- Step 5: layout photo en bento, 5 slots.
+- Step 6: age range utilisateur en dual sliders, borne max 65.
+- Step 7: intentions UI = Relation serieuse / Flirt / Exotic / Open.
+- Step 9: pas de selects langue; detection automatique demandee + traduction auto ON.
+- Villes launch dans le selecteur: Voronej, Moscou, Saint-Petersbourg, Sotchi.

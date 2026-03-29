@@ -964,3 +964,73 @@ Le système final V1 est donc :
 - **prêt à être transformé en spec backend**
 
 Étape suivante la plus utile : **schéma Supabase/Postgres + pseudo-code backend complet du ranking engine**.
+
+---
+
+## 24. Alignement Reality Check (UI Implantee - 2026-03-29)
+
+Cette section corrige les ecarts entre la spec initiale et l'implementation onboarding actuelle.  
+En cas de conflit, cette section fait foi pour la V1 frontend.
+
+### 24.1 Onboarding - Steps actifs (12)
+
+1. Splash / branding  
+2. 18+ / consentements  
+3. Auth (telephone/email + OTP test)  
+4. Profil essentiel  
+5. Ajout photo  
+6. Preferences de rencontre  
+7. Intentions  
+8. Interets  
+9. Traduction chat  
+10. Verification optionnelle  
+11. Permissions utiles  
+12. Entree feed
+
+### 24.2 Orientation - collecte V1
+
+- Le front onboarding ne pose **pas** une question explicite "orientation".  
+- L'intention relationnelle + "qui veux-tu rencontrer" pilote la compatibilite immediate cote UX.  
+- Le modele produit conserve la compatibilite multi-orientations cote systeme/backend.
+
+### 24.3 Age - borne UX V1
+
+- Age utilisateur (eligibilite): `18+` (inchange).  
+- Tranche d'age de recherche dans l'onboarding: **18 a 65** (token UI actuel).  
+- Le selecteur est bi-directionnel (min et max modifiables separement).
+
+### 24.4 Photos - layout V1
+
+- Step photo en bento `5 slots` (1 principal + 4 secondaires).  
+- Minimum requis pour continuer: `1 photo`.
+
+### 24.5 Traduction - Step 9 V1
+
+- Suppression des selects "langue interface" et "langue cible" dans l'onboarding.  
+- Ajout d'un toggle: **Detection automatique de langue** (utilisateur).  
+- **Traduction automatique ON** par defaut dans le flow onboarding.
+
+### 24.6 Intentions - wording V1 (branding)
+
+Options UI verrouillees:
+
+- `Relation serieuse`
+- `Flirt`
+- `Exotic`
+- `Open`
+
+Mapping logique conserve:
+
+- `serieuse`
+- `connexion`
+- `decouverte`
+- `verrai`
+
+### 24.7 Villes lancement - selecteur onboarding
+
+Villes actuellement exposees dans l'UI:
+
+- Voronej
+- Moscou
+- Saint-Petersbourg
+- Sotchi

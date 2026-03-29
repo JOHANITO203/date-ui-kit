@@ -5,6 +5,8 @@ import { CalendarDays, Check, ChevronsUpDown, Search } from 'lucide-react';
 import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
+import { useI18n } from '../i18n/I18nProvider';
+import { onboardingCopy } from '../i18n/onboardingCopy';
 import GlassButton from './ui/GlassButton';
 import Logo from './ui/Logo';
 
@@ -44,118 +46,95 @@ type FormState = {
 const TOTAL_STEPS = 12;
 const PHOTO_SLOTS = 5;
 const AGE_RANGE_MAX = 65;
-const LANGS = ['Francais', 'Anglais', 'Russe', 'Espagnol', 'Allemand', 'Italien', 'Chinois', 'Japonais'];
-const INTERESTS = ['Musique', 'Sport', 'Business', 'Voyage', 'Cinema', 'Food', 'Mode', 'Spiritualite', 'Tech', 'Art', 'Danse', 'Lifestyle'];
-const INTENT_OPTIONS = [
-  {
-    id: 'serieuse',
-    title: 'Relation serieuse',
-    subtitle: 'Rencontres avec intention claire',
-  },
-  {
-    id: 'connexion',
-    title: 'Flirt',
-    subtitle: 'Leger, fun et conversation spontanee',
-  },
-  {
-    id: 'decouverte',
-    title: 'Exotic',
-    subtitle: 'Ouverture interculturelle autour de toi',
-  },
-  {
-    id: 'verrai',
-    title: 'Open',
-    subtitle: 'Flexible selon le feeling',
-  },
-] as const;
+const LANGUAGE_KEYS = ['francais', 'anglais', 'russe', 'espagnol', 'allemand', 'italien', 'chinois', 'japonais'] as const;
+const INTEREST_KEYS = ['musique', 'sport', 'business', 'voyage', 'cinema', 'food', 'mode', 'spiritualite', 'tech', 'art', 'danse', 'lifestyle'] as const;
+const INTENT_KEYS = ['serieuse', 'connexion', 'decouverte', 'verrai'] as const;
 
 type CityOption = {
-  name: string;
+  key: string;
   flagCode: string;
 };
 
 type NationalityOption = {
-  name: string;
+  key: string;
   flagCode: string;
-  category: string;
+  categoryKey: string;
 };
 
 const LAUNCH_CITIES: CityOption[] = [
-  { name: 'Voronej', flagCode: 'RU' },
-  { name: 'Moscou', flagCode: 'RU' },
-  { name: 'Saint-Petersbourg', flagCode: 'RU' },
-  { name: 'Sotchi', flagCode: 'RU' },
+  { key: 'voronezh', flagCode: 'RU' },
+  { key: 'moscow', flagCode: 'RU' },
+  { key: 'saint_petersburg', flagCode: 'RU' },
+  { key: 'sochi', flagCode: 'RU' },
 ];
 
 const NATIONALITIES: NationalityOption[] = [
-  { name: 'Russe', flagCode: 'RU', category: 'Russie' },
-  { name: 'Nigerian', flagCode: 'NG', category: 'Afrique de l Ouest' },
-  { name: 'Ghaneen', flagCode: 'GH', category: 'Afrique de l Ouest' },
-  { name: 'Beninois', flagCode: 'BJ', category: 'Afrique de l Ouest' },
-  { name: 'Senegalais', flagCode: 'SN', category: 'Afrique de l Ouest' },
-  { name: 'Ivoirien', flagCode: 'CI', category: 'Afrique de l Ouest' },
-  { name: 'Guineen', flagCode: 'GN', category: 'Afrique de l Ouest' },
-  { name: 'Malien', flagCode: 'ML', category: 'Afrique de l Ouest' },
-  { name: 'Camerounais', flagCode: 'CM', category: 'Afrique Centrale' },
-  { name: 'Congolais RDC', flagCode: 'CD', category: 'Afrique Centrale' },
-  { name: 'Congolais RC', flagCode: 'CG', category: 'Afrique Centrale' },
-  { name: 'Gabonais', flagCode: 'GA', category: 'Afrique Centrale' },
-  { name: 'Angolais', flagCode: 'AO', category: 'Afrique Centrale' },
-  { name: 'Tchadien', flagCode: 'TD', category: 'Afrique Centrale' },
-  { name: 'Ethiopien', flagCode: 'ET', category: 'Afrique de l Est' },
-  { name: 'Kenyan', flagCode: 'KE', category: 'Afrique de l Est' },
-  { name: 'Rwandais', flagCode: 'RW', category: 'Afrique de l Est' },
-  { name: 'Ougandais', flagCode: 'UG', category: 'Afrique de l Est' },
-  { name: 'Tanzanien', flagCode: 'TZ', category: 'Afrique de l Est' },
-  { name: 'Egyptien', flagCode: 'EG', category: 'Afrique du Nord' },
-  { name: 'Marocain', flagCode: 'MA', category: 'Afrique du Nord' },
-  { name: 'Algerien', flagCode: 'DZ', category: 'Afrique du Nord' },
-  { name: 'Tunisien', flagCode: 'TN', category: 'Afrique du Nord' },
-  { name: 'Ouzbek', flagCode: 'UZ', category: 'Asie Centrale' },
-  { name: 'Tadjik', flagCode: 'TJ', category: 'Asie Centrale' },
-  { name: 'Kirghize', flagCode: 'KG', category: 'Asie Centrale' },
-  { name: 'Kazakh', flagCode: 'KZ', category: 'Asie Centrale' },
-  { name: 'Turkmene', flagCode: 'TM', category: 'Asie Centrale' },
-  { name: 'Chinois', flagCode: 'CN', category: 'Asie de l Est' },
-  { name: 'Coreen du Nord', flagCode: 'KP', category: 'Asie de l Est' },
-  { name: 'Vietnamien', flagCode: 'VN', category: 'Asie de l Est' },
-  { name: 'Indien', flagCode: 'IN', category: 'Asie du Sud' },
-  { name: 'Pakistanais', flagCode: 'PK', category: 'Asie du Sud' },
-  { name: 'Bangladais', flagCode: 'BD', category: 'Asie du Sud' },
-  { name: 'Bielorusse', flagCode: 'BY', category: 'Europe de l Est' },
-  { name: 'Moldave', flagCode: 'MD', category: 'Europe de l Est' },
-  { name: 'Armenien', flagCode: 'AM', category: 'Europe de l Est' },
-  { name: 'Azeri', flagCode: 'AZ', category: 'Europe de l Est' },
-  { name: 'Georgien', flagCode: 'GE', category: 'Europe de l Est' },
-  { name: 'Allemand', flagCode: 'DE', category: 'Europe' },
-  { name: 'Francais', flagCode: 'FR', category: 'Europe' },
-  { name: 'Italien', flagCode: 'IT', category: 'Europe' },
-  { name: 'Serbe', flagCode: 'RS', category: 'Europe' },
-  { name: 'Ukrainien', flagCode: 'UA', category: 'Europe' },
-  { name: 'Cubain', flagCode: 'CU', category: 'Amerique Latine et Caraibes' },
-  { name: 'Bresilien', flagCode: 'BR', category: 'Amerique Latine et Caraibes' },
-  { name: 'Colombien', flagCode: 'CO', category: 'Amerique Latine et Caraibes' },
-  { name: 'Equatorien', flagCode: 'EC', category: 'Amerique Latine et Caraibes' },
-  { name: 'Venezuelien', flagCode: 'VE', category: 'Amerique Latine et Caraibes' },
+  { key: 'russian', flagCode: 'RU', categoryKey: 'russia' },
+  { key: 'nigerian', flagCode: 'NG', categoryKey: 'africa_west' },
+  { key: 'ghanaian', flagCode: 'GH', categoryKey: 'africa_west' },
+  { key: 'beninese', flagCode: 'BJ', categoryKey: 'africa_west' },
+  { key: 'senegalese', flagCode: 'SN', categoryKey: 'africa_west' },
+  { key: 'ivorian', flagCode: 'CI', categoryKey: 'africa_west' },
+  { key: 'guinean', flagCode: 'GN', categoryKey: 'africa_west' },
+  { key: 'malian', flagCode: 'ML', categoryKey: 'africa_west' },
+  { key: 'cameroonian', flagCode: 'CM', categoryKey: 'africa_central' },
+  { key: 'congolese_drc', flagCode: 'CD', categoryKey: 'africa_central' },
+  { key: 'congolese_rc', flagCode: 'CG', categoryKey: 'africa_central' },
+  { key: 'gabonese', flagCode: 'GA', categoryKey: 'africa_central' },
+  { key: 'angolan', flagCode: 'AO', categoryKey: 'africa_central' },
+  { key: 'chadian', flagCode: 'TD', categoryKey: 'africa_central' },
+  { key: 'ethiopian', flagCode: 'ET', categoryKey: 'africa_east' },
+  { key: 'kenyan', flagCode: 'KE', categoryKey: 'africa_east' },
+  { key: 'rwandan', flagCode: 'RW', categoryKey: 'africa_east' },
+  { key: 'ugandan', flagCode: 'UG', categoryKey: 'africa_east' },
+  { key: 'tanzanian', flagCode: 'TZ', categoryKey: 'africa_east' },
+  { key: 'egyptian', flagCode: 'EG', categoryKey: 'africa_north' },
+  { key: 'moroccan', flagCode: 'MA', categoryKey: 'africa_north' },
+  { key: 'algerian', flagCode: 'DZ', categoryKey: 'africa_north' },
+  { key: 'tunisian', flagCode: 'TN', categoryKey: 'africa_north' },
+  { key: 'uzbek', flagCode: 'UZ', categoryKey: 'asia_central' },
+  { key: 'tajik', flagCode: 'TJ', categoryKey: 'asia_central' },
+  { key: 'kyrgyz', flagCode: 'KG', categoryKey: 'asia_central' },
+  { key: 'kazakh', flagCode: 'KZ', categoryKey: 'asia_central' },
+  { key: 'turkmen', flagCode: 'TM', categoryKey: 'asia_central' },
+  { key: 'chinese', flagCode: 'CN', categoryKey: 'asia_east' },
+  { key: 'north_korean', flagCode: 'KP', categoryKey: 'asia_east' },
+  { key: 'vietnamese', flagCode: 'VN', categoryKey: 'asia_east' },
+  { key: 'indian', flagCode: 'IN', categoryKey: 'asia_south' },
+  { key: 'pakistani', flagCode: 'PK', categoryKey: 'asia_south' },
+  { key: 'bangladeshi', flagCode: 'BD', categoryKey: 'asia_south' },
+  { key: 'belarusian', flagCode: 'BY', categoryKey: 'europe_east' },
+  { key: 'moldovan', flagCode: 'MD', categoryKey: 'europe_east' },
+  { key: 'armenian', flagCode: 'AM', categoryKey: 'europe_east' },
+  { key: 'azeri', flagCode: 'AZ', categoryKey: 'europe_east' },
+  { key: 'georgian', flagCode: 'GE', categoryKey: 'europe_east' },
+  { key: 'german', flagCode: 'DE', categoryKey: 'europe' },
+  { key: 'french', flagCode: 'FR', categoryKey: 'europe' },
+  { key: 'italian', flagCode: 'IT', categoryKey: 'europe' },
+  { key: 'serbian', flagCode: 'RS', categoryKey: 'europe' },
+  { key: 'ukrainian', flagCode: 'UA', categoryKey: 'europe' },
+  { key: 'cuban', flagCode: 'CU', categoryKey: 'latam_caribbean' },
+  { key: 'brazilian', flagCode: 'BR', categoryKey: 'latam_caribbean' },
+  { key: 'colombian', flagCode: 'CO', categoryKey: 'latam_caribbean' },
+  { key: 'ecuadorian', flagCode: 'EC', categoryKey: 'latam_caribbean' },
+  { key: 'venezuelan', flagCode: 'VE', categoryKey: 'latam_caribbean' },
 ];
 
 
 const zodiacList = [
-  { symbol: '\u2648', label: 'Belier', start: [3, 21], end: [4, 19] },
-  { symbol: '\u2649', label: 'Taureau', start: [4, 20], end: [5, 20] },
-  { symbol: '\u264A', label: 'Gemeaux', start: [5, 21], end: [6, 20] },
-  { symbol: '\u264B', label: 'Cancer', start: [6, 21], end: [7, 22] },
-  { symbol: '\u264C', label: 'Lion', start: [7, 23], end: [8, 22] },
-  { symbol: '\u264D', label: 'Vierge', start: [8, 23], end: [9, 22] },
-  { symbol: '\u264E', label: 'Balance', start: [9, 23], end: [10, 22] },
-  { symbol: '\u264F', label: 'Scorpion', start: [10, 23], end: [11, 21] },
-  { symbol: '\u2650', label: 'Sagittaire', start: [11, 22], end: [12, 21] },
-  { symbol: '\u2651', label: 'Capricorne', start: [12, 22], end: [1, 19] },
-  { symbol: '\u2652', label: 'Verseau', start: [1, 20], end: [2, 18] },
-  { symbol: '\u2653', label: 'Poissons', start: [2, 19], end: [3, 20] },
+  { symbol: '\u2648', key: 'aries', start: [3, 21], end: [4, 19] },
+  { symbol: '\u2649', key: 'taurus', start: [4, 20], end: [5, 20] },
+  { symbol: '\u264A', key: 'gemini', start: [5, 21], end: [6, 20] },
+  { symbol: '\u264B', key: 'cancer', start: [6, 21], end: [7, 22] },
+  { symbol: '\u264C', key: 'leo', start: [7, 23], end: [8, 22] },
+  { symbol: '\u264D', key: 'virgo', start: [8, 23], end: [9, 22] },
+  { symbol: '\u264E', key: 'libra', start: [9, 23], end: [10, 22] },
+  { symbol: '\u264F', key: 'scorpio', start: [10, 23], end: [11, 21] },
+  { symbol: '\u2650', key: 'sagittarius', start: [11, 22], end: [12, 21] },
+  { symbol: '\u2651', key: 'capricorn', start: [12, 22], end: [1, 19] },
+  { symbol: '\u2652', key: 'aquarius', start: [1, 20], end: [2, 18] },
+  { symbol: '\u2653', key: 'pisces', start: [2, 19], end: [3, 20] },
 ];
-
-const MONTHS = ['Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'];
 
 const YEARS = Array.from({ length: 83 }, (_, index) => new Date().getFullYear() - 18 - index);
 
@@ -251,6 +230,8 @@ const toIsoDate = (day: number, month: number, year: number) =>
 
 const OnboardingScreen = () => {
   const navigate = useNavigate();
+  const { locale } = useI18n();
+  const copy = onboardingCopy[locale];
   const { isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
 
@@ -281,8 +262,8 @@ const OnboardingScreen = () => {
     distance: 50,
     intent: '',
     interests: [],
-    interfaceLang: 'fr',
-    targetLang: 'en',
+    interfaceLang: locale,
+    targetLang: locale === 'ru' ? 'ru' : 'en',
     autoTranslate: true,
     autoDetectLanguage: true,
     verifyNow: false,
@@ -292,17 +273,23 @@ const OnboardingScreen = () => {
 
   const age = useMemo(() => ageFromDob(form.birthDate), [form.birthDate]);
   const zodiac = useMemo(() => zodiacFromDob(form.birthDate), [form.birthDate]);
-  const selectedCity = useMemo(() => LAUNCH_CITIES.find((city) => city.name === form.city) ?? null, [form.city]);
-  const selectedNationality = useMemo(() => NATIONALITIES.find((nationality) => nationality.name === form.originCountry) ?? null, [form.originCountry]);
+  const selectedCity = useMemo(() => LAUNCH_CITIES.find((city) => city.key === form.city) ?? null, [form.city]);
+  const selectedNationality = useMemo(() => NATIONALITIES.find((nationality) => nationality.key === form.originCountry) ?? null, [form.originCountry]);
 
   const filteredCities = useMemo(
-    () => LAUNCH_CITIES.filter((city) => city.name.toLowerCase().includes(citySearch.trim().toLowerCase())),
-    [citySearch],
+    () =>
+      LAUNCH_CITIES.filter((city) =>
+        (copy.cities[city.key] ?? city.key).toLowerCase().includes(citySearch.trim().toLowerCase()),
+      ),
+    [citySearch, copy.cities],
   );
 
   const filteredNationalities = useMemo(
-    () => NATIONALITIES.filter((nationality) => nationality.name.toLowerCase().includes(nationalitySearch.trim().toLowerCase())),
-    [nationalitySearch],
+    () =>
+      NATIONALITIES.filter((nationality) =>
+        (copy.nationalities[nationality.key] ?? nationality.key).toLowerCase().includes(nationalitySearch.trim().toLowerCase()),
+      ),
+    [nationalitySearch, copy.nationalities],
   );
   const daysInDraftMonth = useMemo(() => getDaysInMonth(dateDraft.year, dateDraft.month), [dateDraft.month, dateDraft.year]);
   const draftDays = useMemo(() => Array.from({ length: daysInDraftMonth }, (_, index) => index + 1), [daysInDraftMonth]);
@@ -399,17 +386,17 @@ const OnboardingScreen = () => {
             >
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tight">Date de naissance</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Selection premium style calendrier</p>
+                  <h3 className="text-xl font-black italic uppercase tracking-tight">{copy.dateModal.title}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{copy.dateModal.subtitle}</p>
                 </div>
-                <button className="h-9 w-9 rounded-full border border-white/15 bg-white/5 flex items-center justify-center" onClick={closeDateSelector} aria-label="Fermer le calendrier">
+                <button className="h-9 w-9 rounded-full border border-white/15 bg-white/5 flex items-center justify-center" onClick={closeDateSelector} aria-label={copy.common.close}>
                   <ICONS.X size={16} />
                 </button>
               </div>
 
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="rounded-[18px] border border-white/10 bg-white/5 p-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">Jour</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">{copy.dateModal.day}</p>
                   <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-1">
                     {draftDays.map((day) => (
                       <button
@@ -426,9 +413,9 @@ const OnboardingScreen = () => {
                 </div>
 
                 <div className="rounded-[18px] border border-white/10 bg-white/5 p-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">Mois</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">{copy.dateModal.month}</p>
                   <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-1">
-                    {MONTHS.map((month, index) => {
+                    {copy.dateModal.months.map((month, index) => {
                       const monthNumber = index + 1;
                       return (
                         <button
@@ -446,7 +433,7 @@ const OnboardingScreen = () => {
                 </div>
 
                 <div className="rounded-[18px] border border-white/10 bg-white/5 p-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">Annee</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40 px-2 pb-2">{copy.dateModal.year}</p>
                   <div className="max-h-44 overflow-y-auto no-scrollbar space-y-1 pr-1">
                     {YEARS.map((year) => (
                       <button
@@ -464,12 +451,12 @@ const OnboardingScreen = () => {
               </div>
 
               <div className="rounded-[18px] border border-pink-500/20 bg-gradient-to-r from-pink-500/10 to-sky-500/10 p-3 mb-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45 mb-1">Date choisie</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45 mb-1">{copy.dateModal.selectedDate}</p>
                 <p className="text-lg font-black tracking-tight">{formatDate(toIsoDate(dateDraft.day, dateDraft.month, dateDraft.year))}</p>
               </div>
 
               <button onClick={applyDateSelection} className="w-full h-[var(--cta-height)] rounded-[22px] gradient-premium font-black uppercase tracking-[0.16em] text-white shadow-[0_14px_30px_rgba(236,72,153,0.25)]">
-                Confirmer la date
+                {copy.dateModal.confirm}
               </button>
             </motion.div>
           </motion.div>
@@ -498,8 +485,8 @@ const OnboardingScreen = () => {
             >
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tight">Ville de lancement</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Moscou, Voronej, Saint-Petersbourg, Sotchi</p>
+                  <h3 className="text-xl font-black italic uppercase tracking-tight">{copy.cityModal.title}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{copy.cityModal.subtitle}</p>
                 </div>
                 <button
                   className="h-9 w-9 rounded-full border border-white/15 bg-white/5 flex items-center justify-center"
@@ -507,7 +494,7 @@ const OnboardingScreen = () => {
                     setIsCitySelectorOpen(false);
                     setCitySearch('');
                   }}
-                  aria-label="Fermer le selecteur de ville"
+                  aria-label={copy.common.close}
                 >
                   <ICONS.X size={16} />
                 </button>
@@ -519,19 +506,19 @@ const OnboardingScreen = () => {
                   value={citySearch}
                   onChange={(event) => setCitySearch(event.target.value)}
                   className={`${fieldClass} pl-11`}
-                  placeholder="Rechercher une ville"
+                  placeholder={copy.cityModal.search}
                   autoFocus
                 />
               </div>
 
               <div className="flex-1 overflow-y-auto no-scrollbar pr-1 space-y-2">
                 {filteredCities.map((city) => {
-                  const isActive = form.city === city.name;
+                  const isActive = form.city === city.key;
                   return (
                     <button
-                      key={`city-option-${city.name}`}
+                      key={`city-option-${city.key}`}
                       onClick={() => {
-                        setField('city', city.name);
+                        setField('city', city.key);
                         setIsCitySelectorOpen(false);
                         setCitySearch('');
                       }}
@@ -541,15 +528,15 @@ const OnboardingScreen = () => {
                     >
                       <span className="text-2xl leading-none">{flagFromCode(city.flagCode)}</span>
                       <div className="flex flex-col">
-                        <span className="text-sm font-black tracking-wide">{city.name}</span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">Serveur launch</span>
+                        <span className="text-sm font-black tracking-wide">{copy.cities[city.key] ?? city.key}</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{copy.common.launchServer}</span>
                       </div>
                       {isActive && <Check size={16} className="ml-auto text-pink-300" />}
                     </button>
                   );
                 })}
                 {filteredCities.length === 0 && (
-                  <p className="text-center text-xs text-white/45 py-8 uppercase tracking-[0.16em] font-black">Aucune ville trouvee</p>
+                  <p className="text-center text-xs text-white/45 py-8 uppercase tracking-[0.16em] font-black">{copy.cityModal.empty}</p>
                 )}
               </div>
             </motion.div>
@@ -579,8 +566,8 @@ const OnboardingScreen = () => {
             >
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tight">Nationalite / origine</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Liste dynamique populations etrangeres en Russie</p>
+                  <h3 className="text-xl font-black italic uppercase tracking-tight">{copy.nationalityModal.title}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{copy.nationalityModal.subtitle}</p>
                 </div>
                 <button
                   className="h-9 w-9 rounded-full border border-white/15 bg-white/5 flex items-center justify-center"
@@ -588,7 +575,7 @@ const OnboardingScreen = () => {
                     setIsNationalitySelectorOpen(false);
                     setNationalitySearch('');
                   }}
-                  aria-label="Fermer le selecteur de nationalite"
+                  aria-label={copy.common.close}
                 >
                   <ICONS.X size={16} />
                 </button>
@@ -600,19 +587,19 @@ const OnboardingScreen = () => {
                   value={nationalitySearch}
                   onChange={(event) => setNationalitySearch(event.target.value)}
                   className={`${fieldClass} pl-11`}
-                  placeholder="Rechercher une nationalite"
+                  placeholder={copy.nationalityModal.search}
                   autoFocus
                 />
               </div>
 
               <div className="flex-1 overflow-y-auto no-scrollbar pr-1 space-y-2">
                 {filteredNationalities.map((nationality) => {
-                  const isActive = form.originCountry === nationality.name;
+                  const isActive = form.originCountry === nationality.key;
                   return (
                     <button
-                      key={`nationality-option-${nationality.name}`}
+                      key={`nationality-option-${nationality.key}`}
                       onClick={() => {
-                        setField('originCountry', nationality.name);
+                        setField('originCountry', nationality.key);
                         setIsNationalitySelectorOpen(false);
                         setNationalitySearch('');
                       }}
@@ -622,15 +609,17 @@ const OnboardingScreen = () => {
                     >
                       <span className="text-2xl leading-none">{flagFromCode(nationality.flagCode)}</span>
                       <div className="flex flex-col">
-                        <span className="text-sm font-black tracking-wide">{nationality.name}</span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{nationality.category}</span>
+                        <span className="text-sm font-black tracking-wide">
+                          {copy.nationalities[nationality.key] ?? nationality.key}
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/40">{copy.nationalityCategories[nationality.categoryKey] ?? nationality.categoryKey}</span>
                       </div>
                       {isActive && <Check size={16} className="ml-auto text-pink-300" />}
                     </button>
                   );
                 })}
                 {filteredNationalities.length === 0 && (
-                  <p className="text-center text-xs text-white/45 py-8 uppercase tracking-[0.16em] font-black">Aucun resultat</p>
+                  <p className="text-center text-xs text-white/45 py-8 uppercase tracking-[0.16em] font-black">{copy.nationalityModal.empty}</p>
                 )}
               </div>
             </motion.div>
@@ -641,10 +630,12 @@ const OnboardingScreen = () => {
       <div className="container-form h-full mx-auto flex flex-col gap-4">
         <div className="shrink-0 space-y-3">
           <div className="flex items-center justify-between">
-            <button onClick={back} className="h-10 w-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center" aria-label="Retour">
+            <button onClick={back} className="h-10 w-10 rounded-full border border-white/15 bg-white/5 flex items-center justify-center" aria-label={copy.common.close}>
               <ICONS.ChevronLeft size={18} />
             </button>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">{`Etape ${step} sur ${TOTAL_STEPS}`}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/45">
+              {copy.top.stepOf.replace('{step}', String(step)).replace('{total}', String(TOTAL_STEPS))}
+            </p>
             <div className="w-10" />
           </div>
           <div className="flex gap-1.5">
@@ -660,63 +651,75 @@ const OnboardingScreen = () => {
               {step === 1 && (
                 <div className="py-8 flex flex-col items-center gap-6 text-center">
                   <Logo size={58} showText className="justify-center" />
-                  <h1 className="text-[2.25rem] font-black italic uppercase tracking-tight">EXOTIC</h1>
-                  <p className="text-white/60 font-semibold uppercase tracking-[0.08em] max-w-[20ch]">Rencontre des personnes exotiques autour de toi</p>
+                  <h1 className="text-[2.25rem] font-black italic uppercase tracking-tight">{copy.intro.title}</h1>
+                  <p className="text-white/60 font-semibold uppercase tracking-[0.08em] max-w-[20ch]">{copy.intro.subtitle}</p>
                 </div>
               )}
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Conditions de base</h2>
-                  <p className="text-white/60">Pour assurer la securite de notre communaute, nous avons besoin de quelques confirmations.</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.consent.title}</h2>
+                  <p className="text-white/60">{copy.consent.subtitle}</p>
                   <button onClick={() => setField('consentAge', !form.consentAge)} className="w-full rounded-[20px] border border-white/10 bg-white/5 p-4 text-left">
-                    {form.consentAge ? '☑' : '☐'} J'ai 18 ans ou plus
+                    {form.consentAge ? '[x]' : '[ ]'} {copy.consent.age}
                   </button>
                   <button onClick={() => setField('consentTerms', !form.consentTerms)} className="w-full rounded-[20px] border border-white/10 bg-white/5 p-4 text-left">
-                    {form.consentTerms ? '☑' : '☐'} J'accepte les CGU et la politique de confidentialite
+                    {form.consentTerms ? '[x]' : '[ ]'} {copy.consent.terms}
                   </button>
                 </div>
               )}
 
               {step === 3 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Creation de compte</h2>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.auth.title}</h2>
                   <div className="grid grid-cols-2 gap-2 p-1 rounded-[16px] border border-white/10 bg-white/5">
                     <button onClick={() => setField('authMethod', 'phone')} className={tileClass(form.authMethod === 'phone')}>
-                      Telephone
+                      {copy.auth.phone}
                     </button>
                     <button onClick={() => setField('authMethod', 'email')} className={tileClass(form.authMethod === 'email')}>
-                      Email
+                      {copy.auth.email}
                     </button>
                   </div>
 
                   {form.authMethod === 'phone' ? (
                     <>
                       <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">Numero Russie</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">{copy.auth.phoneLabel}</p>
                         <input
                           className={fieldClass}
                           value={form.phone}
                           onChange={(e) => setField('phone', formatRussianPhoneInput(e.target.value))}
-                          placeholder="+7 (900) 000-00-00"
+                          placeholder={copy.auth.phonePlaceholder}
                           inputMode="tel"
                           autoComplete="tel-national"
                         />
                         <p className={`text-xs ml-1 ${isRussianPhoneValid(form.phone) ? 'text-green-400' : 'text-white/45'}`}>
-                          {isRussianPhoneValid(form.phone) ? 'Numero valide (format RU)' : 'Format attendu : +7 (XXX) XXX-XX-XX'}
+                          {isRussianPhoneValid(form.phone) ? copy.auth.phoneValid : copy.auth.phoneInvalid}
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <input className={fieldClass} value={form.otp} onChange={(e) => setField('otp', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Code OTP" inputMode="numeric" />
+                        <input
+                          className={fieldClass}
+                          value={form.otp}
+                          onChange={(e) => setField('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder={copy.auth.otpPlaceholder}
+                          inputMode="numeric"
+                        />
                         <button type="button" onClick={() => setField('otp', '0000')} className="h-10 px-4 rounded-full border border-pink-500/35 bg-pink-500/10 text-[11px] font-black uppercase tracking-[0.14em] text-pink-300">
-                          Utiliser OTP test (0000)
+                          {copy.auth.otpTest}
                         </button>
                       </div>
                     </>
                   ) : (
                     <>
-                      <input className={fieldClass} value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder="name@example.com" />
-                      <input className={fieldClass} value={form.otp} onChange={(e) => setField('otp', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Code OTP" inputMode="numeric" />
+                      <input className={fieldClass} value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder={copy.auth.emailPlaceholder} />
+                      <input
+                        className={fieldClass}
+                        value={form.otp}
+                        onChange={(e) => setField('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder={copy.auth.otpPlaceholder}
+                        inputMode="numeric"
+                      />
                     </>
                   )}
                 </div>
@@ -724,15 +727,15 @@ const OnboardingScreen = () => {
 
               {step === 4 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Profil essentiel</h2>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.profile.title}</h2>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <input className={fieldClass} placeholder="Prenom" value={form.firstName} onChange={(e) => setField('firstName', e.target.value)} />
+                    <input className={fieldClass} placeholder={copy.profile.firstNamePlaceholder} value={form.firstName} onChange={(e) => setField('firstName', e.target.value)} />
 
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">Date de naissance</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">{copy.profile.birthDate}</p>
                       <button type="button" className={`${fieldClass} h-[50px] flex items-center justify-between text-left`} onClick={openDateSelector}>
-                        <span className={form.birthDate ? 'text-white' : 'text-white/35'}>{form.birthDate ? formatDate(form.birthDate) : 'Selectionner une date'}</span>
+                        <span className={form.birthDate ? 'text-white' : 'text-white/35'}>{form.birthDate ? formatDate(form.birthDate) : copy.profile.birthDatePlaceholder}</span>
                         <CalendarDays size={18} className="text-white/60" />
                       </button>
                     </div>
@@ -744,51 +747,53 @@ const OnboardingScreen = () => {
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-2xl gradient-premium flex items-center justify-center text-white text-xl shadow-[0_10px_24px_rgba(236,72,153,0.35)]">{zodiac.symbol}</div>
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">Signe zodiacal</p>
-                            <p className="text-base font-black tracking-tight">{zodiac.label}</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">{copy.profile.zodiac}</p>
+                            <p className="text-base font-black tracking-tight">{copy.zodiacLabels[zodiac.key] ?? zodiac.key}</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className={`text-xl font-black ${age >= 18 ? 'text-pink-300' : 'text-red-400'}`}>{age > 0 ? age : '--'}</p>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">ans</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">{copy.common.years}</p>
                         </div>
                       </div>
-                      {age > 0 && age < 18 && <p className="mt-2 text-xs text-red-300">18+ requis pour continuer.</p>}
+                      {age > 0 && age < 18 && <p className="mt-2 text-xs text-red-300">{copy.profile.required18}</p>}
                     </motion.div>
                   )}
 
                   <div className="grid grid-cols-3 gap-2">
                     {(['homme', 'femme', 'autre'] as const).map((gender) => (
                       <button key={gender} onClick={() => setField('gender', gender)} className={tileClass(form.gender === gender)}>
-                        {gender}
+                        {copy.genders[gender]}
                       </button>
                     ))}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">Ville (launch)</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">{copy.profile.city}</p>
                       <button
                         type="button"
                         onClick={() => setIsCitySelectorOpen(true)}
                         className={`${fieldClass} h-[50px] flex items-center justify-between text-left`}
                       >
                         <span className={form.city ? 'text-white' : 'text-white/35'}>
-                          {selectedCity ? `${flagFromCode(selectedCity.flagCode)} ${selectedCity.name}` : 'Selectionner une ville'}
+                          {selectedCity ? `${flagFromCode(selectedCity.flagCode)} ${copy.cities[selectedCity.key] ?? selectedCity.key}` : copy.profile.cityPlaceholder}
                         </span>
                         <ChevronsUpDown size={16} className="text-white/45" />
                       </button>
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">Nationalite / origine</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">{copy.profile.nationality}</p>
                       <button
                         type="button"
                         onClick={() => setIsNationalitySelectorOpen(true)}
                         className={`${fieldClass} h-[50px] flex items-center justify-between text-left`}
                       >
                         <span className={form.originCountry ? 'text-white' : 'text-white/35'}>
-                          {selectedNationality ? `${flagFromCode(selectedNationality.flagCode)} ${selectedNationality.name}` : 'Selectionner une nationalite'}
+                          {selectedNationality
+                            ? `${flagFromCode(selectedNationality.flagCode)} ${copy.nationalities[selectedNationality.key] ?? selectedNationality.key}`
+                            : copy.profile.nationalityPlaceholder}
                         </span>
                         <ChevronsUpDown size={16} className="text-white/45" />
                       </button>
@@ -797,16 +802,16 @@ const OnboardingScreen = () => {
 
                   <div className="flex flex-wrap gap-2">
                     {LAUNCH_CITIES.map((city) => (
-                      <button key={`quick-city-${city.name}`} onClick={() => setField('city', city.name)} className={pillClass(form.city === city.name)}>
-                        {`${flagFromCode(city.flagCode)} ${city.name}`}
+                      <button key={`quick-city-${city.key}`} onClick={() => setField('city', city.key)} className={pillClass(form.city === city.key)}>
+                        {`${flagFromCode(city.flagCode)} ${copy.cities[city.key] ?? city.key}`}
                       </button>
                     ))}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {LANGS.map((lang) => (
+                    {LANGUAGE_KEYS.map((lang) => (
                       <button key={`lang-${lang}`} onClick={() => toggleInArray('languages', lang)} className={pillClass(form.languages.includes(lang))}>
-                        {lang}
+                        {copy.languageLabels[lang] ?? lang}
                       </button>
                     ))}
                   </div>
@@ -815,8 +820,8 @@ const OnboardingScreen = () => {
 
               {step === 5 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Ajout photo</h2>
-                  <p className="text-white/60">Les profils avec 3 photos ou plus performent mieux.</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.photo.title}</h2>
+                  <p className="text-white/60">{copy.photo.subtitle}</p>
                   <div className="grid grid-cols-3 auto-rows-[88px] sm:auto-rows-[96px] md:auto-rows-[110px] gap-3 max-w-[32rem]">
                     {Array.from({ length: PHOTO_SLOTS }).map((_, index) => {
                       const slotNumber = index + 1;
@@ -853,37 +858,41 @@ const OnboardingScreen = () => {
                               {isFilled ? <Check size={isMain ? 22 : 16} /> : <ICONS.Camera size={isMain ? 22 : 16} />}
                             </div>
                             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
-                              {isMain ? 'Photo principale' : `Photo ${slotNumber}`}
+                              {isMain ? copy.photo.mainPhoto : `${copy.photo.photoLabel} ${slotNumber}`}
                             </p>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-sm text-white/55">{`${form.photos}/${PHOTO_SLOTS} photo(s) ajoutee(s)`}</p>
+                  <p className="text-sm text-white/55">
+                    {copy.photo.added
+                      .replace('{count}', String(form.photos))
+                      .replace('{total}', String(PHOTO_SLOTS))}
+                  </p>
                 </div>
               )}
 
               {step === 6 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Qui veux-tu rencontrer ?</h2>
-                  <p className="text-white/60">Ce choix definit implicitement tes affinites.</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.lookingFor.title}</h2>
+                  <p className="text-white/60">{copy.lookingFor.subtitle}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {(['hommes', 'femmes', 'tous'] as const).map((value) => (
                       <button key={`looking-${value}`} onClick={() => setField('lookingFor', value)} className={tileClass(form.lookingFor === value)}>
-                        {value}
+                        {copy.lookingFor.label[value]}
                       </button>
                     ))}
                   </div>
                   <div className="space-y-3 rounded-[18px] border border-white/10 bg-white/5 backdrop-blur-xl p-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">Tranche d'age</p>
-                      <p className="text-sm text-pink-300 font-black">{`${form.ageMin} - ${form.ageMax} ans`}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/45">{copy.lookingFor.ageRange}</p>
+                      <p className="text-sm text-pink-300 font-black">{`${form.ageMin} - ${form.ageMax} ${copy.common.years}`}</p>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs text-white/70">
-                        <span>Age minimum</span>
+                        <span>{copy.lookingFor.ageMin}</span>
                         <span className="font-black text-pink-300">{form.ageMin}</span>
                       </div>
                       <input
@@ -893,13 +902,13 @@ const OnboardingScreen = () => {
                         value={form.ageMin}
                         onChange={(e) => setField('ageMin', Math.min(Number(e.target.value), form.ageMax - 1))}
                         className="w-full accent-pink-500"
-                        aria-label="Age minimum"
+                        aria-label={copy.lookingFor.ageMin}
                       />
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs text-white/70">
-                        <span>Age maximum</span>
+                        <span>{copy.lookingFor.ageMax}</span>
                         <span className="font-black text-sky-300">{form.ageMax}</span>
                       </div>
                       <input
@@ -909,7 +918,7 @@ const OnboardingScreen = () => {
                         value={form.ageMax}
                         onChange={(e) => setField('ageMax', Math.max(Number(e.target.value), form.ageMin + 1))}
                         className="w-full accent-sky-400"
-                        aria-label="Age maximum"
+                        aria-label={copy.lookingFor.ageMax}
                       />
                     </div>
                   </div>
@@ -925,62 +934,64 @@ const OnboardingScreen = () => {
 
               {step === 7 && (
                 <div className="space-y-3">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Ce que tu recherches</h2>
-                  <p className="text-white/60">Choisis une intention precise pour un matching plus pertinent.</p>
-                  {INTENT_OPTIONS.map((intentOption) => (
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.intent.title}</h2>
+                  <p className="text-white/60">{copy.intent.subtitle}</p>
+                  {INTENT_KEYS.map((intentId) => {
+                    const intentOption = copy.intent.options[intentId];
+                    return (
                     <button
-                      key={`intent-${intentOption.id}`}
-                      onClick={() => setField('intent', intentOption.id as FormState['intent'])}
+                      key={`intent-${intentId}`}
+                      onClick={() => setField('intent', intentId as FormState['intent'])}
                       className={`w-full rounded-[18px] border px-4 py-3.5 text-left transition-all ${
-                        form.intent === intentOption.id ? 'border-pink-500/50 bg-pink-500/10 shadow-[0_10px_24px_rgba(236,72,153,0.15)]' : 'border-white/10 bg-white/5 hover:border-white/25'
+                        form.intent === intentId ? 'border-pink-500/50 bg-pink-500/10 shadow-[0_10px_24px_rgba(236,72,153,0.15)]' : 'border-white/10 bg-white/5 hover:border-white/25'
                       }`}
                     >
                       <p className="text-sm font-black uppercase tracking-[0.08em]">{intentOption.title}</p>
                       <p className="text-xs text-white/55 mt-1">{intentOption.subtitle}</p>
                     </button>
-                  ))}
+                  )})}
                 </div>
               )}
 
               {step === 8 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Centres d'interet</h2>
-                  <p className="text-white/60">Choisissez 3 a 5 minimum pour enrichir votre profil.</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.interests.title}</h2>
+                  <p className="text-white/60">{copy.interests.subtitle}</p>
                   <div className="flex flex-wrap gap-2">
-                    {INTERESTS.map((interest) => (
+                    {INTEREST_KEYS.map((interest) => (
                       <button key={`interest-${interest}`} onClick={() => toggleInArray('interests', interest, 5)} className={pillClass(form.interests.includes(interest))}>
-                        {interest}
+                        {copy.interestLabels[interest] ?? interest}
                       </button>
                     ))}
                   </div>
-                  <p className="text-sm text-white/50">{`${form.interests.length}/5 selectionnes`}</p>
+                  <p className="text-sm text-white/50">{copy.interests.selected.replace('{count}', String(form.interests.length))}</p>
                 </div>
               )}
 
               {step === 9 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Traduction du chat</h2>
-                  <p className="text-white/60">Le systeme detecte automatiquement la langue de vos echanges.</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.translation.title}</h2>
+                  <p className="text-white/60">{copy.translation.subtitle}</p>
 
                   <button
                     onClick={() => setField('autoDetectLanguage', !form.autoDetectLanguage)}
                     className="w-full rounded-[18px] border border-white/10 bg-white/5 p-4 flex items-center justify-between text-left"
                   >
                     <div>
-                      <p className="text-sm font-black uppercase tracking-[0.08em]">Detection automatique de langue</p>
-                      <p className="text-xs text-white/50 mt-1">Recommande pour des conversations fluides</p>
+                      <p className="text-sm font-black uppercase tracking-[0.08em]">{copy.translation.detectTitle}</p>
+                      <p className="text-xs text-white/50 mt-1">{copy.translation.detectSubtitle}</p>
                     </div>
                     <span className={`text-xs font-black uppercase ${form.autoDetectLanguage ? 'text-pink-300' : 'text-white/55'}`}>
-                      {form.autoDetectLanguage ? 'Active' : 'Desactive'}
+                      {form.autoDetectLanguage ? copy.common.active : copy.common.off}
                     </span>
                   </button>
 
                   <div className="w-full rounded-[18px] border border-sky-400/25 bg-gradient-to-r from-sky-500/10 to-pink-500/10 p-4 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-black uppercase tracking-[0.08em]">Traduction automatique</p>
-                      <p className="text-xs text-white/50 mt-1">Toujours activee pendant le chat</p>
+                      <p className="text-sm font-black uppercase tracking-[0.08em]">{copy.translation.autoTitle}</p>
+                      <p className="text-xs text-white/50 mt-1">{copy.translation.autoSubtitle}</p>
                     </div>
-                    <span className="text-xs font-black uppercase text-sky-300">ON</span>
+                    <span className="text-xs font-black uppercase text-sky-300">{copy.common.on}</span>
                   </div>
                 </div>
               )}
@@ -990,27 +1001,27 @@ const OnboardingScreen = () => {
                   <div className="w-24 h-24 mx-auto rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
                     <ICONS.Shield className="text-blue-400" size={40} />
                   </div>
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Verifie ton profil</h2>
-                  <p className="text-white/60">Les profils verifies inspirent plus confiance et obtiennent plus de matches.</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.verify.title}</h2>
+                  <p className="text-white/60">{copy.verify.subtitle}</p>
                   <GlassButton variant="premium" onClick={() => setField('verifyNow', true)} className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]">
-                    Verifier maintenant
+                    {copy.verify.now}
                   </GlassButton>
                   <button onClick={() => setField('verifyNow', false)} className="text-xs font-black uppercase tracking-[0.2em] text-white/55">
-                    Passer pour l'instant
+                    {copy.verify.later}
                   </button>
                 </div>
               )}
 
               {step === 11 && (
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Autorisations utiles</h2>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.permissions.title}</h2>
                   <button onClick={() => setField('preciseLocation', !form.preciseLocation)} className="w-full rounded-[18px] border border-white/10 bg-white/5 p-4 flex items-center justify-between">
-                    <span>Localisation precise</span>
-                    <span className="text-pink-400 text-xs font-black uppercase">{form.preciseLocation ? 'Active' : 'Activer'}</span>
+                    <span>{copy.permissions.preciseLocation}</span>
+                    <span className="text-pink-400 text-xs font-black uppercase">{form.preciseLocation ? copy.common.active : copy.common.enable}</span>
                   </button>
                   <button onClick={() => setField('notifications', !form.notifications)} className="w-full rounded-[18px] border border-white/10 bg-white/5 p-4 flex items-center justify-between">
-                    <span>Notifications</span>
-                    <span className="text-sky-400 text-xs font-black uppercase">{form.notifications ? 'Active' : 'Activer'}</span>
+                    <span>{copy.permissions.notifications}</span>
+                    <span className="text-sky-400 text-xs font-black uppercase">{form.notifications ? copy.common.active : copy.common.enable}</span>
                   </button>
                 </div>
               )}
@@ -1018,20 +1029,24 @@ const OnboardingScreen = () => {
               {step === 12 && (
                 <div className="space-y-5 text-center py-4">
                   <div className="w-32 h-32 mx-auto rounded-full border-4 border-pink-500/70 overflow-hidden relative">
-                    <img src="/assets/profile-1.jpg" alt="Profil" className="w-full h-full object-cover" />
+                    <img src="/assets/profile-1.jpg" alt={copy.ready.profileAlt} className="w-full h-full object-cover" />
                     {form.verifyNow && (
                       <span className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-blue-500 border-2 border-black flex items-center justify-center">
                         <ICONS.Shield size={14} />
                       </span>
                     )}
                   </div>
-                  <h2 className="text-4xl font-black italic uppercase tracking-tight">Profil pret !</h2>
-                  <p className="text-white/60">{`${form.firstName || 'Alex'}, ${age || 24} ans • ${form.city || 'Barnaul'}`}</p>
+                  <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.ready.title}</h2>
+                  <p className="text-white/60">
+                    {`${form.firstName || copy.ready.fallbackName}, ${age || 24} ${copy.common.years} • ${
+                      (form.city && copy.cities[form.city]) || copy.ready.fallbackCity
+                    }`}
+                  </p>
                   <GlassButton variant="premium" onClick={() => navigate('/discover')} className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]">
-                    Voir mes profils
+                    {copy.ready.viewProfiles}
                   </GlassButton>
                   <button onClick={() => navigate('/profile/edit')} className="text-xs font-black uppercase tracking-[0.2em] text-white/55">
-                    Ameliorer mon profil
+                    {copy.ready.improveProfile}
                   </button>
                 </div>
               )}
@@ -1048,7 +1063,7 @@ const OnboardingScreen = () => {
                 canContinue ? 'gradient-premium text-white shadow-[0_14px_30px_rgba(236,72,153,0.28)]' : 'bg-white/20 text-white/45 cursor-not-allowed'
               }`}
             >
-              Continuer
+              {copy.common.continue}
             </button>
           </div>
         )}
