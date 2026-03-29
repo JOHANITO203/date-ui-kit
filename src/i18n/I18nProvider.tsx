@@ -3,7 +3,7 @@ import { Locale, translations } from './translations';
 
 const STORAGE_KEY = 'exotic.locale';
 const PLACEHOLDER_RE = /\{(\w+)\}/g;
-const MOJIBAKE_RE = /[ÐÑÃÂ]|�/;
+const MOJIBAKE_RE = /[\u00D0\u00D1\u00C3\u00C2\uFFFD]/;
 
 type Params = Record<string, string | number>;
 
