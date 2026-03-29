@@ -63,8 +63,10 @@ const LAUNCH_CITIES: CityOption[] = [
 ];
 
 const NATIONALITIES: NationalityOption[] = [
+  { name: 'Russe', flag: '🇷🇺', category: 'Russie' },
   { name: 'Nigerian', flag: '🇳🇬', category: 'Afrique de l Ouest' },
   { name: 'Ghaneen', flag: '🇬🇭', category: 'Afrique de l Ouest' },
+  { name: 'Beninois', flag: '🇧🇯', category: 'Afrique de l Ouest' },
   { name: 'Senegalais', flag: '🇸🇳', category: 'Afrique de l Ouest' },
   { name: 'Ivoirien', flag: '🇨🇮', category: 'Afrique de l Ouest' },
   { name: 'Guineen', flag: '🇬🇳', category: 'Afrique de l Ouest' },
