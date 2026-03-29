@@ -12,6 +12,7 @@ const MessagesScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const [isLoading, setIsLoading] = useState(true);
   
   // For Master-Detail on large screens
   const [selectedUserId, setSelectedUserId] = useState<string | null>(urlUserId || MOCK_USERS[0].id);
@@ -26,6 +27,11 @@ const MessagesScreen = () => {
   useEffect(() => {
     if (urlUserId) setSelectedUserId(urlUserId);
   }, [urlUserId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsLoading(false), 180);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const matchesNode = matchesRef.current;
@@ -78,6 +84,10 @@ const MessagesScreen = () => {
     handleUserSelect(MOCK_USERS[index].id);
   };
 
+  const hasMatches = MOCK_USERS.length > 0;
+  const hasConversations = MOCK_USERS.length > 0;
+  const showContent = !isLoading;
+
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
@@ -90,6 +100,17 @@ const MessagesScreen = () => {
         {/* New Matches */}
         <div className={`${isLarge ? 'mb-10' : 'mb-[var(--messages-matches-section-gap)]'} group/matches relative`}>
           <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4">{t('messages.newMatches')}</h3>
+          {isLoading ? (
+            <div className="glass rounded-2xl border border-white/10 p-4 flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+              <span className="text-sm text-white/70">{t('messages.loadingSubtitle')}</span>
+            </div>
+          ) : !hasMatches ? (
+            <div className="glass rounded-2xl border border-white/10 p-5 text-center">
+              <p className="text-white font-black">{t('messages.emptyMatchesTitle')}</p>
+              <p className="text-xs text-white/50 mt-1">{t('messages.emptyMatchesSubtitle')}</p>
+            </div>
+          ) : (
           <div
             ref={matchesRef}
             className={`flex ${isLarge ? (isTablet ? 'gap-3.5' : 'gap-5') : 'gap-[var(--messages-matches-gap)]'} overflow-x-auto no-scrollbar pb-2 touch-pan-x`}
@@ -116,7 +137,8 @@ const MessagesScreen = () => {
               </div>
             ))}
           </div>
-          {isLarge && !isTouch && (
+          )}
+          {isLarge && !isTouch && showContent && hasMatches && (
             <div className="mt-3 px-1 h-4 group/matches-slider">
               <div className="rounded-full p-[1px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-blue-500/90 shadow-[0_0_12px_rgba(236,72,153,0.3)] opacity-0 transition-opacity duration-200 group-hover/matches-slider:opacity-100 group-focus-within/matches-slider:opacity-100">
                 <div className="relative h-2.5 rounded-full bg-[#09090c]/95 overflow-hidden">
@@ -149,6 +171,23 @@ const MessagesScreen = () => {
         <div className={`${isLarge ? 'space-y-3' : 'space-y-[var(--messages-conv-gap)]'} flex-1 min-h-0 relative`}>
           <div className={`${isLarge ? 'rounded-[26px] border border-[var(--messages-zone-border)] bg-[var(--messages-zone-bg)] p-3 h-full min-h-0 flex flex-col' : ''}`}>
           <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4 shrink-0">{t('messages.conversations')}</h3>
+          {showContent && !isLarge && (
+            <p className="text-[10px] uppercase tracking-[0.15em] text-white/45 mb-3">
+              {t('messages.mobileHint')}
+            </p>
+          )}
+          {isLoading ? (
+            <div className="glass rounded-2xl border border-white/10 p-5 text-center">
+              <div className="w-6 h-6 mx-auto rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+              <p className="text-white font-black mt-3">{t('messages.loadingTitle')}</p>
+              <p className="text-xs text-white/50 mt-1">{t('messages.loadingSubtitle')}</p>
+            </div>
+          ) : !hasConversations ? (
+            <div className="glass rounded-2xl border border-white/10 p-5 text-center">
+              <p className="text-white font-black">{t('messages.emptyConversationsTitle')}</p>
+              <p className="text-xs text-white/50 mt-1">{t('messages.emptyConversationsSubtitle')}</p>
+            </div>
+          ) : (
           <div
             ref={conversationsRef}
             className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
@@ -189,8 +228,9 @@ const MessagesScreen = () => {
               </div>
             ))}
           </div>
+          )}
           </div>
-          {isLarge && !isTouch && (
+          {isLarge && !isTouch && showContent && hasConversations && (
             <div className="absolute right-1 top-8 bottom-0 w-11 z-20 pointer-events-none">
               <div className="group/messages-rail h-full w-full flex items-center justify-center pointer-events-auto opacity-0 transition-opacity duration-300 group-hover/messages-pane:opacity-100 group-hover/messages-rail:opacity-100">
               <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.25)]">

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Heart, Star, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
 
@@ -56,6 +57,7 @@ const lockedLikes = [
 ];
 
 const MatchesScreen: React.FC = () => {
+  const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
@@ -63,6 +65,13 @@ const MatchesScreen: React.FC = () => {
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollThumb, setScrollThumb] = useState(28);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPremiumPreviewUnlocked, setIsPremiumPreviewUnlocked] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsLoading(false), 180);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -92,6 +101,69 @@ const MatchesScreen: React.FC = () => {
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const hasLikes = lockedLikes.length > 0;
+  const screenState: 'loading' | 'empty' | 'locked' | 'unlocked' =
+    isLoading ? 'loading' : !hasLikes ? 'empty' : isPremiumPreviewUnlocked ? 'unlocked' : 'locked';
+
+  const renderCardContent = (like: (typeof lockedLikes)[number], compact = false) => {
+    if (screenState === 'unlocked') {
+      return (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200">
+            {t('likes.unlocked')}
+          </div>
+          <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
+            <div className="flex items-center justify-between">
+              <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white`}>{like.name}, {like.age}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{t('chat.online')}</span>
+            </div>
+            <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/75 leading-snug`}>
+              {t('likes.unlockedSubtitle', { city: like.city })}
+            </p>
+            <button
+              onClick={() => navigate(`/chat/${like.id}`)}
+              className="w-full h-9 rounded-xl gradient-premium text-white text-[10px] font-black uppercase tracking-[0.14em]"
+            >
+              {t('likes.openChat')}
+            </button>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <div className="absolute inset-0 bg-black/36 premium-blur-overlay" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
+
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
+          {t('likes.unlock.locked')}
+        </div>
+
+        <div className={`absolute ${compact ? 'top-12' : 'top-14'} left-1/2 -translate-x-1/2`}>
+          <div className={`${compact ? 'w-11 h-11' : 'w-14 h-14'} rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center shadow-[0_0_26px_rgba(236,72,153,0.34)]`}>
+            <Heart size={compact ? 22 : 24} fill="white" />
+          </div>
+        </div>
+
+        <div className={`absolute ${compact ? 'inset-x-3' : 'inset-x-4'} top-[48%] text-center`}>
+          <p className={`mx-auto ${compact ? 'max-w-[10.5ch] text-[0.8rem]' : 'max-w-[12ch] text-[clamp(0.92rem,1.15vw,1.08rem)]'} leading-[1.18] font-black text-white`}>
+            {t('likes.unlock.cta')}
+          </p>
+          <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/62 mt-1.5`}>
+            {t('likes.unlock.city', { city: like.city })}
+          </p>
+        </div>
+
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
+          <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>{like.name}, {like.age}</span>
+          <Eye size={compact ? 14 : 16} className="text-white/50" />
+        </div>
+      </>
+    );
+  };
+
   return (
     <div ref={scrollRef} className="relative group/likes h-full overflow-y-auto no-scrollbar py-6 pb-nav">
       <div className="container-wide px-[var(--page-x)] layout-stack">
@@ -113,7 +185,23 @@ const MatchesScreen: React.FC = () => {
           </div>
         </header>
 
-        {isLarge ? (
+        {screenState === 'loading' && (
+          <section className="glass-panel rounded-[var(--card-radius)] p-7 text-center">
+            <div className="w-8 h-8 mx-auto rounded-full border-2 border-white/20 border-t-white/75 animate-spin" />
+            <p className="mt-4 text-lg font-black text-white">{t('likes.loadingTitle')}</p>
+            <p className="mt-2 text-sm text-white/50">{t('likes.loadingSubtitle')}</p>
+          </section>
+        )}
+
+        {screenState === 'empty' && (
+          <section className="glass-panel rounded-[var(--card-radius)] p-8 text-center">
+            <Heart size={28} className="mx-auto text-white/40" />
+            <p className="mt-4 text-lg font-black text-white">{t('likes.emptyTitle')}</p>
+            <p className="mt-2 text-sm text-white/50">{t('likes.emptySubtitle')}</p>
+          </section>
+        )}
+
+        {(screenState === 'locked' || screenState === 'unlocked') && isLarge ? (
           <div
             ref={(el) => {
               sectionRefs.current[1] = el;
@@ -130,30 +218,7 @@ const MatchesScreen: React.FC = () => {
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
                   <img src={like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
-                  <div className="absolute inset-0 bg-black/36 premium-blur-overlay" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
-
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
-                    {t('likes.unlock.locked')}
-                  </div>
-
-                  <div className="absolute top-14 left-1/2 -translate-x-1/2">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center shadow-[0_0_26px_rgba(236,72,153,0.34)]">
-                      <Heart size={24} fill="white" />
-                    </div>
-                  </div>
-
-                  <div className="absolute inset-x-4 top-[48%] text-center">
-                    <p className="mx-auto max-w-[12ch] text-[clamp(0.92rem,1.15vw,1.08rem)] leading-[1.18] font-black text-white">
-                      {t('likes.unlock.cta')}
-                    </p>
-                    <p className="text-xs text-white/62 mt-1.5">{t('likes.unlock.city', { city: like.city })}</p>
-                  </div>
-
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
-                    <span className="text-sm font-bold premium-blur-text">{like.name}, {like.age}</span>
-                    <Eye size={16} className="text-white/50" />
-                  </div>
+                  {renderCardContent(like, false)}
                 </motion.article>
               ))}
             </section>
@@ -175,6 +240,12 @@ const MatchesScreen: React.FC = () => {
                 <button className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]">
                   {t('likes.premium.buttonLarge')}
                 </button>
+                <button
+                  onClick={() => setIsPremiumPreviewUnlocked((prev) => !prev)}
+                  className="w-full mt-3 h-10 rounded-2xl border border-white/15 bg-white/5 text-white/75 text-[10px] font-black uppercase tracking-[0.15em]"
+                >
+                  {isPremiumPreviewUnlocked ? t('likes.previewLocked') : t('likes.previewUnlocked')}
+                </button>
               </section>
 
               <section className="glass-panel rounded-[var(--card-radius)] p-5 space-y-3">
@@ -193,7 +264,7 @@ const MatchesScreen: React.FC = () => {
               </section>
             </aside>
           </div>
-        ) : (
+        ) : (screenState === 'locked' || screenState === 'unlocked') ? (
           <>
             <section className="grid grid-cols-2 gap-[var(--grid-gap)]">
               {lockedLikes.slice(0, 4).map((like, index) => (
@@ -205,30 +276,7 @@ const MatchesScreen: React.FC = () => {
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
                   <img src={like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
-                  <div className="absolute inset-0 bg-black/36 premium-blur-overlay" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
-
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
-                    {t('likes.unlock.locked')}
-                  </div>
-
-                  <div className="absolute top-12 left-1/2 -translate-x-1/2">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center shadow-[0_0_22px_rgba(236,72,153,0.3)]">
-                      <Heart size={22} fill="white" />
-                    </div>
-                  </div>
-
-                  <div className="absolute inset-x-3 top-[48%] text-center">
-                    <p className="mx-auto max-w-[11ch] text-[0.84rem] leading-[1.18] font-black text-white">
-                      {t('likes.unlock.cta')}
-                    </p>
-                    <p className="text-[11px] text-white/62 mt-1">{t('likes.unlock.city', { city: like.city })}</p>
-                  </div>
-
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
-                    <span className="text-xs font-bold premium-blur-text">{like.name}, {like.age}</span>
-                    <Eye size={14} className="text-white/50" />
-                  </div>
+                  {renderCardContent(like, true)}
                 </motion.article>
               ))}
             </section>
@@ -242,8 +290,28 @@ const MatchesScreen: React.FC = () => {
               <button className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]">
                 {t('likes.premium.button')}
               </button>
+              <button
+                onClick={() => setIsPremiumPreviewUnlocked((prev) => !prev)}
+                className="w-full mt-3 h-10 rounded-2xl border border-white/15 bg-white/5 text-white/75 text-[10px] font-black uppercase tracking-[0.15em]"
+              >
+                {isPremiumPreviewUnlocked ? t('likes.previewLocked') : t('likes.previewUnlocked')}
+              </button>
             </section>
           </>
+        ) : null}
+        {(screenState === 'locked' || screenState === 'unlocked') && (
+          <section className="glass-panel rounded-[var(--card-radius)] p-5 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-black">{t('likes.matchFlowLabel')}</p>
+              <p className="text-sm text-white/75 mt-1">{t('likes.matchFlowHint')}</p>
+            </div>
+            <button
+              onClick={() => navigate('/messages')}
+              className="h-10 px-4 rounded-xl border border-white/20 bg-white/5 text-white/80 text-[10px] font-black uppercase tracking-[0.14em]"
+            >
+              {t('likes.goMessages')}
+            </button>
+          </section>
         )}
       </div>
       {isLarge && (
@@ -267,7 +335,7 @@ const MatchesScreen: React.FC = () => {
                     key={`likes-jump-${index}`}
                     onClick={() => jumpToSection(index)}
                     className="w-2 h-2 rounded-full bg-white/35 hover:bg-pink-300 transition-colors"
-                    aria-label={`Aller a la section likes ${index + 1}`}
+                    aria-label={t('likes.jumpSection', { index: index + 1 })}
                   />
                 ))}
               </div>
