@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS, MOCK_USERS } from '../types';
@@ -16,6 +16,7 @@ const SwipeScreen = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
   const quickFilters = [
     { id: 'all', labelKey: 'discover.quickFilters.all' },
     { id: 'nearby', labelKey: 'discover.quickFilters.nearby' },
@@ -25,8 +26,43 @@ const SwipeScreen = () => {
   ];
   const [activeFilterIds, setActiveFilterIds] = useState<string[]>(['all']);
 
-  const user = MOCK_USERS[currentIndex % MOCK_USERS.length];
-  const nextUser = MOCK_USERS[(currentIndex + 1) % MOCK_USERS.length];
+  const parseDistanceKm = (distance: string) => {
+    const parsed = Number.parseFloat(distance);
+    return Number.isFinite(parsed) ? parsed : 99;
+  };
+
+  const filteredUsers = useMemo(() => {
+    if (activeFilterIds.length === 0 || activeFilterIds.includes('all')) {
+      return MOCK_USERS;
+    }
+
+    return MOCK_USERS.filter((candidate, idx) => {
+      if (activeFilterIds.includes('verified') && !candidate.verified) return false;
+      if (activeFilterIds.includes('nearby') && parseDistanceKm(candidate.distance) > 5) return false;
+      if (activeFilterIds.includes('new') && idx > 2) return false;
+      if (activeFilterIds.includes('online') && candidate.compatibility < 90) return false;
+      return true;
+    });
+  }, [activeFilterIds]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setPhotoIndex(0);
+  }, [activeFilterIds]);
+
+  useEffect(() => {
+    if (!isFiltering) return;
+    const timer = window.setTimeout(() => setIsFiltering(false), 220);
+    return () => window.clearTimeout(timer);
+  }, [isFiltering]);
+
+  const hasUsers = filteredUsers.length > 0;
+  const user = hasUsers ? filteredUsers[currentIndex % filteredUsers.length] : null;
+  const nextUser = hasUsers ? filteredUsers[(currentIndex + 1) % filteredUsers.length] : null;
+  const selfPreviewPhoto = useMemo(
+    () => MOCK_USERS[0]?.photos?.[1] ?? MOCK_USERS[0]?.photos?.[0] ?? '',
+    []
+  );
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -49,6 +85,7 @@ const SwipeScreen = () => {
   };
 
   const swipe = (dir: 'left' | 'right' | 'up') => {
+    if (!hasUsers || !user) return;
     setTimeout(() => {
       if (dir === 'right' || dir === 'up') {
         if (Math.random() > 0.8) setShowMatch(true);
@@ -61,6 +98,7 @@ const SwipeScreen = () => {
   };
 
   const handlePhotoNav = (e: React.MouseEvent) => {
+    if (!user) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     if (clickX < rect.width / 3) {
@@ -71,6 +109,7 @@ const SwipeScreen = () => {
   };
 
   const toggleFilter = (id: string) => {
+    setIsFiltering(true);
     setActiveFilterIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
@@ -80,39 +119,64 @@ const SwipeScreen = () => {
     <>
       <motion.button
         whileTap={{ scale: 0.85 }}
+        disabled={!user}
         onClick={(e) => {
           e.stopPropagation();
           swipe('left');
         }}
-        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-[var(--discover-action-mobile-w)] h-[var(--discover-action-mobile-h)] rounded-[var(--discover-action-mobile-radius)]'} flex items-center justify-center text-red-500 border-2 border-red-500/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(239,68,68,0.15)] hover:bg-red-500/10 transition-all duration-300`}
+        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-[var(--discover-action-mobile-w)] h-[var(--discover-action-mobile-h)] rounded-[var(--discover-action-mobile-radius)]'} flex items-center justify-center text-red-500 border-2 border-red-500/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(239,68,68,0.15)] hover:bg-red-500/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed`}
       >
         <ICONS.X size={isLarge ? 26 : 22} />
       </motion.button>
 
       <motion.button
         whileTap={{ scale: 0.9, rotate: 12 }}
+        disabled={!user}
         animate={{ boxShadow: ['0 0 18px rgba(255, 20, 147, 0.2)', '0 0 34px rgba(255, 20, 147, 0.35)', '0 0 18px rgba(255, 20, 147, 0.2)'] }}
         transition={{ boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' } }}
         onClick={(e) => {
           e.stopPropagation();
           swipe('up');
         }}
-        className={`${isLarge ? 'w-[var(--discover-action-main-size)] h-[var(--discover-action-main-size)] rounded-full' : 'w-[var(--discover-action-mobile-main-w)] h-[var(--discover-action-mobile-main-h)] rounded-[var(--discover-action-mobile-main-radius)]'} flex items-center justify-center text-white gradient-premium opacity-90 shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden`}
+        className={`${isLarge ? 'w-[var(--discover-action-main-size)] h-[var(--discover-action-main-size)] rounded-full' : 'w-[var(--discover-action-mobile-main-w)] h-[var(--discover-action-mobile-main-h)] rounded-[var(--discover-action-mobile-main-radius)]'} flex items-center justify-center text-white gradient-premium opacity-90 shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed`}
       >
         <ICONS.Star size={isLarge ? 20 : 18} fill="currentColor" className="relative z-10" />
       </motion.button>
 
       <motion.button
         whileTap={{ scale: 0.9 }}
+        disabled={!user}
         onClick={(e) => {
           e.stopPropagation();
           swipe('right');
         }}
-        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-[var(--discover-action-mobile-w)] h-[var(--discover-action-mobile-h)] rounded-[var(--discover-action-mobile-radius)]'} flex items-center justify-center text-blue-400 border-2 border-blue-400/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(59,130,246,0.15)] hover:bg-blue-400/10 transition-all duration-300`}
+        className={`${isLarge ? 'w-[var(--discover-action-size)] h-[var(--discover-action-size)] rounded-full' : 'w-[var(--discover-action-mobile-w)] h-[var(--discover-action-mobile-h)] rounded-[var(--discover-action-mobile-radius)]'} flex items-center justify-center text-blue-400 border-2 border-blue-400/20 bg-black/50 backdrop-blur-xl shadow-[0_10px_25px_rgba(59,130,246,0.15)] hover:bg-blue-400/10 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed`}
       >
         <ICONS.Likes size={isLarge ? 26 : 22} fill="currentColor" />
       </motion.button>
     </>
+  );
+
+  const emptyDeck = (
+    <div className="h-full w-full rounded-[36px] border border-white/10 bg-white/[0.03] backdrop-blur-xl flex flex-col items-center justify-center text-center px-6">
+      <ICONS.Discover size={28} className="text-white/40 mb-4" />
+      <p className="text-white text-lg font-black tracking-tight">{t('discover.emptyTitle')}</p>
+      <p className="text-white/50 text-sm mt-2 max-w-[24ch]">{t('discover.emptySubtitle')}</p>
+      <button
+        onClick={() => setActiveFilterIds(['all'])}
+        className="mt-5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border border-white/20 bg-white/5 text-white/80 hover:bg-white/10 transition-colors"
+      >
+        {t('discover.resetFilters')}
+      </button>
+    </div>
+  );
+
+  const loadingDeck = (
+    <div className="h-full w-full rounded-[36px] border border-white/10 bg-white/[0.03] backdrop-blur-xl flex flex-col items-center justify-center text-center px-6">
+      <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/70 animate-spin mb-4" />
+      <p className="text-white text-lg font-black tracking-tight">{t('discover.loadingTitle')}</p>
+      <p className="text-white/50 text-sm mt-2 max-w-[24ch]">{t('discover.loadingSubtitle')}</p>
+    </div>
   );
 
   return (
@@ -144,6 +208,27 @@ const SwipeScreen = () => {
             </button>
           ))}
         </div>
+        {!isLarge && (
+          <div className="pt-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35 shrink-0">
+              {t('discover.activeFilters')}
+            </span>
+            <div className="flex gap-1.5">
+              {activeFilterIds.length > 0 ? (
+                activeFilterIds.map((id) => (
+                  <span
+                    key={`mobile-active-${id}`}
+                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] bg-white/10 border border-white/15 text-white/80 shrink-0"
+                  >
+                    {t(`discover.quickFilters.${id}`)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] text-white/45">{t('discover.noActiveFilters')}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {isLarge ? (
@@ -196,14 +281,19 @@ const SwipeScreen = () => {
 
             <div className="w-full flex flex-col items-center density-comfortable min-h-0">
             <div className={`container-deck relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(62vh,35rem)]'}`}>
-          <AnimatePresence>
-            <motion.div
-              key={`next-${nextUser.id}`}
-              className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
-              style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
-            >
-              <img src={nextUser.photos[0]} className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]" alt="next" referrerPolicy="no-referrer" />
-            </motion.div>
+          {isFiltering ? (
+            loadingDeck
+          ) : user ? (
+            <AnimatePresence>
+              {nextUser && (
+                <motion.div
+                  key={`next-${nextUser.id}`}
+                  className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
+                  style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
+                >
+                  <img src={nextUser.photos[0]} className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]" alt="next" referrerPolicy="no-referrer" />
+                </motion.div>
+              )}
 
             <motion.div
               key={user.id}
@@ -256,13 +346,13 @@ const SwipeScreen = () => {
                         name={user.name}
                         age={user.age}
                         verified={user.verified}
-                        size="xl"
+                        size={isDesktop ? 'xl' : 'lg'}
                         textClassName={isLarge ? '' : 'max-w-[75%]'}
                         badgeClassName={isLarge ? '' : 'mt-0.5'}
                       />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
+                    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 font-bold uppercase tracking-wider ${isTablet ? 'text-[10px]' : 'text-[11px]'}`}>
                       <div className="flex items-center gap-1.5">
                         <ICONS.MapPin size={12} className="text-pink-500" />
                         {user.distance}
@@ -313,7 +403,10 @@ const SwipeScreen = () => {
                 {actionButtons}
               </div>
             </motion.div>
-          </AnimatePresence>
+            </AnimatePresence>
+          ) : (
+            emptyDeck
+          )}
             </div>
 
             </div>
@@ -323,14 +416,19 @@ const SwipeScreen = () => {
       ) : (
         <div className="flex-1 min-h-0 px-[var(--page-x)] pt-2 pb-1 flex flex-col items-center gap-2 overflow-y-auto no-scrollbar">
           <div className={`relative w-full max-w-[26rem] sm:max-w-[28rem] h-[var(--discover-card-h)] ${isLarge ? 'md:max-w-[32rem] lg:max-w-[34rem] xl:max-w-[36rem]' : ''}`}>
-          <AnimatePresence>
-            <motion.div
-              key={`next-${nextUser.id}`}
-              className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
-              style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
-            >
-              <img src={nextUser.photos[0]} className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]" alt="next" referrerPolicy="no-referrer" />
-            </motion.div>
+          {isFiltering ? (
+            loadingDeck
+          ) : user ? (
+            <AnimatePresence>
+              {nextUser && (
+                <motion.div
+                  key={`next-${nextUser.id}`}
+                  className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
+                  style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
+                >
+                  <img src={nextUser.photos[0]} className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]" alt="next" referrerPolicy="no-referrer" />
+                </motion.div>
+              )}
 
             <motion.div
               key={user.id}
@@ -438,7 +536,10 @@ const SwipeScreen = () => {
                 {actionButtons}
               </div>
             </motion.div>
-          </AnimatePresence>
+            </AnimatePresence>
+          ) : (
+            emptyDeck
+          )}
         </div>
         </div>
       )}
@@ -450,10 +551,10 @@ const SwipeScreen = () => {
               <div className="relative h-56 flex justify-center items-center">
                 <div className="flex -space-x-8 relative z-10">
                   <motion.div initial={{ x: -50, rotate: -15 }} animate={{ x: 0, rotate: -10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80" className="w-full h-full object-cover" alt="Me" />
+                    <img src={selfPreviewPhoto || user?.photos?.[0]} className="w-full h-full object-cover" alt="Me" />
                   </motion.div>
                   <motion.div initial={{ x: 50, rotate: 15 }} animate={{ x: 0, rotate: 10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img src={user.photos[0]} className="w-full h-full object-cover" alt="Match" />
+                    <img src={user?.photos?.[0]} className="w-full h-full object-cover" alt="Match" />
                   </motion.div>
                 </div>
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="absolute bottom-0 z-20 bg-white text-black px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs shadow-2xl">
@@ -462,7 +563,7 @@ const SwipeScreen = () => {
               </div>
 
               <div className="space-y-3">
-                <h2 className="text-4xl font-bold text-white tracking-tight">{t('discover.matchPair', { name: user.name })}</h2>
+                <h2 className="text-4xl font-bold text-white tracking-tight">{t('discover.matchPair', { name: user?.name ?? '' })}</h2>
                 <p className="text-white/40 text-sm max-w-[240px] mx-auto leading-relaxed">{t('discover.matchSubtitle')}</p>
               </div>
 
