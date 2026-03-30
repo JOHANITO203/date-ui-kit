@@ -54,6 +54,7 @@
     --panel-width-lg: 22rem;
     --messages-pane-width-md: 23.5rem;
     --messages-pane-width-lg: 27rem;
+    --messages-page-x: 0.9rem;
     --discover-header-top: 1.5rem;
     --discover-card-h: min(62dvh, 28rem);
     --discover-overlay-pad: 2rem;
@@ -98,6 +99,9 @@
     --messages-conv-avatar-radius: 1rem;
     --messages-conv-name-size: 1.05rem;
     --messages-conv-preview-size: 0.6875rem;
+    --messages-conv-header-gap: 0.5rem;
+    --messages-conv-time-min-w: 2.45rem;
+    --messages-conv-name-max: 10rem;
     --messages-zone-bg: rgba(22, 25, 33, 0.62);
     --messages-zone-border: rgba(255, 255, 255, 0.1);
     --messages-selected-bg: linear-gradient(135deg, rgba(255, 20, 147, 0.22), rgba(0, 191, 255, 0.14));
@@ -203,6 +207,7 @@
       --messages-header-top: 0.9rem;
       --messages-header-gap: 1rem;
       --messages-title-size: 2.05rem;
+      --messages-page-x: 0.84rem;
       --messages-settings-pad: 0.45rem;
       --messages-matches-section-gap: 1.25rem;
       --messages-matches-gap: 0.7rem;
@@ -216,6 +221,8 @@
       --messages-conv-avatar-radius: 0.95rem;
       --messages-conv-name-size: 1rem;
       --messages-conv-preview-size: 0.66rem;
+      --messages-conv-time-min-w: 2.35rem;
+      --messages-conv-name-max: 8.75rem;
       --boost-page-y: 1.25rem;
       --boost-mobile-section-gap: 0.9rem;
       --boost-hero-pad: 0.95rem;
@@ -258,6 +265,7 @@
       --messages-header-top: 0.85rem;
       --messages-header-gap: 0.95rem;
       --messages-title-size: 2rem;
+      --messages-page-x: 0.8rem;
       --messages-settings-pad: 0.42rem;
       --messages-matches-section-gap: 1.1rem;
       --messages-matches-gap: 0.65rem;
@@ -271,6 +279,8 @@
       --messages-conv-avatar-radius: 0.85rem;
       --messages-conv-name-size: 0.95rem;
       --messages-conv-preview-size: 0.64rem;
+      --messages-conv-time-min-w: 2.25rem;
+      --messages-conv-name-max: 8.2rem;
       --boost-page-y: 1rem;
       --boost-mobile-section-gap: 0.8rem;
       --boost-hero-pad: 0.875rem;
@@ -645,6 +655,7 @@
       --messages-header-top: 1.2rem;
       --messages-header-gap: 1.45rem;
       --messages-title-size: 2.45rem;
+      --messages-page-x: 1.1rem;
       --messages-matches-section-gap: 1.6rem;
       --messages-matches-gap: 0.95rem;
       --messages-match-avatar: 4rem;
@@ -656,6 +667,9 @@
       --messages-conv-avatar-radius: 1rem;
       --messages-conv-name-size: 1.12rem;
       --messages-conv-preview-size: 0.76rem;
+      --messages-conv-header-gap: 0.6rem;
+      --messages-conv-time-min-w: 2.55rem;
+      --messages-conv-name-max: 11rem;
       /* Boost - tablet baseline */
       --boost-page-y: 1.6rem;
       --boost-mobile-section-gap: 1.35rem;
@@ -710,6 +724,7 @@
       --messages-header-top: 1.35rem;
       --messages-header-gap: 1.65rem;
       --messages-title-size: 2.6rem;
+      --messages-page-x: 1.25rem;
       --messages-matches-section-gap: 1.8rem;
       --messages-matches-gap: 1rem;
       --messages-match-avatar: 4.2rem;
@@ -721,6 +736,9 @@
       --messages-conv-avatar-radius: 1.1rem;
       --messages-conv-name-size: 1.16rem;
       --messages-conv-preview-size: 0.8rem;
+      --messages-conv-header-gap: 0.65rem;
+      --messages-conv-time-min-w: 2.75rem;
+      --messages-conv-name-max: 12rem;
       /* Boost - desktop baseline */
       --boost-page-y: 1.8rem;
       --boost-mobile-section-gap: 1.5rem;

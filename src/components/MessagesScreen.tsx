@@ -157,7 +157,7 @@ const MessagesScreen = () => {
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
-      <div className={`group/messages-pane relative flex flex-col ${isLarge ? (isTablet ? 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]' : 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]') + ' border-r border-white/5 overflow-hidden pb-6 pt-6' : 'w-full overflow-y-auto no-scrollbar pt-[var(--messages-header-top)]'} h-full px-[var(--page-x)]`}>
+      <div className={`group/messages-pane relative flex flex-col ${isLarge ? (isTablet ? 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]' : 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]') + ' border-r border-white/5 overflow-hidden pb-6 pt-6' : 'w-full overflow-y-auto no-scrollbar pt-[var(--messages-header-top)]'} h-full px-[var(--messages-page-x)]`}>
         <div className={`flex items-center justify-between ${isLarge ? (isTablet ? 'mb-6' : 'mb-8') : 'mb-[var(--messages-header-gap)]'}`}>
           <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>{t('messages.title')}</h2>
           <button onClick={() => navigate('/settings')} className={`glass rounded-full hover-effect flex items-center justify-center ${isLarge ? 'w-12 h-12' : 'w-11 h-11'}`}><ICONS.Settings size={isLarge ? 20 : 18} /></button>
@@ -296,7 +296,7 @@ const MessagesScreen = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="mb-1 flex items-start justify-between gap-[var(--messages-conv-header-gap)]">
                         <NameWithBadge
                           name={conversation.peer.name}
                           age={conversation.peer.age}
@@ -307,12 +307,12 @@ const MessagesScreen = () => {
                             conversation.peer.flags.shortPassTier,
                           )}
                           size={isTablet ? 'md' : 'lg'}
-                          textClassName="truncate max-w-[7.75rem] md:max-w-[9.75rem] xl:max-w-[11rem]"
-                          className="w-full min-w-0"
+                          textClassName="truncate max-w-[var(--messages-conv-name-max)]"
+                          className="min-w-0 flex-1"
                           premiumBadgeMode="dense"
                           badgeClassName={isTablet ? 'scale-90' : ''}
                         />
-                        <span className="mt-0.5 text-[10px] text-secondary font-bold shrink-0">
+                        <span className="min-w-[var(--messages-conv-time-min-w)] pt-0.5 text-right text-[10px] leading-none text-secondary font-bold shrink-0">
                           {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
                             hour: '2-digit',
                             minute: '2-digit',
