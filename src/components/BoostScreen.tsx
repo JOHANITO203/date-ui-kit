@@ -179,6 +179,15 @@ const timePacks = [
     tagKey: 'boost.passes.month.tag',
     glowToken: '--glow-blue' as GlowToken,
   },
+  {
+    id: 'travel-pass-plus',
+    labelKey: 'boost.passes.travelPassPlus.label',
+    descKey: 'boost.passes.travelPassPlus.desc',
+    detailKeys: ['boost.passes.travelPassPlus.details.0', 'boost.passes.travelPassPlus.details.1'],
+    priceKey: 'boost.passes.travelPassPlus.price',
+    tagKey: 'boost.passes.travelPassPlus.tag',
+    glowToken: '--glow-cyan' as GlowToken,
+  },
 ];
 
 const bundles = [
@@ -233,6 +242,17 @@ const instantLabelById: Record<string, string> = {
   superlike: 'SUPERLIKE',
   rewind: 'REWIND (X10)',
   shadowghost: 'SHADOWGHOST',
+};
+const passLabelById: Record<string, string> = {
+  day: 'DAY PASS',
+  week: 'WEEK PASS',
+  month: 'MONTH PASS',
+  'travel-pass-plus': 'TRAVEL PASS+',
+};
+const bundleLabelById: Record<string, string> = {
+  starter: 'STARTER',
+  datingpro: 'DATING PRO',
+  premiumplus: 'PREMIUM+',
 };
 
 const BoostScreen = () => {
@@ -347,8 +367,8 @@ const BoostScreen = () => {
     });
   };
 
-  const activateTravelPassAccess = (source: 'travel_pass' | 'bundle_included', durationDays: number) => {
-    const expiresAtIso = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+  const activateTravelPassAccess = (source: 'travel_pass' | 'bundle_included', durationHours: number) => {
+    const expiresAtIso = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
     void appApi.patchSettings({
       patch: {
         preferences: {
@@ -359,15 +379,39 @@ const BoostScreen = () => {
     });
   };
 
+  const activateShadowGhostAccess = (durationHours: number) => {
+    const expiresAtIso = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
+    void appApi.patchSettings({
+      patch: {
+        preferences: {
+          shadowGhostEntitlementSource: 'shadowghost_item',
+          shadowGhostEntitlementExpiresAtIso: expiresAtIso,
+        },
+        privacy: {
+          shadowGhost: true,
+        },
+      },
+    });
+  };
+
   const handleBuyInstant = (id: string) => {
     if (id === 'travel-pass') {
-      activateTravelPassAccess('travel_pass', 7);
+      activateTravelPassAccess('travel_pass', 24);
+    }
+    if (id === 'shadowghost') {
+      activateShadowGhostAccess(24);
+    }
+  };
+
+  const handleBuyPass = (id: string) => {
+    if (id === 'travel-pass-plus') {
+      activateTravelPassAccess('travel_pass', 24 * 7);
     }
   };
 
   const handleBuyBundle = (id: string) => {
     if (id === 'datingpro' || id === 'premiumplus') {
-      activateTravelPassAccess('bundle_included', 30);
+      activateTravelPassAccess('bundle_included', 24 * 30);
     }
   };
 
@@ -709,11 +753,13 @@ const BoostScreen = () => {
 
           {catalogView === 'passes' && (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[var(--grid-gap)]">
                 {timePacks.map((item) => (
                   <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-bold text-lg">{t(item.labelKey)}</p>
+                      <p className="font-black text-lg tracking-tight uppercase">
+                        {passLabelById[item.id] ?? t(item.labelKey).toUpperCase()}
+                      </p>
                       <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{t(item.tagKey)}</span>
                     </div>
                     <p className="text-sm text-secondary mt-2">{t(item.descKey)}</p>
@@ -727,7 +773,7 @@ const BoostScreen = () => {
                     </ul>
                     <div className="mt-4 flex items-center justify-between">
                       <p className="font-mono text-2xl font-black whitespace-nowrap">{price(item.priceKey)}</p>
-                      <button className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
+                      <button onClick={() => handleBuyPass(item.id)} className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
                         {t('boost.buy.choose')}
                       </button>
                     </div>
@@ -751,7 +797,9 @@ const BoostScreen = () => {
                   style={glowCardStyle(item.glowToken, item.id === 'datingpro' ? 0.24 : 0.16, item.id === 'datingpro' ? 0.1 : 0.05, item.id === 'datingpro' ? 0.32 : 0.2)}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-xl">{t(item.labelKey)}</p>
+                    <p className="font-black text-xl tracking-tight uppercase">
+                      {bundleLabelById[item.id] ?? t(item.labelKey).toUpperCase()}
+                    </p>
                     <span className={`text-[10px] uppercase tracking-[0.16em] px-2 py-1 rounded-full ${item.id === 'datingpro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
                       {t(item.tagKey)}
                     </span>

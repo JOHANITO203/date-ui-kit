@@ -28,6 +28,7 @@ import type {
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
 import { conversationsSeed, messagesSeed, profileCards, receivedLikesSeed } from './runtimeData';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
+import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 
 const STORAGE_KEY = 'exotic.runtime.settings.v1';
 const BOOST_DURATION_SECONDS = 30 * 60;
@@ -89,6 +90,7 @@ const defaultSettings: UserSettings = {
     language: 'en',
     travelPassCity: 'moscow',
     travelPassEntitlementSource: 'none',
+    shadowGhostEntitlementSource: 'none',
   },
   translation: {
     autoDetectEnabled: true,
@@ -298,12 +300,26 @@ export const runtimeApi = {
       entitlementSource: state.settings.preferences.travelPassEntitlementSource,
       entitlementExpiresAtIso: state.settings.preferences.travelPassEntitlementExpiresAtIso,
     });
+    const shadowGhostAccess = resolveShadowGhostAccess({
+      planTier: state.planTier,
+      entitlementSource: state.settings.preferences.shadowGhostEntitlementSource,
+      entitlementExpiresAtIso: state.settings.preferences.shadowGhostEntitlementExpiresAtIso,
+    });
+    const effectiveSettings = shadowGhostAccess.canUse
+      ? state.settings
+      : {
+          ...state.settings,
+          privacy: {
+            ...state.settings.privacy,
+            shadowGhost: false,
+          },
+        };
 
     return {
       userId: state.currentUserId,
       planTier: state.planTier,
       balances: state.balances,
-      settings: state.settings,
+      settings: effectiveSettings,
       travelPassServerAccess,
     };
   },
@@ -700,6 +716,14 @@ export const runtimeApi = {
 
   patchSettings(request: PatchSettingsRequest) {
     const nextSettings = mergeSettings(state.settings, request.patch);
+    const shadowGhostAccess = resolveShadowGhostAccess({
+      planTier: state.planTier,
+      entitlementSource: nextSettings.preferences.shadowGhostEntitlementSource,
+      entitlementExpiresAtIso: nextSettings.preferences.shadowGhostEntitlementExpiresAtIso,
+    });
+    if (!shadowGhostAccess.canUse && nextSettings.privacy.shadowGhost) {
+      nextSettings.privacy.shadowGhost = false;
+    }
     setState((prev) => ({ ...prev, settings: nextSettings }));
     return this.getSettingsEnvelope();
   },

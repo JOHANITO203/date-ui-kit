@@ -33,6 +33,11 @@ Source: `src/contracts/*`
   - `source`: `none | travel_pass | bundle_included | plan_included`
   - `expiresAtIso?`
 
+### ShadowGhost entitlement (actuel)
+- `preferences.shadowGhostEntitlementSource?`: `none | shadowghost_item`
+- `preferences.shadowGhostEntitlementExpiresAtIso?`
+- `privacy.shadowGhost` est force a `false` si entitlement invalide/expire.
+
 ## 2) Runtime state (local)
 Source: `src/state/appRuntimeStore.ts`
 

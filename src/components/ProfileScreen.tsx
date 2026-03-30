@@ -9,6 +9,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
+import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -23,7 +24,12 @@ const ProfileScreen = () => {
   }));
   const settings = useRuntimeSelector((payload) => payload.settings);
   const [onlineOnly, setOnlineOnly] = useState(false);
-  const shadowGhostLocked = previewPlan !== 'platinum' && previewPlan !== 'elite';
+  const shadowGhostAccess = resolveShadowGhostAccess({
+    planTier: previewPlan,
+    entitlementSource: settings.preferences.shadowGhostEntitlementSource,
+    entitlementExpiresAtIso: settings.preferences.shadowGhostEntitlementExpiresAtIso,
+  });
+  const shadowGhostLocked = !shadowGhostAccess.canUse;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [profileScrollProgress, setProfileScrollProgress] = useState(0);

@@ -42,12 +42,36 @@ Source normative: Master Spec + decisions produit recentes validees en execution
 - Settings Privacy: controle sensible + Travel Pass server switch.
 - Onboarding: reprise de progression persistante anti-friction.
 
-## 5) Divergences restantes (a monitorer)
+## 5) Inventaire monetisation (verrouille)
+- Instant items:
+  - `BOOST`
+  - `ICEBREAKER`
+  - `TRAVEL PASS` (24h uniquement)
+  - `SUPERLIKE`
+  - `REWIND (X10)`
+  - `SHADOWGHOST` (24h)
+- Time packs:
+  - `DAY PASS`
+  - `WEEK PASS`
+  - `MONTH PASS`
+  - `TRAVEL PASS+` (7 jours)
+- Bundles:
+  - `STARTER`
+  - `DATING PRO`
+  - `PREMIUM+`
+
+## 6) Consequences produit anticipees
+- Le `TRAVEL PASS` instant n'est plus concurrent du `TRAVEL PASS+`: usage court (24h) vs usage semaine (7 jours).
+- Les packs/bundles qui incluent Travel Pass gardent la priorite entitlement (`bundle_included` / `plan_included`) sans regression UX.
+- `SHADOWGHOST` devient monétisable en mode temporaire (24h) pour users free/gold/essential; plan `platinum` et `elite` restent inclusifs.
+- Nomenclature commerciale unifiee en MAJUSCULE sur les items/packs/bundles modifies.
+
+## 7) Divergences restantes (a monitorer)
 - Validation i18n RU (mojibake historique) a finaliser proprement.
 - Certaines zones restent mockees (Edit Profile, achat paiement reel).
 - Instrumentation analytics/metriques business encore partielle (runtime local).
 
-## 6) Priorite produit post-lock
+## 8) Priorite produit post-lock
 1. Finaliser i18n propre (EN/RU parity stricte).
 2. Brancher paiement/back-end reels pour entitlements.
 3. Industrialiser tests e2e des flux monetisation + onboarding resume.

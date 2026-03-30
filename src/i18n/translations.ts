@@ -321,14 +321,14 @@ export const translations: Record<Locale, Dictionary> = {
           meta: '24h item',
         },
         travelPass: {
-          label: 'Travel Pass',
-          desc: 'Switch your discovery city while the pass is active.',
+          label: 'TRAVEL PASS',
+          desc: 'Switch your discovery city for 24 hours only.',
           details: {
-            0: '24h / 3d / 7d options',
+            0: '24h server switch access',
             1: '1 active city at a time',
           },
           price: '199{currency}',
-          meta: 'Starts at 24h',
+          meta: '24h item',
         },
         superlike: {
           label: 'SuperLike tokens',
@@ -352,18 +352,18 @@ export const translations: Record<Locale, Dictionary> = {
         },
         shadowghost: {
           label: 'SHADOWGHOST',
-          desc: 'Stealth profile mode with controlled reveal.',
+          desc: 'Stealth profile mode with controlled reveal for 24h.',
           details: {
-            0: 'Ghost avatar + masked identity',
+            0: '24h stealth mode',
             1: 'Focused visibility control',
           },
           price: '249{currency}',
-          meta: 'Privacy item',
+          meta: '24h item',
         },
       },
       passes: {
         day: {
-          label: 'Day Pass',
+          label: 'DAY PASS',
           desc: 'No ads + IceBreaker for 24h + temporary Premium badge',
           details: {
             0: '24h premium comfort',
@@ -373,7 +373,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: '24h',
         },
         week: {
-          label: 'Week Pass',
+          label: 'WEEK PASS',
           desc: 'No ads + IceBreaker + 5 SuperLikes/day + 2 boosts total',
           details: {
             0: '7-day premium rhythm',
@@ -383,7 +383,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: '7 days',
         },
         month: {
-          label: 'Month Pass',
+          label: 'MONTH PASS',
           desc: 'Full Premium for 30 days + included quotas.',
           details: {
             0: 'Premium badge with full rights',
@@ -392,10 +392,20 @@ export const translations: Record<Locale, Dictionary> = {
           price: '599{currency}',
           tag: '30 days',
         },
+        travelPassPlus: {
+          label: 'TRAVEL PASS+',
+          desc: 'Extended server switch access for 7 days.',
+          details: {
+            0: '7-day server switch access',
+            1: '1 active city at a time',
+          },
+          price: '499{currency}',
+          tag: '7 days',
+        },
       },
       bundles: {
         starter: {
-          label: 'Starter',
+          label: 'STARTER',
           desc: '1 Boost + 5 SuperLikes.',
           details: {
             0: 'First conversion bundle',
@@ -405,7 +415,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: 'First purchase',
         },
         datingpro: {
-          label: 'Dating Pro',
+          label: 'DATING PRO',
           desc: '5 Boosts + 20 SuperLikes + 10 Rewinds.',
           details: {
             0: 'Best price/value ratio',
@@ -415,7 +425,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: 'Recommended',
         },
         premiumplus: {
-          label: 'Premium+',
+          label: 'PREMIUM+',
           desc: 'Monthly premium + 4 boosts/month + monthly tokens.',
           details: {
             0: 'Continuous premium growth',
@@ -983,14 +993,14 @@ export const translations: Record<Locale, Dictionary> = {
           meta: '24h item',
         },
         travelPass: {
-          label: 'Travel Pass',
-          desc: 'Switch your discovery city while the pass is active.',
+          label: 'TRAVEL PASS',
+          desc: 'Switch your discovery city for 24 hours only.',
           details: {
-            0: '24h / 3d / 7d options',
+            0: '24h server switch access',
             1: '1 active city at a time',
           },
           price: '199{currency}',
-          meta: 'Starts at 24h',
+          meta: '24h item',
         },
         superlike: {
           label: 'Токены SuperLike',
@@ -1015,7 +1025,7 @@ export const translations: Record<Locale, Dictionary> = {
       },
       passes: {
         day: {
-          label: 'Day Pass',
+          label: 'DAY PASS',
           desc: 'No ads + IceBreaker for 24h + temporary Premium badge',
           details: {
             0: '24h premium comfort',
@@ -1025,7 +1035,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: '24h',
         },
         week: {
-          label: 'Week Pass',
+          label: 'WEEK PASS',
           desc: 'No ads + IceBreaker + 5 SuperLikes/day + 2 boosts total',
           details: {
             0: '7-day premium rhythm',
@@ -1035,7 +1045,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: '7 days',
         },
         month: {
-          label: 'Month Pass',
+          label: 'MONTH PASS',
           desc: 'Full Premium for 30 days + included quotas.',
           details: {
             0: 'Premium badge with full rights',
@@ -1044,10 +1054,20 @@ export const translations: Record<Locale, Dictionary> = {
           price: '599{currency}',
           tag: '30 days',
         },
+        travelPassPlus: {
+          label: 'TRAVEL PASS+',
+          desc: 'Extended server switch access for 7 days.',
+          details: {
+            0: '7-day server switch access',
+            1: '1 active city at a time',
+          },
+          price: '499{currency}',
+          tag: '7 days',
+        },
       },
       bundles: {
         starter: {
-          label: 'Starter',
+          label: 'STARTER',
           desc: '1 Буст + 5 SuperLikes',
           details: {
             0: 'Стартовый набор конверсии',
@@ -1057,7 +1077,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: 'Первая покупка',
         },
         datingpro: {
-          label: 'Dating Pro',
+          label: 'DATING PRO',
           desc: '5 Бустов + 20 SuperLikes + 10 Rewinds',
           details: {
             0: 'Лучшее соотношение цена/ценность',
@@ -1067,7 +1087,7 @@ export const translations: Record<Locale, Dictionary> = {
           tag: 'Лучшее предложение',
         },
         premiumplus: {
-          label: 'Premium+',
+          label: 'PREMIUM+',
           desc: 'Месячный premium + 4 буста + токены в месяц',
           details: {
             0: 'Непрерывный премиум-опыт',

@@ -8,6 +8,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { ReactNode, useEffect, useState } from 'react';
 import { appApi } from '../services';
 import type { SettingsEnvelope } from '../contracts';
+import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 
 type SectionId = 'account' | 'privacy' | 'notifications' | 'preferences';
 type ItemType = 'text' | 'password' | 'toggle' | 'list' | 'slider' | 'range' | 'select';
@@ -70,6 +71,11 @@ const AccountSettingsScreen = () => {
 
   const settings = settingsEnvelope?.settings;
   const travelPassServerAccess = settingsEnvelope?.travelPassServerAccess;
+  const shadowGhostAccess = resolveShadowGhostAccess({
+    planTier: settingsEnvelope?.planTier ?? 'free',
+    entitlementSource: settings?.preferences.shadowGhostEntitlementSource,
+    entitlementExpiresAtIso: settings?.preferences.shadowGhostEntitlementExpiresAtIso,
+  });
 
   const patchSettings = (patch: Parameters<typeof appApi.patchSettings>[0]['patch']) => {
     void appApi.patchSettings({ patch }).then((payload) => {
@@ -236,6 +242,10 @@ const AccountSettingsScreen = () => {
         });
         break;
       case 'shadow-ghost':
+        if (!shadowGhostAccess.canUse) {
+          navigate('/boost');
+          break;
+        }
         patchSettings({
           privacy: {
             shadowGhost: !(settings?.privacy.shadowGhost ?? false),

@@ -6,6 +6,7 @@ export type TravelPassServerAccessSource =
   | 'travel_pass'
   | 'bundle_included'
   | 'plan_included';
+export type ShadowGhostEntitlementSource = 'none' | 'shadowghost_item';
 
 export interface PrivacySettings {
   visibility: ProfileVisibilityState;
@@ -37,6 +38,8 @@ export interface PreferenceSettings {
   travelPassCity?: CityId;
   travelPassEntitlementSource?: TravelPassEntitlementSource;
   travelPassEntitlementExpiresAtIso?: string;
+  shadowGhostEntitlementSource?: ShadowGhostEntitlementSource;
+  shadowGhostEntitlementExpiresAtIso?: string;
 }
 
 export interface UserSettings {

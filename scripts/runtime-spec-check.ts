@@ -214,6 +214,50 @@ const testSettingsFlow = () => {
     'Travel server source should expose bundle entitlement when applicable.',
   );
 
+  const directTravel24h = runtimeApi.patchSettings({
+    patch: {
+      preferences: {
+        travelPassEntitlementSource: 'travel_pass',
+        travelPassEntitlementExpiresAtIso: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
+    },
+  });
+  assert.equal(
+    directTravel24h.travelPassServerAccess.source,
+    'travel_pass',
+    'Direct Travel Pass purchase should expose travel_pass entitlement source.',
+  );
+
+  const shadowGhostBlocked = runtimeApi.patchSettings({
+    patch: {
+      privacy: {
+        shadowGhost: true,
+      },
+    },
+  });
+  assert.equal(
+    shadowGhostBlocked.settings.privacy.shadowGhost,
+    false,
+    'ShadowGhost must stay locked without active plan or temporary entitlement.',
+  );
+
+  const shadowGhostUnlocked = runtimeApi.patchSettings({
+    patch: {
+      preferences: {
+        shadowGhostEntitlementSource: 'shadowghost_item',
+        shadowGhostEntitlementExpiresAtIso: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
+      privacy: {
+        shadowGhost: true,
+      },
+    },
+  });
+  assert.equal(
+    shadowGhostUnlocked.settings.privacy.shadowGhost,
+    true,
+    'ShadowGhost should unlock when a valid 24h token entitlement is active.',
+  );
+
   runtimeApi.setPlanTier('platinum');
   const platinumTravel = runtimeApi.getSettingsEnvelope();
   assert.equal(

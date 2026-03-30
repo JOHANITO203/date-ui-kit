@@ -21,17 +21,26 @@ Date de verrouillage: 2026-03-30
   - `bundle_included`
   - `none`
 - Acces expose en Profile + Settings/Privacy.
+- `TRAVEL PASS` instant = 24h.
+- `TRAVEL PASS+` time pack = 7 jours.
 
-## 4) Boost / tokens
+## 4) ShadowGhost
+- Acces derive:
+  - `plan_included` (platinum/elite),
+  - `shadowghost_item` (24h),
+  - `none`.
+- Si l'entitlement expire, le mode est force sur `off` (pas d'etat zombie actif).
+
+## 5) Boost / tokens
 - Boost consomme a l'activation.
 - Rewind/SuperLike consommes a l'usage.
 - Absence de token => etat upsell.
 
-## 5) Onboarding
+## 6) Onboarding
 - Resume automatique du parcours en cas d'interruption.
 - Retour depuis Edit Profile depuis onboarding ne doit pas reset le parcours.
 - Fin onboarding nettoie le brouillon.
 
-## 6) I18n
+## 7) I18n
 - Fallback EN si cle manquante.
 - Validation placeholder/mojibake en dev.
