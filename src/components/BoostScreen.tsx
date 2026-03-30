@@ -162,6 +162,20 @@ const bundles = [
   },
 ];
 
+const glowRgbMap: Record<GlowToken, [number, number, number]> = {
+  '--glow-silver': [148, 163, 184],
+  '--glow-gold': [251, 191, 36],
+  '--glow-blue': [59, 130, 246],
+  '--glow-pink': [236, 72, 153],
+  '--glow-orange': [249, 115, 22],
+  '--glow-cyan': [34, 211, 238],
+};
+
+const glowColor = (token: GlowToken, alpha = 1) => {
+  const [r, g, b] = glowRgbMap[token];
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
@@ -185,26 +199,26 @@ const BoostScreen = () => {
   const selectedTier = tiers.find((tier) => tier.id === activeTier) ?? tiers[1];
   const BOOST_DURATION = 30 * 60;
   const glowShadow = (token: GlowToken, alpha = 0.28, blur = 34) => ({
-    boxShadow: `0 0 ${blur}px rgb(var(${token}) / ${alpha})`,
+    boxShadow: `0 0 ${blur}px ${glowColor(token, alpha)}`,
   });
   const glowBg = (token: GlowToken, alpha = 0.2) => ({
-    backgroundColor: `rgb(var(${token}) / ${alpha})`,
+    backgroundColor: glowColor(token, alpha),
   });
   const radialTone = (token: GlowToken, alpha = 0.16) => ({
-    backgroundImage: `radial-gradient(circle at 86% 0%, rgb(var(${token}) / ${alpha}) 0%, transparent 56%)`,
+    backgroundImage: `radial-gradient(circle at 86% 0%, ${glowColor(token, alpha)} 0%, transparent 56%)`,
   });
   const glowCardStyle = (token: GlowToken, shadowAlpha = 0.18, bgAlpha = 0.06, borderAlpha = 0.22) => ({
     ...glowShadow(token, shadowAlpha, 24),
-    backgroundColor: `rgb(var(${token}) / ${bgAlpha})`,
-    borderColor: `rgb(var(${token}) / ${borderAlpha})`,
+    backgroundColor: glowColor(token, bgAlpha),
+    borderColor: glowColor(token, borderAlpha),
   });
   const dotPalette: GlowToken[] = ['--glow-pink', '--glow-blue', '--glow-gold', '--glow-cyan', '--glow-orange', '--glow-silver'];
   const dotTokenAt = (seed: number): GlowToken => dotPalette[seed % dotPalette.length];
-  const dotStyle = (token: GlowToken) => ({ backgroundColor: `rgb(var(${token}) / 0.95)` });
+  const dotStyle = (token: GlowToken) => ({ backgroundColor: glowColor(token, 0.95) });
   const tapGlow = (token: GlowToken, alpha = 0.42, scale = 0.97) => ({
     scale,
-    borderColor: `rgb(var(${token}) / 0.45)`,
-    boxShadow: `0 0 28px rgb(var(${token}) / ${alpha})`,
+    borderColor: glowColor(token, 0.45),
+    boxShadow: `0 0 28px ${glowColor(token, alpha)}`,
     transition: { type: 'spring', stiffness: 560, damping: 24 },
   });
   const buyBtnBase =

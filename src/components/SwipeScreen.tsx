@@ -72,6 +72,9 @@ const SwipeScreen = () => {
   const likeOpacity = useTransform(x, [40, 120], [0, 1]);
   const nopeOpacity = useTransform(x, [-40, -120], [0, 1]);
   const superLikeOpacity = useTransform(y, [-40, -120], [0, 1]);
+  const likeScale = useTransform(x, [0, 150], [0.5, 1.2]);
+  const nopeScale = useTransform(x, [0, -150], [0.5, 1.2]);
+  const superLikeScale = useTransform(y, [0, -150], [0.5, 1.2]);
 
   const handleDragEnd = (_: any, info: any) => {
     const threshold = 80;
@@ -318,13 +321,13 @@ const SwipeScreen = () => {
                 />
               </AnimatePresence>
 
-              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-16 h-16 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
+              <motion.div style={{ opacity: likeOpacity, scale: likeScale }} className="absolute top-20 left-10 w-16 h-16 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
                 <ICONS.Likes size={26} fill="currentColor" className="text-blue-300 drop-shadow-[0_0_8px_rgba(96,165,250,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-16 h-16 rounded-full rotate-[12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-red-500/70 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
+              <motion.div style={{ opacity: nopeOpacity, scale: nopeScale }} className="absolute top-20 right-10 w-16 h-16 rounded-full rotate-[12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-red-500/70 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
                 <ICONS.X size={28} className="text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full pointer-events-none z-30 flex items-center justify-center border-2 border-fuchsia-300/80 shadow-[0_0_22px_rgba(217,70,239,0.4)]">
+              <motion.div style={{ opacity: superLikeOpacity, scale: superLikeScale }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full pointer-events-none z-30 flex items-center justify-center border-2 border-fuchsia-300/80 shadow-[0_0_22px_rgba(217,70,239,0.4)]">
                 <ICONS.Star size={24} fill="currentColor" className="text-white drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
               </motion.div>
 
@@ -453,13 +456,13 @@ const SwipeScreen = () => {
                 />
               </AnimatePresence>
 
-              <motion.div style={{ opacity: likeOpacity, scale: useTransform(x, [0, 150], [0.5, 1.2]) }} className="absolute top-20 left-10 w-14 h-14 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_18px_rgba(59,130,246,0.35)]">
+              <motion.div style={{ opacity: likeOpacity, scale: likeScale }} className="absolute top-20 left-10 w-14 h-14 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_18px_rgba(59,130,246,0.35)]">
                 <ICONS.Likes size={22} fill="currentColor" className="text-blue-300 drop-shadow-[0_0_8px_rgba(96,165,250,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: nopeOpacity, scale: useTransform(x, [0, -150], [0.5, 1.2]) }} className="absolute top-20 right-10 w-14 h-14 rounded-full rotate-[12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-red-500/70 shadow-[0_0_18px_rgba(239,68,68,0.35)]">
+              <motion.div style={{ opacity: nopeOpacity, scale: nopeScale }} className="absolute top-20 right-10 w-14 h-14 rounded-full rotate-[12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-red-500/70 shadow-[0_0_18px_rgba(239,68,68,0.35)]">
                 <ICONS.X size={22} className="text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.7)]" />
               </motion.div>
-              <motion.div style={{ opacity: superLikeOpacity, scale: useTransform(y, [0, -150], [0.5, 1.2]) }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full pointer-events-none z-30 flex items-center justify-center border-2 border-fuchsia-300/80 shadow-[0_0_20px_rgba(217,70,239,0.4)]">
+              <motion.div style={{ opacity: superLikeOpacity, scale: superLikeScale }} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full pointer-events-none z-30 flex items-center justify-center border-2 border-fuchsia-300/80 shadow-[0_0_20px_rgba(217,70,239,0.4)]">
                 <ICONS.Star size={20} fill="currentColor" className="text-white drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />
               </motion.div>
 

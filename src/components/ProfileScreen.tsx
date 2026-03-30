@@ -176,9 +176,12 @@ const ProfileScreen = () => {
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]"
           >
-            <div className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group" style={{ boxShadow: '0 0 18px rgb(var(--glow-blue) / 0.16)' }}>
+            <div
+              className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-blue-400/35 transition-colors"
+              style={{ boxShadow: '0 0 18px rgb(var(--glow-blue) / 0.16)' }}
+            >
               <div className="flex justify-between items-start">
-                <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+                <div className="p-3 rounded-2xl bg-blue-500/12 text-blue-300 group-hover:scale-110 transition-transform">
                   <ICONS.Eye size={24} />
                 </div>
                 <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">+12%</span>
@@ -189,9 +192,12 @@ const ProfileScreen = () => {
               </div>
             </div>
             
-            <div className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group" style={{ boxShadow: '0 0 18px rgb(var(--glow-pink) / 0.16)' }}>
+            <div
+              className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-pink-400/35 transition-colors"
+              style={{ boxShadow: '0 0 18px rgb(var(--glow-pink) / 0.16)' }}
+            >
               <div className="flex justify-between items-start">
-                <div className="p-3 rounded-2xl bg-pink-500/10 text-pink-400 group-hover:scale-110 transition-transform">
+                <div className="p-3 rounded-2xl bg-pink-500/12 text-pink-300 group-hover:scale-110 transition-transform">
                   <ICONS.Heart size={24} />
                 </div>
                 <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">+5</span>
@@ -208,7 +214,7 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[3] = el;
             }}
-            className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-8 relative overflow-hidden"
+            className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-violet-400/30 space-y-8 relative overflow-hidden transition-colors"
             style={{ boxShadow: '0 0 18px rgb(var(--glow-silver) / 0.14)' }}
           >
             <div className="flex justify-between items-end relative z-10">
@@ -231,13 +237,13 @@ const ProfileScreen = () => {
             <div className="flex gap-4 relative z-10">
               <button
                 onClick={() => navigate('/profile/edit')}
-                className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest hover:border-pink-400/35 hover:shadow-[0_0_16px_rgba(236,72,153,0.25)] transition-all"
               >
                 {t('profile.improve')}
               </button>
               <button
                 onClick={() => navigate('/discover')}
-                className="flex-1 py-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
+                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest hover:border-blue-400/35 hover:shadow-[0_0_16px_rgba(59,130,246,0.25)] transition-all"
               >
                 {t('profile.preview')}
               </button>
@@ -245,7 +251,7 @@ const ProfileScreen = () => {
           </div>
 
           {/* Special Access Panel */}
-          <div className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-6" style={{ boxShadow: '0 0 16px rgb(var(--glow-blue) / 0.1)' }}>
+          <div className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-cyan-400/30 space-y-6 transition-colors" style={{ boxShadow: '0 0 16px rgb(var(--glow-blue) / 0.1)' }}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h4 className="text-xl font-black italic uppercase tracking-tight">{t('profile.controlTitle')}</h4>
@@ -253,7 +259,7 @@ const ProfileScreen = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-2xl glass p-4 space-y-4">
+              <div className="rounded-2xl glass-panel-soft p-4 space-y-4 hover:border-pink-400/25 transition-colors">
                 <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.privacyLabel')}</div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold">{t('settings.items.hideAge')}</span>
@@ -281,13 +287,13 @@ const ProfileScreen = () => {
                 </div>
                 <button
                   onClick={() => navigate('/settings/privacy')}
-                  className="w-full mt-2 py-2 rounded-xl glass text-[10px] uppercase tracking-[0.16em] font-black hover:bg-white/10 transition-colors"
+                  className="w-full mt-2 py-2.5 rounded-xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black hover:border-pink-400/35 hover:shadow-[0_0_14px_rgba(236,72,153,0.2)] transition-all"
                 >
                   {t('settings.sections.privacy')}
                 </button>
               </div>
 
-              <div className="rounded-2xl glass p-4 space-y-4">
+              <div className="rounded-2xl glass-panel-soft p-4 space-y-4 hover:border-blue-400/25 transition-colors">
                 <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.benefits')}</div>
                 <div className="flex items-center justify-between rounded-xl glass-panel-soft px-3 py-2">
                   <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/12 border border-violet-300/25 shadow-[0_0_14px_rgba(167,139,250,0.35)]">
@@ -315,31 +321,11 @@ const ProfileScreen = () => {
                 </div>
                 <button
                   onClick={() => navigate('/discover')}
-                  className="w-full mt-2 py-2.5 rounded-xl glass border border-white/18 text-[10px] uppercase tracking-[0.16em] font-black text-white/90 hover:bg-white/10 transition-colors"
+                  className="w-full mt-2 py-2.5 rounded-xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black text-white/90 hover:border-cyan-400/35 hover:shadow-[0_0_14px_rgba(34,211,238,0.2)] transition-all"
                 >
                   {t('profile.openDiscover')}
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* Public Profile */}
-          <div className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-5" style={{ boxShadow: '0 0 18px rgb(var(--glow-silver) / 0.12)' }}>
-            <h4 className="text-xl font-bold">{t('editProfile.title')}</h4>
-            <p className="text-sm text-secondary">{t('editProfile.subtitle')}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => navigate('/discover')}
-                className="py-3 rounded-2xl glass text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
-              >
-                {t('profile.preview')}
-              </button>
-              <button
-                onClick={() => navigate('/profile/edit')}
-                className="py-3 rounded-2xl glass text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors"
-              >
-                {t('editProfile.save')}
-              </button>
             </div>
           </div>
 
@@ -358,7 +344,7 @@ const ProfileScreen = () => {
               <button 
                 key={i}
                 onClick={() => navigate(action.to)}
-                className="p-6 rounded-[var(--card-radius)] glass-panel glass-panel-float flex flex-col items-center gap-3 transition-all group"
+                className="p-6 rounded-[var(--card-radius)] glass-panel glass-panel-float flex flex-col items-center gap-3 transition-all group hover:border-white/30"
               >
                 <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
                   {action.icon}
@@ -369,7 +355,7 @@ const ProfileScreen = () => {
           </div>
 
           {/* Options */}
-          <div className="rounded-[var(--card-radius)] glass-panel glass-panel-float overflow-hidden">
+          <div className="rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-white/25 overflow-hidden transition-colors">
             {[
               { icon: <ICONS.Profile size={16} />, label: t('settings.sections.account'), to: '/settings/account' },
               { icon: <ICONS.Shield size={16} />, label: t('settings.sections.privacy'), to: '/settings/privacy' },
@@ -379,7 +365,7 @@ const ProfileScreen = () => {
               <button
                 key={item.to}
                 onClick={() => navigate(item.to)}
-                className={`w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/5 transition-colors ${
+                className={`w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/6 transition-colors ${
                   index < arr.length - 1 ? 'border-b border-white/5' : ''
                 }`}
               >

@@ -886,6 +886,9 @@
 
   .glass {
     @apply bg-white/5 border border-white/10 backdrop-blur-xl;
+    isolation: isolate;
+    background-clip: padding-box;
+    transform: translateZ(0);
   }
 
   .glass-panel {
@@ -893,6 +896,13 @@
     border: 1px solid var(--glass-card-border);
     backdrop-filter: blur(var(--glass-card-blur));
     -webkit-backdrop-filter: blur(var(--glass-card-blur));
+    isolation: isolate;
+    background-clip: padding-box;
+    transform: translateZ(0);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 14px 38px rgba(0, 0, 0, 0.4),
+      0 0 24px rgba(255, 255, 255, 0.05);
   }
 
   .glass-panel-soft {
@@ -900,6 +910,13 @@
     border: 1px solid var(--glass-card-border);
     backdrop-filter: blur(var(--glass-card-blur));
     -webkit-backdrop-filter: blur(var(--glass-card-blur));
+    isolation: isolate;
+    background-clip: padding-box;
+    transform: translateZ(0);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 8px 22px rgba(0, 0, 0, 0.3),
+      0 0 16px rgba(255, 255, 255, 0.04);
   }
 
   .glass-panel-active {

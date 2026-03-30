@@ -319,8 +319,8 @@ export const translations: Record<Locale, Dictionary> = {
     profile: {
       title: 'My Space',
       subtitle: 'Account management',
-      server: 'Server: Paris-01',
-      city: 'Paris, FR',
+      server: 'Server: Moscow-01',
+      city: 'Moscow, RU',
       planPopular: 'Popular',
       planGoldTitle: 'VIBE Gold',
       planGoldSubtitle: 'Priority visibility and premium controls active on this profile.',
@@ -847,8 +847,8 @@ export const translations: Record<Locale, Dictionary> = {
     profile: {
       title: 'Моё пространство',
       subtitle: 'Управление аккаунтом',
-      server: 'Сервер: Paris-01',
-      city: 'Paris, FR',
+      server: 'Сервер: Moscow-01',
+      city: 'Москва, RU',
       planPopular: 'Популярно',
       planGoldTitle: 'VIBE Gold',
       planGoldSubtitle: 'На этом профиле активны приоритетная видимость и премиум-контроль.',
