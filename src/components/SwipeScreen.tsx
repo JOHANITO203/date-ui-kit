@@ -121,6 +121,18 @@ const SwipeScreen = () => {
     return Math.max(0, Math.ceil((new Date(boostActiveUntilIso).getTime() - boostTick) / 1000));
   }, [boostActiveUntilIso, boostTick]);
   const boostState = boostRemainingSeconds > 0 ? 'active' : balances.boostsLeft > 0 ? 'available' : 'out_of_tokens';
+  const boostFullLabel =
+    boostState === 'active'
+      ? t('discover.boostActive', { timer: formatBoostTimer(boostRemainingSeconds) })
+      : boostState === 'available'
+        ? t('discover.boostReady', { count: balances.boostsLeft })
+        : t('discover.boost');
+  const boostCompactLabel =
+    boostState === 'active'
+      ? formatBoostTimer(boostRemainingSeconds)
+      : boostState === 'available'
+        ? `x${balances.boostsLeft}`
+        : t('discover.boost');
 
   useEffect(() => {
     if (!user) return;
@@ -303,14 +315,17 @@ const SwipeScreen = () => {
           <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('discover.eyebrow')}</p>
           <Logo size={30} showText />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <button
             onClick={rewindLastSwipe}
-            className="flex items-center gap-2 px-3 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/5 active:scale-95 transition-all group"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/5 active:scale-95 transition-all group shrink-0"
           >
             <ICONS.Rewind size={13} className="text-cyan-300" />
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200">
+            <span className="hidden min-[390px]:inline text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200">
               {balances.rewindsLeft}
+            </span>
+            <span className="inline min-[390px]:hidden text-[10px] font-black uppercase tracking-[0.06em] text-cyan-200">
+              R{balances.rewindsLeft}
             </span>
           </button>
           <motion.button
@@ -330,7 +345,7 @@ const SwipeScreen = () => {
             transition={
               boostState === 'active' ? { duration: 2.6, repeat: Infinity, ease: 'easeInOut' } : undefined
             }
-            className={`flex items-center gap-2 px-4 py-2 rounded-full border active:scale-95 transition-all group ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 min-[390px]:px-3 sm:px-4 py-2 rounded-full border active:scale-95 transition-all group min-w-0 max-w-[9.75rem] min-[390px]:max-w-[12rem] ${
               boostState === 'active'
                 ? 'border-orange-300/70 bg-orange-500/20'
                 : boostState === 'available'
@@ -349,7 +364,7 @@ const SwipeScreen = () => {
               }`}
             />
             <span
-              className={`text-[10px] font-black uppercase tracking-widest ${
+              className={`hidden min-[390px]:inline truncate text-[10px] font-black uppercase tracking-[0.12em] ${
                 boostState === 'available'
                   ? 'text-black'
                   : boostState === 'active'
@@ -357,11 +372,18 @@ const SwipeScreen = () => {
                     : 'text-orange-400/90'
               }`}
             >
-              {boostState === 'active'
-                ? t('discover.boostActive', { timer: formatBoostTimer(boostRemainingSeconds) })
-                : boostState === 'available'
-                  ? t('discover.boostReady', { count: balances.boostsLeft })
-                  : t('discover.boost')}
+              {boostFullLabel}
+            </span>
+            <span
+              className={`inline min-[390px]:hidden truncate text-[10px] font-black uppercase tracking-[0.08em] ${
+                boostState === 'available'
+                  ? 'text-black'
+                  : boostState === 'active'
+                    ? 'text-orange-100'
+                    : 'text-orange-400/90'
+              }`}
+            >
+              {boostCompactLabel}
             </span>
           </motion.button>
         </div>
