@@ -23,6 +23,7 @@ type TierDef = {
   bulletClass: string;
   glowToken: GlowToken;
   ctaButtonClass: string;
+  titleGradientClass: string;
 };
 
 const tiers: TierDef[] = [
@@ -37,6 +38,7 @@ const tiers: TierDef[] = [
     bulletClass: 'bg-slate-400',
     glowToken: '--glow-silver',
     ctaButtonClass: 'bg-gradient-to-r from-slate-400 to-slate-600 text-black',
+    titleGradientClass: 'from-slate-100 via-slate-200 to-slate-400',
   },
   {
     id: 'gold',
@@ -50,6 +52,7 @@ const tiers: TierDef[] = [
     bulletClass: 'bg-amber-400',
     glowToken: '--glow-gold',
     ctaButtonClass: 'bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black',
+    titleGradientClass: 'from-amber-200 via-yellow-300 to-amber-500',
   },
   {
     id: 'platinum',
@@ -62,6 +65,7 @@ const tiers: TierDef[] = [
     bulletClass: 'bg-blue-400',
     glowToken: '--glow-blue',
     ctaButtonClass: 'bg-gradient-to-r from-indigo-400 via-blue-500 to-cyan-400 text-white',
+    titleGradientClass: 'from-cyan-200 via-sky-300 to-indigo-400',
   },
   {
     id: 'elite',
@@ -80,6 +84,7 @@ const tiers: TierDef[] = [
     bulletClass: 'bg-fuchsia-300',
     glowToken: '--glow-pink',
     ctaButtonClass: 'bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 text-white',
+    titleGradientClass: 'from-fuchsia-300 via-pink-400 to-rose-400',
   },
 ];
 
@@ -204,6 +209,8 @@ const glowColor = (token: GlowToken, alpha = 1) => {
   const [r, g, b] = glowRgbMap[token];
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+const stripVibePrefix = (name: string) => name.replace(/^vibe\s+/i, '').trim();
 
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
@@ -425,6 +432,7 @@ const BoostScreen = () => {
             {tiers.map((tier) => {
               const isActive = tier.id === activeTier;
               const isPulse = glowPulseTier === tier.id;
+              const hasLongTierName = tier.id === 'essential' || tier.id === 'platinum';
               return (
                 <motion.button
                   key={tier.id}
@@ -460,10 +468,33 @@ const BoostScreen = () => {
                         </span>
                       )}
                     </div>
-                    <p className={`font-black italic text-[length:var(--boost-tier-title-size)] leading-none tracking-tighter ${isActive ? 'text-white' : 'text-white/65'}`}>{t(tier.nameKey)}</p>
-                    <div className="flex items-end gap-1.5">
-                      <p className={`font-mono text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter whitespace-nowrap ${isActive ? 'text-white' : 'text-white/78'}`}>{price(tier.priceKey)}</p>
-                      <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.18em] text-white/45 whitespace-nowrap leading-none shrink-0 self-end pb-[0.15em]">
+                    <p
+                      className={`font-black italic ${
+                        hasLongTierName
+                          ? 'text-[length:var(--boost-tier-title-size-long)] tracking-tight pr-1'
+                          : 'text-[length:var(--boost-tier-title-size)]'
+                      } leading-[1.1] whitespace-nowrap overflow-visible py-[0.08em] ${
+                        hasLongTierName ? '' : 'tracking-tighter'
+                      } ${isActive ? 'text-white' : 'text-white/65'}`}
+                    >
+                      <span
+                        className={`inline-block pl-[0.03em] pr-[0.2em] bg-gradient-to-r ${tier.titleGradientClass} bg-clip-text text-transparent`}
+                        style={{
+                          textShadow: `0 0 8px ${glowColor(tier.glowToken, isActive ? 0.18 : 0.07)}`,
+                        }}
+                      >
+                        {stripVibePrefix(t(tier.nameKey))}
+                      </span>
+                    </p>
+                    <div className="flex items-end gap-2 min-w-0 flex-wrap">
+                      <p
+                        className={`font-mono text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter whitespace-nowrap ${
+                          isActive ? 'text-white' : 'text-white/78'
+                        }`}
+                      >
+                        {price(tier.priceKey)}
+                      </p>
+                      <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.1em] text-white/45 leading-none self-end pb-[0.15em]">
                         {t(tier.periodKey)}
                       </p>
                     </div>
