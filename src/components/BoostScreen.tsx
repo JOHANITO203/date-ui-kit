@@ -91,6 +91,7 @@ const tiers: TierDef[] = [
 const instantProducts = [
   {
     id: 'boost',
+    visualEmoji: '⚡',
     labelKey: 'boost.instant.boost.label',
     descKey: 'boost.instant.boost.desc',
     detailKeys: ['boost.instant.boost.details.0', 'boost.instant.boost.details.1'],
@@ -100,6 +101,7 @@ const instantProducts = [
   },
   {
     id: 'premium',
+    visualEmoji: '🧊',
     labelKey: 'boost.instant.premium.label',
     descKey: 'boost.instant.premium.desc',
     detailKeys: ['boost.instant.premium.details.0', 'boost.instant.premium.details.1'],
@@ -109,6 +111,7 @@ const instantProducts = [
   },
   {
     id: 'travel-pass',
+    visualEmoji: '🗺️',
     labelKey: 'boost.instant.travelPass.label',
     descKey: 'boost.instant.travelPass.desc',
     detailKeys: ['boost.instant.travelPass.details.0', 'boost.instant.travelPass.details.1'],
@@ -118,6 +121,7 @@ const instantProducts = [
   },
   {
     id: 'superlike',
+    visualEmoji: '⭐',
     labelKey: 'boost.instant.superlike.label',
     descKey: 'boost.instant.superlike.desc',
     detailKeys: ['boost.instant.superlike.details.0', 'boost.instant.superlike.details.1'],
@@ -127,12 +131,23 @@ const instantProducts = [
   },
   {
     id: 'rewind',
+    visualEmoji: '↩️',
     labelKey: 'boost.instant.rewind.label',
     descKey: 'boost.instant.rewind.desc',
     detailKeys: ['boost.instant.rewind.details.0', 'boost.instant.rewind.details.1'],
     priceKey: 'boost.instant.rewind.price',
     metaKey: 'boost.instant.rewind.meta',
     glowToken: '--glow-silver' as GlowToken,
+  },
+  {
+    id: 'shadowghost',
+    visualEmoji: '👻',
+    labelKey: 'boost.instant.shadowghost.label',
+    descKey: 'boost.instant.shadowghost.desc',
+    detailKeys: ['boost.instant.shadowghost.details.0', 'boost.instant.shadowghost.details.1'],
+    priceKey: 'boost.instant.shadowghost.price',
+    metaKey: 'boost.instant.shadowghost.meta',
+    glowToken: '--glow-pink' as GlowToken,
   },
 ];
 
@@ -211,6 +226,14 @@ const glowColor = (token: GlowToken, alpha = 1) => {
 };
 
 const stripVibePrefix = (name: string) => name.replace(/^vibe\s+/i, '').trim();
+const instantLabelById: Record<string, string> = {
+  boost: 'BOOST',
+  premium: 'ICEBREAKER',
+  'travel-pass': 'TRAVEL PASS',
+  superlike: 'SUPERLIKE',
+  rewind: 'REWIND (X10)',
+  shadowghost: 'SHADOWGHOST',
+};
 
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
@@ -650,7 +673,14 @@ const BoostScreen = () => {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="font-bold text-lg">{t(item.labelKey)}</p>
+                      <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-2.5 py-1">
+                        <span className="text-sm leading-none" aria-hidden>
+                          {item.visualEmoji}
+                        </span>
+                        <p className="font-black text-[0.72rem] uppercase tracking-[0.16em] leading-none">
+                          {instantLabelById[item.id] ?? t(item.labelKey).toUpperCase()}
+                        </p>
+                      </div>
                       <p className="text-sm text-secondary mt-1">{t(item.descKey)}</p>
                       <ul className="mt-2 space-y-1.5">
                         {item.detailKeys.map((detailKey, detailIdx) => (

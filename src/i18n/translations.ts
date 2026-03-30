@@ -350,6 +350,16 @@ export const translations: Record<Locale, Dictionary> = {
           price: '149{currency}',
           meta: '10 tokens',
         },
+        shadowghost: {
+          label: 'SHADOWGHOST',
+          desc: 'Stealth profile mode with controlled reveal.',
+          details: {
+            0: 'Ghost avatar + masked identity',
+            1: 'Focused visibility control',
+          },
+          price: '249{currency}',
+          meta: 'Privacy item',
+        },
       },
       passes: {
         day: {
