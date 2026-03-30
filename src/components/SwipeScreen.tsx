@@ -1,54 +1,82 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { ICONS, MOCK_USERS } from '../types';
+import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
+import { appApi } from '../services';
+import { useRuntimeSelector } from '../state';
+import type { FeedCandidate, FeedQuickFilter, SwipeDecision } from '../contracts';
 
 const SwipeScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const balances = useRuntimeSelector((payload) => payload.balances);
+  const likedCount = useRuntimeSelector((payload) => payload.likedProfileIds.length);
+  const matchCount = useRuntimeSelector((payload) => payload.conversations.length);
+  const selfPreviewPhoto = useRuntimeSelector(
+    (payload) => payload.feedSource[0]?.photos?.[1] ?? payload.feedSource[0]?.photos?.[0] ?? '',
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [feedStatus, setFeedStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [feedCandidates, setFeedCandidates] = useState<FeedCandidate[]>([]);
+  const [isSwipePending, setIsSwipePending] = useState(false);
   const quickFilters = [
     { id: 'all', labelKey: 'discover.quickFilters.all' },
     { id: 'nearby', labelKey: 'discover.quickFilters.nearby' },
     { id: 'new', labelKey: 'discover.quickFilters.new' },
     { id: 'online', labelKey: 'discover.quickFilters.online' },
     { id: 'verified', labelKey: 'discover.quickFilters.verified' },
-  ];
-  const [activeFilterIds, setActiveFilterIds] = useState<string[]>(['all']);
-
-  const parseDistanceKm = (distance: string) => {
-    const parsed = Number.parseFloat(distance);
-    return Number.isFinite(parsed) ? parsed : 99;
-  };
+  ] as const;
+  const [activeFilterIds, setActiveFilterIds] = useState<FeedQuickFilter[]>(['all']);
 
   const filteredUsers = useMemo(() => {
-    if (activeFilterIds.length === 0 || activeFilterIds.includes('all')) {
-      return MOCK_USERS;
-    }
+    return feedCandidates.map((candidate) => ({
+      ...candidate,
+      verified: candidate.flags.verifiedIdentity,
+      premiumTier: candidate.flags.premiumTier,
+      ageMasked: candidate.age <= 0,
+      distanceMasked: candidate.distanceKm < 0,
+      distanceLabel:
+        candidate.distanceKm < 0
+          ? t('discover.hiddenDistance')
+          : t('discover.distanceKm', { value: candidate.distanceKm }),
+    }));
+  }, [feedCandidates, t]);
 
-    return MOCK_USERS.filter((candidate, idx) => {
-      if (activeFilterIds.includes('verified') && !candidate.verified) return false;
-      if (activeFilterIds.includes('nearby') && parseDistanceKm(candidate.distance) > 5) return false;
-      if (activeFilterIds.includes('new') && idx > 2) return false;
-      if (activeFilterIds.includes('online') && candidate.compatibility < 90) return false;
-      return true;
-    });
+  useEffect(() => {
+    let isCancelled = false;
+    setFeedStatus('loading');
+    appApi
+      .getFeed(activeFilterIds)
+      .then((response) => {
+        if (isCancelled) return;
+        setFeedCandidates(response.window.candidates);
+        setFeedStatus('success');
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setFeedCandidates([]);
+        setFeedStatus('error');
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [activeFilterIds]);
 
   useEffect(() => {
     setCurrentIndex(0);
     setPhotoIndex(0);
-  }, [activeFilterIds]);
+  }, [activeFilterIds, feedCandidates.length]);
 
   useEffect(() => {
     if (!isFiltering) return;
@@ -59,10 +87,11 @@ const SwipeScreen = () => {
   const hasUsers = filteredUsers.length > 0;
   const user = hasUsers ? filteredUsers[currentIndex % filteredUsers.length] : null;
   const nextUser = hasUsers ? filteredUsers[(currentIndex + 1) % filteredUsers.length] : null;
-  const selfPreviewPhoto = useMemo(
-    () => MOCK_USERS[0]?.photos?.[1] ?? MOCK_USERS[0]?.photos?.[0] ?? '',
-    []
-  );
+
+  useEffect(() => {
+    if (!user) return;
+    appApi.markProfileImpression(user.id);
+  }, [user?.id]);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -88,16 +117,35 @@ const SwipeScreen = () => {
   };
 
   const swipe = (dir: 'left' | 'right' | 'up') => {
-    if (!hasUsers || !user) return;
-    setTimeout(() => {
-      if (dir === 'right' || dir === 'up') {
-        if (Math.random() > 0.8) setShowMatch(true);
-      }
-      setCurrentIndex((prev) => prev + 1);
+    if (!hasUsers || !user || isSwipePending) return;
+    setIsSwipePending(true);
+    const decision: SwipeDecision =
+      dir === 'left' ? 'dislike' : dir === 'right' ? 'like' : 'superlike';
+
+    window.setTimeout(() => {
+      void appApi
+        .swipe(user.id, decision)
+        .then((response) => {
+          if (response.matched) setShowMatch(true);
+        })
+        .finally(() => {
+          setCurrentIndex((prev) => prev + 1);
+          setPhotoIndex(0);
+          x.set(0);
+          y.set(0);
+          setIsSwipePending(false);
+        });
+    }, 100);
+  };
+
+  const rewindLastSwipe = () => {
+    void appApi.rewind().then((response) => {
+      if (!response.restoredProfileId) return;
+      setCurrentIndex((prev) => Math.max(0, prev - 1));
       setPhotoIndex(0);
       x.set(0);
       y.set(0);
-    }, 100);
+    });
   };
 
   const handlePhotoNav = (e: React.MouseEvent) => {
@@ -111,18 +159,23 @@ const SwipeScreen = () => {
     }
   };
 
-  const toggleFilter = (id: string) => {
+  const toggleFilter = (id: FeedQuickFilter) => {
     setIsFiltering(true);
-    setActiveFilterIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+    setActiveFilterIds((prev) => {
+      if (id === 'all') return ['all'];
+      const withoutAll = prev.filter((entry) => entry !== 'all');
+      const next = withoutAll.includes(id)
+        ? withoutAll.filter((entry) => entry !== id)
+        : [...withoutAll, id];
+      return next.length === 0 ? ['all'] : next;
+    });
   };
 
   const actionButtons = (
     <>
       <motion.button
         whileTap={{ scale: 0.85 }}
-        disabled={!user}
+        disabled={!user || isSwipePending}
         onClick={(e) => {
           e.stopPropagation();
           swipe('left');
@@ -134,7 +187,7 @@ const SwipeScreen = () => {
 
       <motion.button
         whileTap={{ scale: 0.9, rotate: 12 }}
-        disabled={!user}
+        disabled={!user || isSwipePending}
         animate={{ boxShadow: ['0 0 18px rgba(255, 20, 147, 0.2)', '0 0 34px rgba(255, 20, 147, 0.35)', '0 0 18px rgba(255, 20, 147, 0.2)'] }}
         transition={{ boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' } }}
         onClick={(e) => {
@@ -148,7 +201,7 @@ const SwipeScreen = () => {
 
       <motion.button
         whileTap={{ scale: 0.9 }}
-        disabled={!user}
+        disabled={!user || isSwipePending}
         onClick={(e) => {
           e.stopPropagation();
           swipe('right');
@@ -182,6 +235,20 @@ const SwipeScreen = () => {
     </div>
   );
 
+  const errorDeck = (
+    <div className="h-full w-full rounded-[36px] border border-red-400/30 bg-red-500/5 backdrop-blur-xl flex flex-col items-center justify-center text-center px-6">
+      <ICONS.Info size={24} className="text-red-300 mb-4" />
+      <p className="text-white text-lg font-black tracking-tight">{t('discover.errorTitle')}</p>
+      <p className="text-white/60 text-sm mt-2 max-w-[24ch]">{t('discover.errorSubtitle')}</p>
+      <button
+        onClick={() => setActiveFilterIds((prev) => [...prev])}
+        className="mt-5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border border-red-300/35 bg-red-500/10 text-red-100 hover:bg-red-500/20 transition-colors"
+      >
+        {t('discover.retry')}
+      </button>
+    </div>
+  );
+
   return (
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
       <div className="flex items-end justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
@@ -189,13 +256,35 @@ const SwipeScreen = () => {
           <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('discover.eyebrow')}</p>
           <Logo size={30} showText />
         </div>
-        <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
-          <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">{t('discover.boost')}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={rewindLastSwipe}
+            className="flex items-center gap-2 px-3 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/5 active:scale-95 transition-all group"
+          >
+            <ICONS.Rewind size={13} className="text-cyan-300" />
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200">
+              {balances.rewindsLeft}
+            </span>
+          </button>
+          <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
+            <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">{t('discover.boost')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="px-[var(--page-x)] pb-2 shrink-0">
+        <div className="pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <span className="px-2.5 py-1 rounded-full border border-pink-400/30 bg-pink-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-pink-200">
+            S {balances.superlikesLeft}
+          </span>
+          <span className="px-2.5 py-1 rounded-full border border-orange-400/30 bg-orange-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-orange-200">
+            B {balances.boostsLeft}
+          </span>
+          <span className="px-2.5 py-1 rounded-full border border-cyan-400/30 bg-cyan-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200">
+            R {balances.rewindsLeft}
+          </span>
+        </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {quickFilters.map((filter) => (
             <button
@@ -271,11 +360,11 @@ const SwipeScreen = () => {
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('discover.activity')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
-                    <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>24</p>
+                    <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>{likedCount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/45">{t('discover.likesRecent')}</p>
                   </div>
                   <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
-                    <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>7</p>
+                    <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>{matchCount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/45">{t('discover.matches')}</p>
                   </div>
                 </div>
@@ -284,8 +373,10 @@ const SwipeScreen = () => {
 
             <div className="w-full flex flex-col items-center density-comfortable min-h-0">
             <div className={`container-deck relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(62vh,35rem)]'}`}>
-          {isFiltering ? (
+          {feedStatus === 'loading' || isFiltering ? (
             loadingDeck
+          ) : feedStatus === 'error' ? (
+            errorDeck
           ) : user ? (
             <AnimatePresence>
               {nextUser && (
@@ -348,7 +439,9 @@ const SwipeScreen = () => {
                       <NameWithBadge
                         name={user.name}
                         age={user.age}
+                        ageMasked={user.ageMasked}
                         verified={user.verified}
+                        premiumTier={user.premiumTier}
                         size={isDesktop ? 'xl' : 'lg'}
                         textClassName={isLarge ? '' : 'max-w-[75%]'}
                         badgeClassName={isLarge ? '' : 'mt-0.5'}
@@ -358,7 +451,7 @@ const SwipeScreen = () => {
                     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 font-bold uppercase tracking-wider ${isTablet ? 'text-[10px]' : 'text-[11px]'}`}>
                       <div className="flex items-center gap-1.5">
                         <ICONS.MapPin size={12} className="text-pink-500" />
-                        {user.distance}
+                        {user.distanceLabel}
                       </div>
                       <div className="w-1 h-1 rounded-full bg-white/20" />
                       <div className="flex items-center gap-1.5">
@@ -419,8 +512,10 @@ const SwipeScreen = () => {
       ) : (
         <div className="flex-1 min-h-0 px-[var(--page-x)] pt-2 pb-1 flex flex-col items-center gap-2 overflow-y-auto no-scrollbar">
           <div className={`relative w-full max-w-[26rem] sm:max-w-[28rem] h-[var(--discover-card-h)] ${isLarge ? 'md:max-w-[32rem] lg:max-w-[34rem] xl:max-w-[36rem]' : ''}`}>
-          {isFiltering ? (
+          {feedStatus === 'loading' || isFiltering ? (
             loadingDeck
+          ) : feedStatus === 'error' ? (
+            errorDeck
           ) : user ? (
             <AnimatePresence>
               {nextUser && (
@@ -482,7 +577,9 @@ const SwipeScreen = () => {
                     <NameWithBadge
                       name={user.name}
                       age={user.age}
+                      ageMasked={user.ageMasked}
                       verified={user.verified}
+                      premiumTier={user.premiumTier}
                       size={isLarge ? 'xl' : 'lg'}
                       textClassName={isLarge ? '' : 'max-w-[75%]'}
                       badgeClassName={isLarge ? '' : 'mt-0.5'}
@@ -491,7 +588,7 @@ const SwipeScreen = () => {
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-white/60 text-[11px] font-bold uppercase tracking-wider">
                       <div className="flex items-center gap-1.5">
                         <ICONS.MapPin size={12} className="text-pink-500" />
-                        {user.distance}
+                        {user.distanceLabel}
                       </div>
                       <div className="w-1 h-1 rounded-full bg-white/20" />
                       <div className="flex items-center gap-1.5">
@@ -571,7 +668,14 @@ const SwipeScreen = () => {
               </div>
 
               <div className="space-y-4">
-                <GlassButton variant="premium" className="w-full py-5 text-sm font-bold uppercase tracking-widest">
+                <GlassButton
+                  variant="premium"
+                  onClick={() => {
+                    if (!user) return;
+                    void appApi.openChat(user.id).then(() => navigate(`/chat/${user.id}`));
+                  }}
+                  className="w-full py-5 text-sm font-bold uppercase tracking-widest"
+                >
                   {t('discover.sendMessage')}
                 </GlassButton>
                 <button onClick={() => setShowMatch(false)} className="w-full py-2 text-white/30 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">

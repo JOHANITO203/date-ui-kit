@@ -4,57 +4,8 @@ import { Heart, Star, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
-
-const lockedLikes = [
-  {
-    id: 'lk-1',
-    name: 'Mila',
-    age: 26,
-    city: 'Paris',
-    photo:
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 'lk-2',
-    name: 'Lina',
-    age: 24,
-    city: 'Lyon',
-    photo:
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 'lk-3',
-    name: 'Emma',
-    age: 29,
-    city: 'Marseille',
-    photo:
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 'lk-4',
-    name: 'Nora',
-    age: 27,
-    city: 'Toulouse',
-    photo:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 'lk-5',
-    name: 'Lea',
-    age: 25,
-    city: 'Nice',
-    photo:
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=80',
-  },
-  {
-    id: 'lk-6',
-    name: 'Yasmin',
-    age: 30,
-    city: 'Bordeaux',
-    photo:
-      'https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=1200&q=80',
-  },
-];
+import { appApi } from '../services';
+import { useRuntimeSelector } from '../state';
 
 const MatchesScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -65,13 +16,62 @@ const MatchesScreen: React.FC = () => {
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollThumb, setScrollThumb] = useState(28);
+  const likesRefreshKey = useRuntimeSelector(
+    (payload) => `${payload.likesUnlocked}-${payload.planTier}-${payload.likes.length}`,
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [remoteState, setRemoteState] = useState<'loading' | 'empty' | 'locked' | 'unlocked'>(
+    'loading',
+  );
+  const [likesCards, setLikesCards] = useState<
+    Array<{
+      id: string;
+      profileId: string;
+      name: string;
+      age: number;
+      ageMasked: boolean;
+      city: string;
+      photo: string;
+      wasSuperLike: boolean;
+    }>
+  >([]);
+  const [hiddenLikesCount, setHiddenLikesCount] = useState(0);
+  const [iceBreakerEligibleCount, setIceBreakerEligibleCount] = useState(0);
   const [isPremiumPreviewUnlocked, setIsPremiumPreviewUnlocked] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIsLoading(false), 180);
-    return () => window.clearTimeout(timer);
-  }, []);
+    setIsLoading(true);
+    setHasError(false);
+    appApi
+      .getLikes()
+      .then((response) => {
+        setRemoteState(response.state);
+        setHiddenLikesCount(response.inventory.hiddenCount);
+        setIceBreakerEligibleCount(response.inventory.iceBreaker.eligibleLikesHiddenCount);
+        setLikesCards(
+          response.inventory.visibleLikes.map((entry) => ({
+            id: entry.id,
+            profileId: entry.profile.id,
+            name: entry.profile.name,
+            age: entry.profile.age,
+            ageMasked: entry.profile.flags.hideAge,
+            city: entry.profile.city,
+            photo: entry.profile.photos[0] ?? '',
+            wasSuperLike: entry.wasSuperLike,
+          })),
+        );
+        if (response.state === 'locked') {
+          appApi.trackLikesPaywallView();
+        }
+      })
+      .catch(() => {
+        setHasError(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [likesRefreshKey]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -101,11 +101,17 @@ const MatchesScreen: React.FC = () => {
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const hasLikes = lockedLikes.length > 0;
-  const screenState: 'loading' | 'empty' | 'locked' | 'unlocked' =
-    isLoading ? 'loading' : !hasLikes ? 'empty' : isPremiumPreviewUnlocked ? 'unlocked' : 'locked';
+  const hasLikes = likesCards.length > 0;
+  const baseState: 'loading' | 'empty' | 'locked' | 'unlocked' | 'error' = isLoading
+    ? 'loading'
+    : hasError
+      ? 'error'
+      : remoteState;
+  const screenState: 'loading' | 'empty' | 'locked' | 'unlocked' | 'error' =
+    baseState === 'locked' && isPremiumPreviewUnlocked ? 'unlocked' : baseState;
+  const totalLikesCount = likesCards.length + hiddenLikesCount;
 
-  const renderCardContent = (like: (typeof lockedLikes)[number], compact = false) => {
+  const renderCardContent = (like: (typeof likesCards)[number], compact = false) => {
     if (screenState === 'unlocked') {
       return (
         <>
@@ -115,14 +121,27 @@ const MatchesScreen: React.FC = () => {
           </div>
           <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
             <div className="flex items-center justify-between">
-              <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white`}>{like.name}, {like.age}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{t('chat.online')}</span>
+              <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white`}>
+                {like.ageMasked ? like.name : `${like.name}, ${like.age}`}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {like.wasSuperLike && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.12em] text-fuchsia-200 border border-fuchsia-300/35 bg-fuchsia-500/10">
+                    SuperLike
+                  </span>
+                )}
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{t('chat.online')}</span>
+              </div>
             </div>
             <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/75 leading-snug`}>
               {t('likes.unlockedSubtitle', { city: like.city })}
             </p>
             <button
-              onClick={() => navigate(`/chat/${like.id}`)}
+              onClick={() => {
+                void appApi.openChat(like.profileId, like.wasSuperLike).then(() => {
+                  navigate(`/chat/${like.profileId}`);
+                });
+              }}
               className="w-full h-9 rounded-xl gradient-premium text-white text-[10px] font-black uppercase tracking-[0.14em]"
             >
               {t('likes.openChat')}
@@ -157,7 +176,9 @@ const MatchesScreen: React.FC = () => {
         </div>
 
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
-          <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>{like.name}, {like.age}</span>
+          <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>
+            {like.ageMasked ? like.name : `${like.name}, ${like.age}`}
+          </span>
           <Eye size={compact ? 14 : 16} className="text-white/50" />
         </div>
       </>
@@ -181,7 +202,7 @@ const MatchesScreen: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-pink-500/35 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.12)]">
             <Heart size={12} fill="currentColor" className="text-pink-400" />
-            <span className="text-[10px] font-black text-pink-300">{t('likes.newLikes', { count: 24 })}</span>
+            <span className="text-[10px] font-black text-pink-300">{t('likes.newLikes', { count: totalLikesCount })}</span>
           </div>
         </header>
 
@@ -201,6 +222,14 @@ const MatchesScreen: React.FC = () => {
           </section>
         )}
 
+        {screenState === 'error' && (
+          <section className="glass-panel rounded-[var(--card-radius)] p-8 text-center border border-red-400/35 bg-red-500/5">
+            <Heart size={28} className="mx-auto text-red-200" />
+            <p className="mt-4 text-lg font-black text-white">{t('likes.errorTitle')}</p>
+            <p className="mt-2 text-sm text-white/60">{t('likes.errorSubtitle')}</p>
+          </section>
+        )}
+
         {(screenState === 'locked' || screenState === 'unlocked') && isLarge ? (
           <div
             ref={(el) => {
@@ -209,7 +238,7 @@ const MatchesScreen: React.FC = () => {
             className="grid grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start"
           >
             <section className="grid grid-cols-2 xl:grid-cols-3 gap-[var(--grid-gap)]">
-              {lockedLikes.map((like, index) => (
+              {likesCards.map((like, index) => (
                 <motion.article
                   key={like.id}
                   initial={{ opacity: 0, y: 8 }}
@@ -237,7 +266,13 @@ const MatchesScreen: React.FC = () => {
                 <p className="text-secondary text-sm leading-relaxed mb-5">
                   {t('likes.premium.subtitle')}
                 </p>
-                <button className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]">
+                <button
+                  onClick={() => {
+                    appApi.clickLikesPaywall();
+                    navigate('/boost');
+                  }}
+                  className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]"
+                >
                   {t('likes.premium.buttonLarge')}
                 </button>
                 <button
@@ -267,7 +302,7 @@ const MatchesScreen: React.FC = () => {
         ) : (screenState === 'locked' || screenState === 'unlocked') ? (
           <>
             <section className="grid grid-cols-2 gap-[var(--grid-gap)]">
-              {lockedLikes.slice(0, 4).map((like, index) => (
+              {likesCards.slice(0, 4).map((like, index) => (
                 <motion.article
                   key={like.id}
                   initial={{ opacity: 0, scale: 0.97 }}
@@ -287,7 +322,13 @@ const MatchesScreen: React.FC = () => {
               </div>
               <h2 className="text-xl font-black mb-2">{t('likes.premium.title')}</h2>
               <p className="text-secondary text-sm mb-6">{t('likes.premium.subtitle')}</p>
-              <button className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]">
+              <button
+                onClick={() => {
+                  appApi.clickLikesPaywall();
+                  navigate('/boost');
+                }}
+                className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]"
+              >
                 {t('likes.premium.button')}
               </button>
               <button
@@ -299,6 +340,25 @@ const MatchesScreen: React.FC = () => {
             </section>
           </>
         ) : null}
+        {screenState === 'locked' && iceBreakerEligibleCount >= 3 && (
+          <section className="glass-panel rounded-[var(--card-radius)] p-5 flex items-center justify-between gap-4 border border-fuchsia-400/25 bg-fuchsia-500/5">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-200 font-black">{t('likes.iceBreakerTitle')}</p>
+              <p className="text-sm text-white/75 mt-1">
+                {t('likes.iceBreakerSubtitle', { count: iceBreakerEligibleCount })}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                appApi.clickLikesPaywall();
+                navigate('/boost');
+              }}
+              className="h-10 px-4 rounded-xl border border-fuchsia-300/35 bg-fuchsia-500/15 text-fuchsia-100 text-[10px] font-black uppercase tracking-[0.14em]"
+            >
+              {t('likes.iceBreakerCta')}
+            </button>
+          </section>
+        )}
         {(screenState === 'locked' || screenState === 'unlocked') && (
           <section className="glass-panel rounded-[var(--card-radius)] p-5 flex items-center justify-between gap-4">
             <div>

@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "test:runtime": "tsx scripts/runtime-spec-check.ts",
     "i18n:utf8": "tsx scripts/i18n-utf8-check.ts",
     "i18n:check": "tsx scripts/i18n-check.ts",
     "quality:translations": "npm run i18n:utf8 && npm run i18n:check && npm run lint"

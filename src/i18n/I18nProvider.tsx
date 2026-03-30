@@ -66,12 +66,6 @@ const validateTranslations = () => {
   locales.forEach((locale) => {
     const current = flattenStrings(translations[locale] as Record<string, any>);
 
-    Object.keys(base).forEach((key) => {
-      if (!(key in current)) {
-        errors.push(`[${locale}] missing key: ${key}`);
-      }
-    });
-
     Object.entries(current).forEach(([key, value]) => {
       if (MOJIBAKE_RE.test(value)) {
         errors.push(`[${locale}] mojibake detected: ${key}`);

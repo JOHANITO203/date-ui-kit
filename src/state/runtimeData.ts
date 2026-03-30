@@ -1,0 +1,258 @@
+import type { ConversationSummary, ReceivedLike, ChatMessage, ProfileCard } from '../contracts';
+
+const now = Date.now();
+const isoFromOffsetMinutes = (offsetMinutes: number) =>
+  new Date(now - offsetMinutes * 60_000).toISOString();
+
+export const profileCards: ProfileCard[] = [
+  {
+    id: 'u-1',
+    name: 'Elena',
+    age: 24,
+    city: 'Moscow',
+    distanceKm: 2,
+    languages: ['English', 'Russian'],
+    bio: 'Art lover and world traveler.',
+    photos: [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80',
+    ],
+    compatibility: 94,
+    interests: ['Art', 'Travel', 'Wine'],
+    online: true,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'gold',
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'u-2',
+    name: 'Marcus',
+    age: 27,
+    city: 'Saint Petersburg',
+    distanceKm: 5,
+    languages: ['English', 'French'],
+    bio: 'Tech enthusiast and coffee addict.',
+    photos: [
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=800&q=80',
+    ],
+    compatibility: 88,
+    interests: ['Tech', 'Coffee', 'Design'],
+    online: true,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'essential',
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'u-3',
+    name: 'Sofia',
+    age: 22,
+    city: 'Voronezh',
+    distanceKm: 1,
+    languages: ['Italian', 'English'],
+    bio: 'Architecture student and city explorer.',
+    photos: [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+    ],
+    compatibility: 91,
+    interests: ['Architecture', 'Photography', 'Pizza'],
+    online: false,
+    flags: {
+      verifiedIdentity: false,
+      premiumTier: 'free',
+      hideAge: true,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'u-4',
+    name: 'Nora',
+    age: 29,
+    city: 'Sochi',
+    distanceKm: 8,
+    languages: ['Russian', 'English'],
+    bio: 'Hiking and seaside sunsets.',
+    photos: [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=80',
+    ],
+    compatibility: 86,
+    interests: ['Hiking', 'Sea', 'Yoga'],
+    online: true,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'platinum',
+      hideAge: false,
+      hideDistance: true,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'u-5',
+    name: 'Lina',
+    age: 25,
+    city: 'Moscow',
+    distanceKm: 3,
+    languages: ['Russian', 'English'],
+    bio: 'Food photographer and jazz fan.',
+    photos: [
+      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=1200&q=80',
+    ],
+    compatibility: 96,
+    interests: ['Music', 'Food', 'Photo'],
+    online: true,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'free',
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'u-6',
+    name: 'Yasmin',
+    age: 30,
+    city: 'Moscow',
+    distanceKm: 12,
+    languages: ['English', 'Arabic'],
+    bio: 'Product designer. Slow mornings, long walks.',
+    photos: [
+      'https://images.unsplash.com/photo-1546961329-78bef0414d7c?auto=format&fit=crop&w=1200&q=80',
+    ],
+    compatibility: 83,
+    interests: ['Design', 'Travel', 'Coffee'],
+    online: false,
+    flags: {
+      verifiedIdentity: false,
+      premiumTier: 'free',
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: true,
+    },
+  },
+];
+
+const profileMap = Object.fromEntries(profileCards.map((entry) => [entry.id, entry]));
+
+export const receivedLikesSeed: ReceivedLike[] = [
+  {
+    id: 'lk-1',
+    profile: profileMap['u-5'],
+    receivedAtIso: isoFromOffsetMinutes(8),
+    wasSuperLike: true,
+  },
+  {
+    id: 'lk-2',
+    profile: profileMap['u-4'],
+    receivedAtIso: isoFromOffsetMinutes(24),
+    wasSuperLike: false,
+  },
+  {
+    id: 'lk-3',
+    profile: profileMap['u-1'],
+    receivedAtIso: isoFromOffsetMinutes(48),
+    wasSuperLike: false,
+  },
+  {
+    id: 'lk-4',
+    profile: profileMap['u-6'],
+    receivedAtIso: isoFromOffsetMinutes(120),
+    wasSuperLike: false,
+  },
+];
+
+export const conversationsSeed: ConversationSummary[] = [
+  {
+    id: 'conv-u-1',
+    peer: profileMap['u-1'],
+    unreadCount: 2,
+    lastMessagePreview: 'Hey! I loved your photography.',
+    lastMessageAtIso: isoFromOffsetMinutes(14),
+    online: true,
+  },
+  {
+    id: 'conv-u-2',
+    peer: profileMap['u-2'],
+    unreadCount: 0,
+    lastMessagePreview: 'Coffee this week?',
+    lastMessageAtIso: isoFromOffsetMinutes(65),
+    online: true,
+  },
+  {
+    id: 'conv-u-5',
+    peer: profileMap['u-5'],
+    unreadCount: 1,
+    lastMessagePreview: 'This chat started from a SuperLike.',
+    lastMessageAtIso: isoFromOffsetMinutes(4),
+    online: true,
+    receivedSuperLikeTraceAtIso: isoFromOffsetMinutes(180),
+  },
+];
+
+export const messagesSeed: Record<string, ChatMessage[]> = {
+  'conv-u-1': [
+    {
+      id: 'm-1',
+      conversationId: 'conv-u-1',
+      senderUserId: 'u-1',
+      direction: 'incoming',
+      originalText: 'Hey! I saw your profile and loved your photography.',
+      translatedText: 'Hey! I saw your profile and loved your photography.',
+      translated: true,
+      targetLocale: 'en',
+      createdAtIso: isoFromOffsetMinutes(45),
+    },
+    {
+      id: 'm-2',
+      conversationId: 'conv-u-1',
+      senderUserId: 'me',
+      direction: 'outgoing',
+      originalText: 'Thanks! That photo was taken in Iceland last summer.',
+      translated: false,
+      createdAtIso: isoFromOffsetMinutes(41),
+      readAtIso: isoFromOffsetMinutes(40),
+    },
+    {
+      id: 'm-3',
+      conversationId: 'conv-u-1',
+      senderUserId: 'u-1',
+      direction: 'incoming',
+      originalText: 'Not yet, but it is on my bucket list.',
+      translatedText: 'Not yet, but it is on my bucket list.',
+      translated: true,
+      targetLocale: 'en',
+      createdAtIso: isoFromOffsetMinutes(39),
+    },
+  ],
+  'conv-u-2': [
+    {
+      id: 'm-4',
+      conversationId: 'conv-u-2',
+      senderUserId: 'u-2',
+      direction: 'incoming',
+      originalText: 'Coffee this week?',
+      translated: false,
+      createdAtIso: isoFromOffsetMinutes(80),
+    },
+  ],
+  'conv-u-5': [
+    {
+      id: 'm-5',
+      conversationId: 'conv-u-5',
+      senderUserId: 'u-5',
+      direction: 'incoming',
+      originalText: 'SuperLike landed. Want to chat tonight?',
+      translated: false,
+      createdAtIso: isoFromOffsetMinutes(10),
+    },
+  ],
+};

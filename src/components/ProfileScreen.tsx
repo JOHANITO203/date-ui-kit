@@ -6,22 +6,30 @@ import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
+import { appApi } from '../services';
+import { useRuntimeSelector } from '../state';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
-  const previewPlan = 'gold';
-  const balances = { superlikes: 7, boosts: 2, rewinds: 14 };
-  const [hideAge, setHideAge] = useState(true);
-  const [hideDistance, setHideDistance] = useState(true);
+  const previewPlan = useRuntimeSelector((payload) => payload.planTier);
+  const balances = useRuntimeSelector((payload) => ({
+    superlikes: payload.balances.superlikesLeft,
+    boosts: payload.balances.boostsLeft,
+    rewinds: payload.balances.rewindsLeft,
+  }));
+  const settings = useRuntimeSelector((payload) => payload.settings);
   const [onlineOnly, setOnlineOnly] = useState(false);
-  const shadowGhostLocked = true;
+  const shadowGhostLocked = previewPlan !== 'platinum' && previewPlan !== 'elite';
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [profileScrollProgress, setProfileScrollProgress] = useState(0);
   const [profileScrollThumb, setProfileScrollThumb] = useState(28);
+  const planTitle = t(`settings.plan.${previewPlan}`);
+  const hideAge = settings.privacy.hideAge;
+  const hideDistance = settings.privacy.hideDistance;
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -101,7 +109,14 @@ const ProfileScreen = () => {
                 <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
                   <div>
                     <div className="mb-1">
-                      <NameWithBadge name="Alex" age={26} verified size="xl" />
+                      <NameWithBadge
+                        name="Alex"
+                        age={26}
+                        ageMasked={hideAge}
+                        verified
+                        premiumTier={previewPlan}
+                        size="xl"
+                      />
                     </div>
                     <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
                       <ICONS.MapPin size={12} className="text-pink-500" /> {t('profile.city')}
@@ -134,7 +149,7 @@ const ProfileScreen = () => {
                   <ICONS.Star size={16} className="text-amber-400" />
                 </div>
               </div>
-              <h4 className="font-black italic tracking-tighter text-[clamp(2rem,3vw,2.6rem)] leading-[0.92] text-white mb-2">{t('profile.planGoldTitle')}</h4>
+              <h4 className="font-black italic tracking-tighter text-[clamp(2rem,3vw,2.6rem)] leading-[0.92] text-white mb-2">{planTitle}</h4>
               <p className="text-secondary text-sm leading-relaxed mb-5">{t('profile.planGoldSubtitle')}</p>
 
               <div className="grid grid-cols-3 gap-2 mb-5">
@@ -264,7 +279,15 @@ const ProfileScreen = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold">{t('settings.items.hideAge')}</span>
                   <button
-                    onClick={() => setHideAge((v) => !v)}
+                    onClick={() => {
+                      void appApi.patchSettings({
+                        patch: {
+                          privacy: {
+                            hideAge: !hideAge,
+                          },
+                        },
+                      });
+                    }}
                     aria-pressed={hideAge}
                     className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
                       hideAge ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
@@ -276,7 +299,15 @@ const ProfileScreen = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold">{t('settings.items.hideDistance')}</span>
                   <button
-                    onClick={() => setHideDistance((v) => !v)}
+                    onClick={() => {
+                      void appApi.patchSettings({
+                        patch: {
+                          privacy: {
+                            hideDistance: !hideDistance,
+                          },
+                        },
+                      });
+                    }}
                     aria-pressed={hideDistance}
                     className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
                       hideDistance ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
@@ -300,11 +331,27 @@ const ProfileScreen = () => {
                     <ICONS.Ghost size={22} className="text-violet-200" />
                   </span>
                   <button
-                    onClick={() => navigate('/boost')}
+                    onClick={() => {
+                      if (shadowGhostLocked) {
+                        navigate('/boost');
+                        return;
+                      }
+                      void appApi.patchSettings({
+                        patch: {
+                          privacy: {
+                            shadowGhost: !settings.privacy.shadowGhost,
+                          },
+                        },
+                      });
+                    }}
                     className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
                   >
                     {shadowGhostLocked && <ICONS.Lock size={12} className="text-amber-300" />}
-                    {shadowGhostLocked ? t('profile.locked') : t('profile.stateOn')}
+                    {shadowGhostLocked
+                      ? t('profile.locked')
+                      : settings.privacy.shadowGhost
+                        ? t('profile.stateOn')
+                        : t('profile.stateOff')}
                   </button>
                 </div>
                 <div className="flex items-center justify-between text-sm">

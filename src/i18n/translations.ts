@@ -1,6 +1,8 @@
 export type Locale = 'en' | 'ru';
 
-type Dictionary = Record<string, string | Dictionary>;
+interface Dictionary {
+  [key: string]: string | Dictionary;
+}
 
 export const translations: Record<Locale, Dictionary> = {
   en: {
@@ -37,6 +39,8 @@ export const translations: Record<Locale, Dictionary> = {
       eyebrow: 'Explorer',
       title: 'DISCOVER',
       boost: 'Boost',
+      hiddenDistance: 'Distance hidden',
+      distanceKm: '{value} km',
       quickFilters: {
         all: 'All',
         nearby: 'Nearby',
@@ -51,6 +55,9 @@ export const translations: Record<Locale, Dictionary> = {
       resetFilters: 'Reset filters',
       loadingTitle: 'Refreshing your feed',
       loadingSubtitle: 'Applying your filters...',
+      errorTitle: 'Feed temporarily unavailable',
+      errorSubtitle: 'Retry in a moment to load discover candidates.',
+      retry: 'Retry',
       activity: 'Activity',
       likesRecent: 'Recent likes',
       matches: 'Matches',
@@ -71,6 +78,8 @@ export const translations: Record<Locale, Dictionary> = {
       newLikes: '{count} New',
       loadingTitle: 'Syncing your likes',
       loadingSubtitle: 'Preparing your premium activity feed...',
+      errorTitle: 'Likes unavailable',
+      errorSubtitle: 'Unable to load likes right now.',
       emptyTitle: 'No likes yet',
       emptySubtitle: 'Keep swiping to unlock new opportunities.',
       unlocked: 'Unlocked',
@@ -80,6 +89,9 @@ export const translations: Record<Locale, Dictionary> = {
       previewLocked: 'Back to locked preview',
       matchFlowLabel: 'Flow',
       matchFlowHint: 'Like -> Match -> Chat stays smooth from this screen.',
+      iceBreakerTitle: 'IceBreaker available',
+      iceBreakerSubtitle: '{count} hidden likes can unlock with IceBreaker.',
+      iceBreakerCta: 'Open IceBreaker',
       goMessages: 'Go to messages',
       jumpSection: 'Jump to likes section {index}',
       unlock: {
@@ -106,14 +118,17 @@ export const translations: Record<Locale, Dictionary> = {
       newMatches: 'New matches',
       loadingTitle: 'Loading conversations',
       loadingSubtitle: 'Syncing your recent activity...',
+      errorTitle: 'Messages unavailable',
+      errorSubtitle: 'Could not sync your conversations.',
       emptyMatchesTitle: 'No new matches yet',
       emptyMatchesSubtitle: 'Keep discovering profiles to create new opportunities.',
       emptyConversationsTitle: 'No conversations yet',
       emptyConversationsSubtitle: 'Your first chat will appear here after a match.',
       mobileHint: 'Tap a profile to open the conversation',
-      likesCounter: '99+ Likes',
+      likesCounter: '{count}+ Likes',
       conversations: 'Conversations',
       preview: 'Hey! I saw your profile and loved your photography...',
+      receivedSuperLike: 'Received SuperLike',
       selectTitle: 'Select a conversation',
       selectSubtitle: 'Choose a match on the left to start chatting.',
       jumpConversation: 'Go to conversation {name}',
@@ -123,6 +138,10 @@ export const translations: Record<Locale, Dictionary> = {
       online: 'Online',
       today: 'Today',
       translationLabel: 'Translation',
+      superLikeTrace: 'This conversation was opened with a SuperLike',
+      errorTitle: 'Conversation unavailable',
+      errorSubtitle: 'Unable to load this chat.',
+      backToMessages: 'Back to messages',
       sample: {
         incoming: 'Hey! I saw your profile and loved your photography. Where was that last photo taken?',
         incomingTranslated: 'Hi! I saw your profile and loved your photos...',
@@ -130,6 +149,7 @@ export const translations: Record<Locale, Dictionary> = {
         incoming2: "Not yet, but it's on my bucket list!",
       },
       readAt: 'Read 14:25',
+      readAtLabel: 'Read',
       placeholder: 'Write a message...',
     },
     boost: {
@@ -425,6 +445,8 @@ export const translations: Record<Locale, Dictionary> = {
     settings: {
       title: 'Settings',
       save: 'Save',
+      loading: 'Loading settings...',
+      error: 'Settings are temporarily unavailable.',
       signOut: 'Sign out',
       instantUpdate: 'Instant update',
       manage: 'Manage',
@@ -564,6 +586,8 @@ export const translations: Record<Locale, Dictionary> = {
       eyebrow: 'Обзор',
       title: 'DISCOVER',
       boost: 'Буст',
+      hiddenDistance: 'Distance hidden',
+      distanceKm: '{value} km',
       quickFilters: {
         all: 'Все',
         nearby: 'Рядом',
@@ -578,6 +602,9 @@ export const translations: Record<Locale, Dictionary> = {
       resetFilters: 'Сбросить фильтры',
       loadingTitle: 'Обновляем ленту',
       loadingSubtitle: 'Применяем выбранные фильтры...',
+      errorTitle: 'Feed temporarily unavailable',
+      errorSubtitle: 'Retry in a moment to load discover candidates.',
+      retry: 'Retry',
       activity: 'Активность',
       likesRecent: 'Недавние лайки',
       matches: 'Матчи',
@@ -598,6 +625,8 @@ export const translations: Record<Locale, Dictionary> = {
       newLikes: '{count} новых',
       loadingTitle: 'Синхронизируем лайки',
       loadingSubtitle: 'Готовим ленту премиум-активности...',
+      errorTitle: 'Likes unavailable',
+      errorSubtitle: 'Unable to load likes right now.',
       emptyTitle: 'Пока нет лайков',
       emptySubtitle: 'Продолжай свайпать, чтобы открыть новые возможности.',
       unlocked: 'Открыто',
@@ -607,6 +636,9 @@ export const translations: Record<Locale, Dictionary> = {
       previewLocked: 'Вернуться к закрытому виду',
       matchFlowLabel: 'Поток',
       matchFlowHint: 'Лайк -> Мэтч -> Чат работает плавно с этого экрана.',
+      iceBreakerTitle: 'IceBreaker available',
+      iceBreakerSubtitle: '{count} hidden likes can unlock with IceBreaker.',
+      iceBreakerCta: 'Open IceBreaker',
       goMessages: 'К сообщениям',
       jumpSection: 'Перейти к секции лайков {index}',
       unlock: {
@@ -633,14 +665,17 @@ export const translations: Record<Locale, Dictionary> = {
       newMatches: 'Новые мэтчи',
       loadingTitle: 'Загружаем диалоги',
       loadingSubtitle: 'Синхронизируем недавнюю активность...',
+      errorTitle: 'Messages unavailable',
+      errorSubtitle: 'Could not sync your conversations.',
       emptyMatchesTitle: 'Пока нет новых мэтчей',
       emptyMatchesSubtitle: 'Продолжай знакомиться, чтобы появлялись новые возможности.',
       emptyConversationsTitle: 'Пока нет диалогов',
       emptyConversationsSubtitle: 'Твой первый чат появится здесь после мэтча.',
       mobileHint: 'Нажми на профиль, чтобы открыть диалог',
-      likesCounter: '99+ лайков',
+      likesCounter: '{count}+ likes',
       conversations: 'Диалоги',
       preview: 'Привет! Я увидел(а) твой профиль и мне очень понравились фото...',
+      receivedSuperLike: 'Received SuperLike',
       selectTitle: 'Выберите диалог',
       selectSubtitle: 'Выберите мэтч слева, чтобы начать общение.',
       jumpConversation: 'Перейти к диалогу {name}',
@@ -650,6 +685,10 @@ export const translations: Record<Locale, Dictionary> = {
       online: 'В сети',
       today: 'Сегодня',
       translationLabel: 'Перевод',
+      superLikeTrace: 'This conversation was opened with a SuperLike',
+      errorTitle: 'Conversation unavailable',
+      errorSubtitle: 'Unable to load this chat.',
+      backToMessages: 'Back to messages',
       sample: {
         incoming:
           'Привет! Я увидел(а) твой профиль и мне очень понравились твои фото. Где сделан последний снимок?',
@@ -658,6 +697,7 @@ export const translations: Record<Locale, Dictionary> = {
         incoming2: 'Пока нет, но это в моем списке желаний!',
       },
       readAt: 'Прочитано 14:25',
+      readAtLabel: 'Read',
       placeholder: 'Написать сообщение...',
     },
     boost: {
@@ -953,6 +993,8 @@ export const translations: Record<Locale, Dictionary> = {
     settings: {
       title: 'Настройки',
       save: 'Сохранить',
+      loading: 'Loading settings...',
+      error: 'Settings are temporarily unavailable.',
       signOut: 'Выйти',
       instantUpdate: 'Мгновенное обновление',
       manage: 'Управлять',

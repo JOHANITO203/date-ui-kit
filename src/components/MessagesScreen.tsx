@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ICONS, MOCK_USERS } from '../types';
+import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import ChatScreen from './ChatScreen';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
+import { appApi } from '../services';
+import { useRuntimeSelector } from '../state';
+import type { ConversationSummary } from '../contracts';
 
 const MessagesScreen = () => {
   const navigate = useNavigate();
@@ -12,10 +15,18 @@ const MessagesScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const likesCount = useRuntimeSelector((payload) => payload.likes.length);
+  const conversationsRefreshKey = useRuntimeSelector((payload) =>
+    payload.conversations
+      .map((entry) => `${entry.id}:${entry.lastMessageAtIso}:${entry.unreadCount}`)
+      .join('|'),
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [conversationItems, setConversationItems] = useState<ConversationSummary[]>([]);
   
   // For Master-Detail on large screens
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(urlUserId || MOCK_USERS[0].id);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(urlUserId || null);
   const [matchesProgress, setMatchesProgress] = useState(0);
   const [matchesMaxScroll, setMatchesMaxScroll] = useState(0);
   const [conversationsProgress, setConversationsProgress] = useState(0);
@@ -29,9 +40,24 @@ const MessagesScreen = () => {
   }, [urlUserId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIsLoading(false), 180);
-    return () => window.clearTimeout(timer);
-  }, []);
+    setIsLoading(true);
+    setHasError(false);
+    appApi
+      .getConversations()
+      .then((items) => {
+        setConversationItems(items);
+        if (!urlUserId) {
+          setSelectedUserId((prev) => prev ?? items[0]?.peer.id ?? null);
+        }
+      })
+      .catch(() => {
+        setHasError(true);
+        setConversationItems([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [conversationsRefreshKey, urlUserId]);
 
   useEffect(() => {
     const matchesNode = matchesRef.current;
@@ -115,12 +141,13 @@ const MessagesScreen = () => {
     const node = conversationItemRefs.current[index];
     if (!node) return;
     node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    handleUserSelect(MOCK_USERS[index].id);
+    const target = conversationItems[index];
+    if (target) handleUserSelect(target.peer.id);
   };
 
-  const hasMatches = MOCK_USERS.length > 0;
-  const hasConversations = MOCK_USERS.length > 0;
-  const showContent = !isLoading;
+  const hasMatches = conversationItems.length > 0;
+  const hasConversations = conversationItems.length > 0;
+  const showContent = !isLoading && !hasError;
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -139,6 +166,11 @@ const MessagesScreen = () => {
               <div className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
               <span className="text-sm text-white/70">{t('messages.loadingSubtitle')}</span>
             </div>
+          ) : hasError ? (
+            <div className="glass rounded-2xl border border-red-400/35 bg-red-500/5 p-5 text-center">
+              <p className="text-white font-black">{t('messages.errorTitle')}</p>
+              <p className="text-xs text-white/60 mt-1">{t('messages.errorSubtitle')}</p>
+            </div>
           ) : !hasMatches ? (
             <div className="glass rounded-2xl border border-white/10 p-5 text-center">
               <p className="text-white font-black">{t('messages.emptyMatchesTitle')}</p>
@@ -156,18 +188,20 @@ const MessagesScreen = () => {
                   <ICONS.Likes size={isLarge ? 24 : 20} className="text-white" />
                 </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider">{t('messages.likesCounter')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                {t('messages.likesCounter', { count: likesCount })}
+              </span>
             </div>
-            {MOCK_USERS.map(user => (
+            {conversationItems.map((conversation) => (
               <div 
-                key={user.id} 
+                key={conversation.id}
                 className={`flex flex-col items-center ${isLarge ? (isTablet ? 'gap-2' : 'gap-3') : 'gap-3'} cursor-pointer group`} 
-                onClick={() => handleUserSelect(user.id)}
+                onClick={() => handleUserSelect(conversation.peer.id)}
               >
                 <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
-                  <img src={user.photos[0]} className="w-full h-full object-cover" alt={user.name} referrerPolicy="no-referrer" />
+                  <img src={conversation.peer.photos[0]} className="w-full h-full object-cover" alt={conversation.peer.name} referrerPolicy="no-referrer" />
                 </div>
-                <span className="text-[10px] font-bold tracking-wider">{user.name}, {user.age}</span>
+                <span className="text-[10px] font-bold tracking-wider">{conversation.peer.name}, {conversation.peer.age}</span>
               </div>
             ))}
           </div>
@@ -217,6 +251,11 @@ const MessagesScreen = () => {
               <p className="text-white font-black mt-3">{t('messages.loadingTitle')}</p>
               <p className="text-xs text-white/50 mt-1">{t('messages.loadingSubtitle')}</p>
             </div>
+          ) : hasError ? (
+            <div className="glass rounded-2xl border border-red-400/35 bg-red-500/5 p-5 text-center">
+              <p className="text-white font-black">{t('messages.errorTitle')}</p>
+              <p className="text-xs text-white/60 mt-1">{t('messages.errorSubtitle')}</p>
+            </div>
           ) : !hasConversations ? (
             <div className="glass rounded-2xl border border-white/10 p-5 text-center">
               <p className="text-white font-black">{t('messages.emptyConversationsTitle')}</p>
@@ -228,38 +267,58 @@ const MessagesScreen = () => {
             className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
             style={{ touchAction: 'pan-y' }}
           >
-            {MOCK_USERS.map((user, index) => (
+            {conversationItems.map((conversation, index) => (
               <div 
-                key={user.id}
+                key={conversation.id}
                 ref={(el) => {
                   conversationItemRefs.current[index] = el;
                 }}
-                onClick={() => handleUserSelect(user.id)}
+                onClick={() => handleUserSelect(conversation.peer.id)}
                 className={`flex items-center ${isLarge ? (isTablet ? 'gap-2.5 p-3.5 rounded-[20px] min-h-[88px]' : 'gap-4 p-4 rounded-[24px]') : 'gap-[var(--messages-conv-card-gap)] p-[var(--messages-conv-card-pad)] rounded-[var(--messages-conv-card-radius)]'} transition-all cursor-pointer ${
-                  isLarge && selectedUserId === user.id 
+                  isLarge && selectedUserId === conversation.peer.id 
                   ? 'bg-[var(--messages-selected-bg)] border border-[var(--messages-selected-border)] shadow-[0_0_18px_rgba(236,72,153,0.18)]' 
                   : 'glass border border-transparent hover:bg-white/7'
                 }`}
               >
                 <div className="relative shrink-0">
-                  <img src={user.photos[0]} className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`} alt={user.name} referrerPolicy="no-referrer" />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
+                  <img src={conversation.peer.photos[0]} className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`} alt={conversation.peer.name} referrerPolicy="no-referrer" />
+                  {conversation.online && (
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 mb-1">
                     <NameWithBadge
-                      name={user.name}
-                      age={user.age}
-                      verified={user.verified}
+                      name={conversation.peer.name}
+                      age={conversation.peer.age}
+                      ageMasked={conversation.peer.flags.hideAge}
+                      verified={conversation.peer.flags.verifiedIdentity}
+                      premiumTier={conversation.peer.flags.premiumTier}
                       size={isTablet ? 'md' : 'lg'}
                       textClassName="truncate"
                       badgeClassName={isTablet ? 'scale-90' : ''}
                     />
-                    <span className="text-[10px] text-secondary font-bold shrink-0">14:20</span>
+                    <span className="text-[10px] text-secondary font-bold shrink-0">
+                      {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
                   </div>
-                  <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>{t('messages.preview')}</p>
+                  <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
+                    {conversation.lastMessagePreview}
+                  </p>
+                  {conversation.receivedSuperLikeTraceAtIso && (
+                    <p className="mt-1 text-[9px] uppercase tracking-[0.12em] text-fuchsia-200">
+                      {t('messages.receivedSuperLike')}
+                    </p>
+                  )}
                 </div>
-                <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>2</div>
+                {conversation.unreadCount > 0 && (
+                  <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>
+                    {conversation.unreadCount}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -280,14 +339,14 @@ const MessagesScreen = () => {
                 </div>
               </div>
               <div className="ml-1 flex flex-col gap-2">
-                {MOCK_USERS.map((user, index) => (
+                {conversationItems.map((conversation, index) => (
                   <button
-                    key={`jump-${user.id}`}
+                    key={`jump-${conversation.id}`}
                     onClick={() => jumpToConversation(index)}
                     className={`w-2 h-2 rounded-full transition-all ${
-                      selectedUserId === user.id ? 'bg-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.6)]' : 'bg-white/30 hover:bg-white/60'
+                      selectedUserId === conversation.peer.id ? 'bg-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.6)]' : 'bg-white/30 hover:bg-white/60'
                     }`}
-                    aria-label={t('messages.jumpConversation', { name: user.name })}
+                    aria-label={t('messages.jumpConversation', { name: conversation.peer.name })}
                   />
                 ))}
               </div>

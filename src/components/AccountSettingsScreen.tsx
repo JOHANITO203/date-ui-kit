@@ -5,7 +5,9 @@ import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
+import { appApi } from '../services';
+import type { SettingsEnvelope } from '../contracts';
 
 type SectionId = 'account' | 'privacy' | 'notifications' | 'preferences';
 type ItemType = 'text' | 'password' | 'toggle' | 'list' | 'slider' | 'range' | 'select';
@@ -37,6 +39,64 @@ const AccountSettingsScreen = () => {
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const { t, locale, setLocale } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const [settingsEnvelope, setSettingsEnvelope] = useState<SettingsEnvelope | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [settingsError, setSettingsError] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    setIsLoadingSettings(true);
+    setSettingsError(false);
+    appApi
+      .getSettings()
+      .then((payload) => {
+        if (isCancelled) return;
+        setSettingsEnvelope(payload);
+        setLocale(payload.settings.preferences.language);
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setSettingsError(true);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingSettings(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const settings = settingsEnvelope?.settings;
+
+  const patchSettings = (patch: Parameters<typeof appApi.patchSettings>[0]['patch']) => {
+    void appApi.patchSettings({ patch }).then((payload) => {
+      setSettingsEnvelope(payload);
+      if (patch.preferences?.language) {
+        setLocale(patch.preferences.language);
+      }
+    });
+  };
+
+  const selectedGenderOption =
+    settings?.preferences.genderPreference === 'men'
+      ? 'settings.items.men'
+      : settings?.preferences.genderPreference === 'women'
+        ? 'settings.items.women'
+        : 'settings.items.everyone';
+
+  const selectedLanguageOption = `locale.${settings?.preferences.language ?? locale}`;
+
+  const selectedTravelCityOption =
+    settings?.preferences.travelPassCity === 'voronezh'
+      ? 'settings.cities.voronezh'
+      : settings?.preferences.travelPassCity === 'saint-petersburg'
+        ? 'settings.cities.saintPetersburg'
+        : settings?.preferences.travelPassCity === 'sochi'
+          ? 'settings.cities.sochi'
+          : 'settings.cities.moscow';
 
   const sections: SettingSection[] = [
     {
@@ -89,21 +149,21 @@ const AccountSettingsScreen = () => {
           id: 'gender',
           type: 'select',
           options: ['settings.items.men', 'settings.items.women', 'settings.items.everyone'],
-          selectedOption: 'settings.items.women',
+          selectedOption: selectedGenderOption,
         },
         {
           labelKey: 'settings.items.language',
           id: 'language',
           type: 'select',
           options: ['locale.en', 'locale.ru'],
-          selectedOption: `locale.${locale}`,
+          selectedOption: selectedLanguageOption,
         },
         {
           labelKey: 'settings.items.travelPass',
           id: 'travel-pass-city',
           type: 'select',
           options: ['settings.cities.voronezh', 'settings.cities.moscow', 'settings.cities.saintPetersburg', 'settings.cities.sochi'],
-          selectedOption: 'settings.cities.moscow',
+          selectedOption: selectedTravelCityOption,
         },
       ],
       path: '/settings/preferences',
@@ -118,6 +178,138 @@ const AccountSettingsScreen = () => {
 
   const getSection = () => activeSection;
   const getSectionTitle = (section: SettingSection) => t(section.titleKey);
+  const currentDistanceValue = settings?.preferences.distanceKm ?? 25;
+  const currentAgeRangeValue = `${settings?.preferences.ageMin ?? 22} - ${settings?.preferences.ageMax ?? 35}`;
+
+  const isToggleEnabled = (id: string) => {
+    switch (id) {
+      case 'visibility':
+        return (settings?.privacy.visibility ?? 'public') === 'public';
+      case 'hide-age':
+        return settings?.privacy.hideAge ?? false;
+      case 'hide-distance':
+        return settings?.privacy.hideDistance ?? false;
+      case 'shadow-ghost':
+        return settings?.privacy.shadowGhost ?? false;
+      case 'incognito':
+        return settings?.privacy.incognito ?? false;
+      case 'read-receipts':
+        return settings?.privacy.readReceipts ?? true;
+      case 'matches':
+        return settings?.notifications.matches ?? true;
+      case 'messages':
+        return settings?.notifications.messages ?? true;
+      case 'likes':
+        return settings?.notifications.likes ?? true;
+      case 'offers':
+        return settings?.notifications.offers ?? true;
+      default:
+        return false;
+    }
+  };
+
+  const toggleSetting = (id: string) => {
+    switch (id) {
+      case 'visibility':
+        patchSettings({
+          privacy: {
+            visibility: (settings?.privacy.visibility ?? 'public') === 'public' ? 'limited' : 'public',
+          },
+        });
+        break;
+      case 'hide-age':
+        patchSettings({
+          privacy: {
+            hideAge: !(settings?.privacy.hideAge ?? false),
+          },
+        });
+        break;
+      case 'hide-distance':
+        patchSettings({
+          privacy: {
+            hideDistance: !(settings?.privacy.hideDistance ?? false),
+          },
+        });
+        break;
+      case 'shadow-ghost':
+        patchSettings({
+          privacy: {
+            shadowGhost: !(settings?.privacy.shadowGhost ?? false),
+          },
+        });
+        break;
+      case 'incognito':
+        patchSettings({
+          privacy: {
+            incognito: !(settings?.privacy.incognito ?? false),
+          },
+        });
+        break;
+      case 'read-receipts':
+        patchSettings({
+          privacy: {
+            readReceipts: !(settings?.privacy.readReceipts ?? true),
+          },
+        });
+        break;
+      case 'matches':
+      case 'messages':
+      case 'likes':
+      case 'offers': {
+        const nextNotifications = {
+          matches: settings?.notifications.matches ?? true,
+          messages: settings?.notifications.messages ?? true,
+          likes: settings?.notifications.likes ?? true,
+          offers: settings?.notifications.offers ?? true,
+          [id]: !isToggleEnabled(id),
+        };
+        patchSettings({
+          notifications: nextNotifications,
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  const handleSelectOption = (itemId: string, optionKey: string) => {
+    if (itemId === 'language') {
+      const nextLocale = optionKey === 'locale.ru' ? 'ru' : 'en';
+      patchSettings({
+        preferences: { language: nextLocale },
+        translation: { targetLocale: nextLocale },
+      });
+      return;
+    }
+
+    if (itemId === 'gender') {
+      const nextGender =
+        optionKey === 'settings.items.men'
+          ? 'men'
+          : optionKey === 'settings.items.women'
+            ? 'women'
+            : 'everyone';
+      patchSettings({
+        preferences: { genderPreference: nextGender },
+      });
+      return;
+    }
+
+    if (itemId === 'travel-pass-city') {
+      const nextCity =
+        optionKey === 'settings.cities.voronezh'
+          ? 'voronezh'
+          : optionKey === 'settings.cities.saintPetersburg'
+            ? 'saint-petersburg'
+            : optionKey === 'settings.cities.sochi'
+              ? 'sochi'
+              : 'moscow';
+      patchSettings({
+        preferences: { travelPassCity: nextCity },
+      });
+    }
+  };
 
   const renderInvalidRouteState = () => (
     <div className="p-6 md:p-8">
@@ -137,6 +329,28 @@ const AccountSettingsScreen = () => {
   const renderDetail = () => {
     const isEmbedded = isLarge;
     const section = getSection();
+
+    if (isLoadingSettings) {
+      return (
+        <div className="p-6 md:p-8">
+          <div className="glass rounded-[28px] border border-white/10 p-6 md:p-8 text-center space-y-4">
+            <div className="w-8 h-8 mx-auto rounded-full border-2 border-white/20 border-t-white/75 animate-spin" />
+            <p className="text-sm text-secondary">{t('settings.loading')}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (settingsError) {
+      return (
+        <div className="p-6 md:p-8">
+          <div className="glass rounded-[28px] border border-red-400/30 bg-red-500/5 p-6 md:p-8 text-center space-y-4">
+            <ICONS.Info size={20} className="mx-auto text-red-200" />
+            <p className="text-sm text-white">{t('settings.error')}</p>
+          </div>
+        </div>
+      );
+    }
 
     if (hasInvalidCategory || hasInvalidSub) {
       return renderInvalidRouteState();
@@ -167,9 +381,21 @@ const AccountSettingsScreen = () => {
               {item?.type === 'toggle' && (
                 <div className="flex items-center justify-between p-6 glass rounded-2xl border border-white/5">
                   <span className="font-bold text-sm">{t('settings.activate', { label: itemLabel })}</span>
-                  <div className="w-14 h-7 rounded-full bg-pink-500 relative cursor-pointer shadow-lg shadow-pink-500/20">
-                    <div className="absolute right-1 top-1 w-5 h-5 rounded-full bg-white" />
-                  </div>
+                  <button
+                    onClick={() => toggleSetting(item.id)}
+                    aria-pressed={isToggleEnabled(item.id)}
+                    className={`group relative inline-flex h-7 w-14 rounded-full border transition-colors ${
+                      isToggleEnabled(item.id)
+                        ? 'bg-pink-500 border-pink-300/40 shadow-lg shadow-pink-500/20'
+                        : 'bg-white/10 border-white/20 hover:border-white/35'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                        isToggleEnabled(item.id) ? 'left-8' : 'left-1'
+                      }`}
+                    />
+                  </button>
                 </div>
               )}
 
@@ -191,7 +417,9 @@ const AccountSettingsScreen = () => {
                 <div className="space-y-8 py-4">
                   <div className="flex justify-between items-end">
                     <span className="text-sm font-bold text-secondary">{t('settings.currentValue')}</span>
-                    <span className="text-2xl font-black text-pink-500">{item.type === 'range' ? '22 - 35' : `50 ${item.unit ?? ''}`}</span>
+                    <span className="text-2xl font-black text-pink-500">
+                      {item.type === 'range' ? currentAgeRangeValue : `${currentDistanceValue} ${item.unit ?? ''}`}
+                    </span>
                   </div>
                   <div className="h-2 w-full bg-white/10 rounded-full relative">
                     <div className="absolute left-1/4 top-0 h-full w-1/2 bg-gradient-to-r from-pink-500 to-violet-500 rounded-full" />
@@ -214,12 +442,7 @@ const AccountSettingsScreen = () => {
                   {item.options?.map((optionKey) => (
                     <button
                       key={optionKey}
-                      onClick={() => {
-                        if (item.id === 'language') {
-                          if (optionKey === 'locale.en') setLocale('en');
-                          if (optionKey === 'locale.ru') setLocale('ru');
-                        }
-                      }}
+                      onClick={() => handleSelectOption(item.id, optionKey)}
                       className={`p-5 rounded-2xl border text-sm font-bold transition-all flex items-center justify-between ${
                         optionKey === item.selectedOption ? 'bg-pink-500/10 border-pink-500/50 text-white' : 'bg-white/5 border-white/10 text-secondary hover:border-white/20'
                       }`}
