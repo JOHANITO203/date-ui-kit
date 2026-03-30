@@ -8,6 +8,7 @@ import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
+import { resolveTravelPassServerAccess } from '../domain/travelPass';
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -63,6 +64,27 @@ const ProfileScreen = () => {
   const planSubtitle = previewPlan === 'free' ? t('profile.premiumSubtitle') : t('profile.planGoldSubtitle');
   const hideAge = settings.privacy.hideAge;
   const hideDistance = settings.privacy.hideDistance;
+  const travelPassServerAccess = resolveTravelPassServerAccess({
+    planTier: previewPlan,
+    entitlementSource: settings.preferences.travelPassEntitlementSource,
+    entitlementExpiresAtIso: settings.preferences.travelPassEntitlementExpiresAtIso,
+  });
+  const currentServerCityLabel =
+    settings.preferences.travelPassCity === 'voronezh'
+      ? t('settings.cities.voronezh')
+      : settings.preferences.travelPassCity === 'saint-petersburg'
+        ? t('settings.cities.saintPetersburg')
+        : settings.preferences.travelPassCity === 'sochi'
+          ? t('settings.cities.sochi')
+          : t('settings.cities.moscow');
+  const travelPassSourceLabel = t(`settings.travelPass.sources.${travelPassServerAccess.source}`);
+  const openServerSettings = () => {
+    if (travelPassServerAccess.canChangeServer) {
+      navigate('/settings/privacy/travel-pass-city');
+      return;
+    }
+    navigate('/boost');
+  };
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -102,10 +124,19 @@ const ProfileScreen = () => {
         </div>
         <div className="flex gap-3">
           {isDesktop && (
-            <div className="hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5">
+            <button
+              onClick={openServerSettings}
+              className="hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5 hover:border-cyan-300/35 transition-colors"
+            >
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] text-secondary uppercase tracking-widest font-black">{t('profile.server')}</span>
-            </div>
+              <span className="text-[10px] text-secondary uppercase tracking-widest font-black">
+                {t('profile.serverCity', { city: currentServerCityLabel })}
+              </span>
+              <span className="text-[9px] text-cyan-100/75 uppercase tracking-[0.14em] font-black">
+                {travelPassSourceLabel}
+              </span>
+              {!travelPassServerAccess.canChangeServer && <ICONS.Lock size={12} className="text-amber-300" />}
+            </button>
           )}
           <button 
             onClick={() => navigate('/settings')} 
@@ -400,6 +431,26 @@ const ProfileScreen = () => {
                   >
                     <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${onlineOnly ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(34,211,238,0.45)] group-hover:shadow-[0_0_18px_rgba(34,211,238,0.65)]' : 'left-[3px] bg-black/90'}`} />
                   </button>
+                </div>
+                <div className="rounded-xl glass-panel-soft px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-white/55 font-black">
+                        {t('settings.items.travelPass')}
+                      </span>
+                      <span className="text-sm font-bold text-white">{currentServerCityLabel}</span>
+                    </div>
+                    <button
+                      onClick={openServerSettings}
+                      className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
+                    >
+                      {!travelPassServerAccess.canChangeServer && <ICONS.Lock size={12} className="text-amber-300" />}
+                      {t('settings.travelPass.changeServerCta')}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-cyan-100/70 font-black">
+                    {travelPassSourceLabel}
+                  </p>
                 </div>
                 <button
                   onClick={() => navigate('/discover')}

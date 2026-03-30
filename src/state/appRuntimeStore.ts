@@ -27,6 +27,7 @@ import type {
 } from '../contracts';
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
 import { conversationsSeed, messagesSeed, profileCards, receivedLikesSeed } from './runtimeData';
+import { resolveTravelPassServerAccess } from '../domain/travelPass';
 
 const STORAGE_KEY = 'exotic.runtime.settings.v1';
 const BOOST_DURATION_SECONDS = 30 * 60;
@@ -87,6 +88,7 @@ const defaultSettings: UserSettings = {
     genderPreference: 'everyone',
     language: 'en',
     travelPassCity: 'moscow',
+    travelPassEntitlementSource: 'none',
   },
   translation: {
     autoDetectEnabled: true,
@@ -291,11 +293,18 @@ const resolveBoostStatus = (payload: RuntimeState): BoostStatus => {
 
 export const runtimeApi = {
   getSettingsEnvelope(): SettingsEnvelope {
+    const travelPassServerAccess = resolveTravelPassServerAccess({
+      planTier: state.planTier,
+      entitlementSource: state.settings.preferences.travelPassEntitlementSource,
+      entitlementExpiresAtIso: state.settings.preferences.travelPassEntitlementExpiresAtIso,
+    });
+
     return {
       userId: state.currentUserId,
       planTier: state.planTier,
       balances: state.balances,
       settings: state.settings,
+      travelPassServerAccess,
     };
   },
 

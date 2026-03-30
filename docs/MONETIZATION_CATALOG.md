@@ -52,6 +52,12 @@ Date: 2026-03-28
 - `Pass Mois (30j)` : premium complet + quotas inclus
 - `Pass Trimestre` / `Annuel` : remises de fidelite
 - `Travel Pass` : pass utilitaire geographique (non-badge), 1 ville active max
+- Regle UX `Travel Pass` :
+  - changement de serveur disponible dans `Profile` (action rapide) et `Settings > Privacy`
+  - acces autorise si:
+    - pass Travel actif
+    - OU pack/bundle actif incluant Travel Pass (meme sans abonnement Travel Pass direct)
+    - OU plan incluant Travel Pass (ex: Platinum+)
 
 ---
 
@@ -76,6 +82,9 @@ Date: 2026-03-28
 - `Rewind` est inclus Premium mais reste achetable en jetons.
 - Les packs de jetons ne se renouvellent pas automatiquement.
 - Les abonnements temporels suivent les regles de renouvellement choisies (auto-renouvellement actif/inactif).
+- Consequence metier a expliciter:
+  - l'acces `changer de serveur` doit etre calcule par entitlement (source + expiration), pas par seul `planTier`
+  - un user `free` peut avoir cet acces via bundle incluant Travel Pass
 
 ---
 

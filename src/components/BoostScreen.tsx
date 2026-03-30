@@ -317,6 +317,30 @@ const BoostScreen = () => {
     });
   };
 
+  const activateTravelPassAccess = (source: 'travel_pass' | 'bundle_included', durationDays: number) => {
+    const expiresAtIso = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+    void appApi.patchSettings({
+      patch: {
+        preferences: {
+          travelPassEntitlementSource: source,
+          travelPassEntitlementExpiresAtIso: expiresAtIso,
+        },
+      },
+    });
+  };
+
+  const handleBuyInstant = (id: string) => {
+    if (id === 'travel-pass') {
+      activateTravelPassAccess('travel_pass', 7);
+    }
+  };
+
+  const handleBuyBundle = (id: string) => {
+    if (id === 'datingpro' || id === 'premiumplus') {
+      activateTravelPassAccess('bundle_included', 30);
+    }
+  };
+
   const handleSelectTier = (tierId: TierId) => {
     setActiveTier(tierId);
     setGlowPulseTier(tierId);
@@ -610,7 +634,10 @@ const BoostScreen = () => {
                   </div>
                   <div className="mt-4 flex items-center justify-between gap-3">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">{t(item.metaKey)}</span>
-                    <button className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}>
+                    <button
+                      onClick={() => handleBuyInstant(item.id)}
+                      className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}
+                    >
                       {t('boost.buy.buy')}
                     </button>
                   </div>
@@ -681,7 +708,10 @@ const BoostScreen = () => {
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
                     <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{price(item.priceKey)}</p>
-                    <button className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
+                    <button
+                      onClick={() => handleBuyBundle(item.id)}
+                      className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}
+                    >
                       {t('boost.buy.bundle')}
                     </button>
                   </div>

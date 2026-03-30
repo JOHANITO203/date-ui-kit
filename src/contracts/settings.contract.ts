@@ -1,5 +1,12 @@
 import type { CityId, GenderPreference, PlanTier, ProfileVisibilityState, TokenBalance } from './common.contract';
 
+export type TravelPassEntitlementSource = 'none' | 'travel_pass' | 'bundle_included';
+export type TravelPassServerAccessSource =
+  | 'none'
+  | 'travel_pass'
+  | 'bundle_included'
+  | 'plan_included';
+
 export interface PrivacySettings {
   visibility: ProfileVisibilityState;
   hideAge: boolean;
@@ -28,6 +35,8 @@ export interface PreferenceSettings {
   genderPreference: GenderPreference;
   language: 'en' | 'ru';
   travelPassCity?: CityId;
+  travelPassEntitlementSource?: TravelPassEntitlementSource;
+  travelPassEntitlementExpiresAtIso?: string;
 }
 
 export interface UserSettings {
@@ -50,6 +59,11 @@ export interface SettingsEnvelope {
   planTier: PlanTier;
   balances: TokenBalance;
   settings: UserSettings;
+  travelPassServerAccess: {
+    canChangeServer: boolean;
+    source: TravelPassServerAccessSource;
+    expiresAtIso?: string;
+  };
 }
 
 export interface GetSettingsResponse {

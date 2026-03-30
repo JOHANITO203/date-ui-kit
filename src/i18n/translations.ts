@@ -430,6 +430,7 @@ export const translations: Record<Locale, Dictionary> = {
       title: 'My Space',
       subtitle: 'Account management',
       server: 'Server: Moscow-01',
+      serverCity: 'Server: {city}',
       city: 'Moscow, RU',
       planPopular: 'Popular',
       planGoldTitle: 'VIBE Gold',
@@ -604,9 +605,24 @@ export const translations: Record<Locale, Dictionary> = {
         gender: 'Looking for',
         language: 'Language',
         travelPass: 'Travel Pass city',
+        travelPassDesc: 'Change your active discovery server. Requires active Travel Pass access.',
         men: 'Men',
         women: 'Women',
         everyone: 'Everyone',
+      },
+      travelPass: {
+        lockedTitle: 'Travel Pass access required',
+        lockedBody:
+          'Server switching is available with an active Travel Pass, or via packs that include Travel Pass benefits.',
+        unlockCta: 'View travel options',
+        currentAccess: 'Travel Pass access',
+        changeServerCta: 'Change server',
+        sources: {
+          none: 'No active access',
+          travel_pass: 'Direct Travel Pass active',
+          bundle_included: 'Included via active bundle',
+          plan_included: 'Included in current plan',
+        },
       },
     },
     editProfile: {

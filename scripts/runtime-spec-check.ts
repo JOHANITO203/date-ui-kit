@@ -188,6 +188,39 @@ const testSettingsFlow = () => {
     before.settings.notifications.matches,
     'Patch merge should keep unrelated settings untouched.',
   );
+
+  assert.equal(
+    patched.travelPassServerAccess.canChangeServer,
+    false,
+    'Travel server change should stay locked when no travel entitlement is active.',
+  );
+
+  const bundleTravel = runtimeApi.patchSettings({
+    patch: {
+      preferences: {
+        travelPassEntitlementSource: 'bundle_included',
+        travelPassEntitlementExpiresAtIso: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
+    },
+  });
+  assert.equal(
+    bundleTravel.travelPassServerAccess.canChangeServer,
+    true,
+    'Free users should gain travel server access when an active bundle includes Travel Pass.',
+  );
+  assert.equal(
+    bundleTravel.travelPassServerAccess.source,
+    'bundle_included',
+    'Travel server source should expose bundle entitlement when applicable.',
+  );
+
+  runtimeApi.setPlanTier('platinum');
+  const platinumTravel = runtimeApi.getSettingsEnvelope();
+  assert.equal(
+    platinumTravel.travelPassServerAccess.source,
+    'plan_included',
+    'Platinum plan should include travel server access regardless of direct pass purchase.',
+  );
 };
 
 const run = () => {

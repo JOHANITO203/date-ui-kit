@@ -70,6 +70,7 @@ const AccountSettingsScreen = () => {
   }, []);
 
   const settings = settingsEnvelope?.settings;
+  const travelPassServerAccess = settingsEnvelope?.travelPassServerAccess;
 
   const patchSettings = (patch: Parameters<typeof appApi.patchSettings>[0]['patch']) => {
     void appApi.patchSettings({ patch }).then((payload) => {
@@ -121,6 +122,14 @@ const AccountSettingsScreen = () => {
         { labelKey: 'settings.items.shadowGhost', id: 'shadow-ghost', type: 'toggle', descKey: 'settings.items.shadowGhostDesc' },
         { labelKey: 'settings.items.incognito', id: 'incognito', type: 'toggle', descKey: 'settings.items.incognitoDesc' },
         { labelKey: 'settings.items.readReceipts', id: 'read-receipts', type: 'toggle', descKey: 'settings.items.readReceiptsDesc' },
+        {
+          labelKey: 'settings.items.travelPass',
+          id: 'travel-pass-city',
+          type: 'select',
+          descKey: 'settings.items.travelPassDesc',
+          options: ['settings.cities.voronezh', 'settings.cities.moscow', 'settings.cities.saintPetersburg', 'settings.cities.sochi'],
+          selectedOption: selectedTravelCityOption,
+        },
         { labelKey: 'settings.items.blocked', id: 'blocked', type: 'list', descKey: 'settings.items.blockedDesc' },
       ],
       path: '/settings/privacy',
@@ -158,13 +167,6 @@ const AccountSettingsScreen = () => {
           options: ['locale.en', 'locale.ru'],
           selectedOption: selectedLanguageOption,
         },
-        {
-          labelKey: 'settings.items.travelPass',
-          id: 'travel-pass-city',
-          type: 'select',
-          options: ['settings.cities.voronezh', 'settings.cities.moscow', 'settings.cities.saintPetersburg', 'settings.cities.sochi'],
-          selectedOption: selectedTravelCityOption,
-        },
       ],
       path: '/settings/preferences',
     },
@@ -180,6 +182,9 @@ const AccountSettingsScreen = () => {
   const getSectionTitle = (section: SettingSection) => t(section.titleKey);
   const currentDistanceValue = settings?.preferences.distanceKm ?? 25;
   const currentAgeRangeValue = `${settings?.preferences.ageMin ?? 22} - ${settings?.preferences.ageMax ?? 35}`;
+  const travelPassSourceLabel = travelPassServerAccess
+    ? t(`settings.travelPass.sources.${travelPassServerAccess.source}`)
+    : t('settings.travelPass.sources.none');
 
   const isToggleEnabled = (id: string) => {
     switch (id) {
@@ -297,6 +302,7 @@ const AccountSettingsScreen = () => {
     }
 
     if (itemId === 'travel-pass-city') {
+      if (!travelPassServerAccess?.canChangeServer) return;
       const nextCity =
         optionKey === 'settings.cities.voronezh'
           ? 'voronezh'
@@ -438,20 +444,45 @@ const AccountSettingsScreen = () => {
               )}
 
               {item?.type === 'select' && (
-                <div className="grid grid-cols-1 gap-3">
-                  {item.options?.map((optionKey) => (
-                    <button
-                      key={optionKey}
-                      onClick={() => handleSelectOption(item.id, optionKey)}
-                      className={`p-5 rounded-2xl border text-sm font-bold transition-all flex items-center justify-between ${
-                        optionKey === item.selectedOption ? 'bg-pink-500/10 border-pink-500/50 text-white' : 'bg-white/5 border-white/10 text-secondary hover:border-white/20'
-                      }`}
+                item.id === 'travel-pass-city' && !travelPassServerAccess?.canChangeServer ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4">
+                      <p className="text-sm font-black text-amber-100">{t('settings.travelPass.lockedTitle')}</p>
+                      <p className="mt-2 text-xs text-white/75">{t('settings.travelPass.lockedBody')}</p>
+                    </div>
+                    <GlassButton
+                      onClick={() => navigate('/boost')}
+                      className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.16em]"
                     >
-                      {t(optionKey)}
-                      {optionKey === item.selectedOption && <div className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]" />}
-                    </button>
-                  ))}
-                </div>
+                      {t('settings.travelPass.unlockCta')}
+                    </GlassButton>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {item.id === 'travel-pass-city' && (
+                      <div className="rounded-2xl border border-cyan-300/30 bg-cyan-500/10 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-100/80 font-black">
+                          {t('settings.travelPass.currentAccess')}
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-cyan-50">{travelPassSourceLabel}</p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-3">
+                      {item.options?.map((optionKey) => (
+                        <button
+                          key={optionKey}
+                          onClick={() => handleSelectOption(item.id, optionKey)}
+                          className={`p-5 rounded-2xl border text-sm font-bold transition-all flex items-center justify-between ${
+                            optionKey === item.selectedOption ? 'bg-pink-500/10 border-pink-500/50 text-white' : 'bg-white/5 border-white/10 text-secondary hover:border-white/20'
+                          }`}
+                        >
+                          {t(optionKey)}
+                          {optionKey === item.selectedOption && <div className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
               )}
 
               {item?.type === 'list' && (
