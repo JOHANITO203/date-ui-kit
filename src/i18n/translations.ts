@@ -28,6 +28,14 @@ export const translations: Record<Locale, Dictionary> = {
       profile: 'Profile',
       settings: 'Settings',
     },
+    badges: {
+      verified: 'Verified',
+      premium: 'Premium',
+      platinum: 'Platinum',
+      premiumPlus: 'Premium+',
+      dayPass: 'Day Pass',
+      weekPass: 'Week Pass',
+    },
     splash: {
       titleLine1: 'Different cultures.',
       titleLine2: 'One connection.',
@@ -262,7 +270,7 @@ export const translations: Record<Locale, Dictionary> = {
         },
         elite: {
           ctaName: 'ELITE',
-          name: 'VIBE Elite / VIP',
+          name: 'VIBE Elite',
           tag: 'VIP',
           price: '2990{currency}',
           features: {
@@ -279,16 +287,17 @@ export const translations: Record<Locale, Dictionary> = {
         identityDesc:
           'Granted after selfie + passport verification. Improves trust and safety only.',
         identityRule: 'Not sold in Premium offers',
-        premiumTitle: 'Monetized Status',
-        premiumBadge: 'Premium Status Badge',
+        premiumTitle: 'Status Badges',
+        premiumBadge: 'Paid Status Badges',
         premiumDesc:
-          'Granted after purchasing plans or passes. This is a status marker, not identity proof.',
+          'All paid users get Premium badge by default. Platinum and Premium+ override this level.',
         premiumStatuses: {
-          0: 'Essential badge',
-          1: 'Gold badge',
-          2: 'Platinum badge',
-          3: 'Elite / VIP badge',
+          0: 'Premium badge',
+          1: 'Platinum badge',
+          2: 'Premium+ badge',
         },
+        shortPassRule: 'Day/Week Pass adds a temporary pass badge.',
+        travelPassRule: 'Travel Pass is a utility pass, not a badge.',
       },
       instant: {
         boost: {
@@ -310,6 +319,16 @@ export const translations: Record<Locale, Dictionary> = {
           },
           price: '149{currency}',
           meta: '24h item',
+        },
+        travelPass: {
+          label: 'Travel Pass',
+          desc: 'Switch your discovery city while the pass is active.',
+          details: {
+            0: '24h / 3d / 7d options',
+            1: '1 active city at a time',
+          },
+          price: '199{currency}',
+          meta: 'Starts at 24h',
         },
         superlike: {
           label: 'SuperLike tokens',
@@ -335,10 +354,10 @@ export const translations: Record<Locale, Dictionary> = {
       passes: {
         day: {
           label: 'Day Pass',
-          desc: 'No ads + IceBreaker for 24h',
+          desc: 'No ads + IceBreaker for 24h + temporary Premium badge',
           details: {
-            0: 'Temporary premium comfort',
-            1: 'Fast conversion trial',
+            0: '24h premium comfort',
+            1: 'Temporary Day Pass badge',
           },
           price: '99{currency}',
           tag: '24h',
@@ -348,20 +367,20 @@ export const translations: Record<Locale, Dictionary> = {
           desc: 'No ads + IceBreaker + 5 SuperLikes/day + 2 boosts total',
           details: {
             0: '7-day premium rhythm',
-            1: 'Best short pass value',
+            1: 'Temporary Week Pass badge',
           },
           price: '299{currency}',
           tag: '7 days',
         },
         month: {
-          label: 'Travel Pass',
-          desc: 'Appear in another city for 7 days (1 city at a time).',
+          label: 'Month Pass',
+          desc: 'Full Premium for 30 days + included quotas.',
           details: {
-            0: 'Explore a new city',
-            1: 'Boost local discovery',
+            0: 'Premium badge with full rights',
+            1: 'Monthly included quotas',
           },
           price: '599{currency}',
-          tag: '7 days',
+          tag: '30 days',
         },
       },
       bundles: {
@@ -531,7 +550,7 @@ export const translations: Record<Locale, Dictionary> = {
         essential: 'Essential',
         gold: 'Gold',
         platinum: 'Platinum',
-        elite: 'Elite / VIP',
+        elite: 'Elite',
       },
       tokens: {
         superlikes: 'SuperLikes',
@@ -624,6 +643,14 @@ export const translations: Record<Locale, Dictionary> = {
     },
   },
   ru: {
+    badges: {
+      verified: 'Verified',
+      premium: 'Premium',
+      platinum: 'Platinum',
+      premiumPlus: 'Premium+',
+      dayPass: 'Day Pass',
+      weekPass: 'Week Pass',
+    },
     locale: {
       en: 'АНГЛ',
       ru: 'РУС',
@@ -881,7 +908,7 @@ export const translations: Record<Locale, Dictionary> = {
         },
         elite: {
           ctaName: 'ELITE',
-          name: 'VIBE Elite / VIP',
+          name: 'VIBE Elite',
           tag: 'VIP',
           price: '2990{currency}',
           features: {
@@ -897,15 +924,16 @@ export const translations: Record<Locale, Dictionary> = {
         identityBadge: 'Verified identity badge',
         identityDesc: 'Выдается после selfie + passport проверки. Это сигнал доверия, не продажи.',
         identityRule: 'Не продается через Premium',
-        premiumTitle: 'Monetized status',
-        premiumBadge: 'Premium status badge',
-        premiumDesc: 'Выдается после покупки планов/пассов. Это статус, а не подтверждение личности.',
+        premiumTitle: 'Status badges',
+        premiumBadge: 'Paid status badges',
+        premiumDesc: 'All paid users get Premium badge by default. Platinum and Premium+ override this level.',
         premiumStatuses: {
-          0: 'Essential badge',
-          1: 'Gold badge',
-          2: 'Platinum badge',
-          3: 'Elite / VIP badge',
+          0: 'Premium badge',
+          1: 'Platinum badge',
+          2: 'Premium+ badge',
         },
+        shortPassRule: 'Day/Week Pass adds a temporary pass badge.',
+        travelPassRule: 'Travel Pass is a utility pass, not a badge.',
       },
       instant: {
         boost: {
@@ -927,6 +955,16 @@ export const translations: Record<Locale, Dictionary> = {
           },
           price: '149{currency}',
           meta: '24h item',
+        },
+        travelPass: {
+          label: 'Travel Pass',
+          desc: 'Switch your discovery city while the pass is active.',
+          details: {
+            0: '24h / 3d / 7d options',
+            1: '1 active city at a time',
+          },
+          price: '199{currency}',
+          meta: 'Starts at 24h',
         },
         superlike: {
           label: 'Токены SuperLike',
@@ -951,34 +989,34 @@ export const translations: Record<Locale, Dictionary> = {
       },
       passes: {
         day: {
-          label: 'Дневной пакет',
-          desc: 'Мини premium + 1 буст',
+          label: 'Day Pass',
+          desc: 'No ads + IceBreaker for 24h + temporary Premium badge',
           details: {
-            0: 'Временный premium доступ',
-            1: '1 буст включен',
+            0: '24h premium comfort',
+            1: 'Temporary Day Pass badge',
           },
           price: '99{currency}',
-          tag: '24ч',
+          tag: '24h',
         },
         week: {
-          label: 'Недельный пакет',
-          desc: 'Временный premium + токены',
+          label: 'Week Pass',
+          desc: 'No ads + IceBreaker + 5 SuperLikes/day + 2 boosts total',
           details: {
-            0: '7 дней премиум-комфорта',
-            1: 'Пакет токенов включен',
+            0: '7-day premium rhythm',
+            1: 'Temporary Week Pass badge',
           },
           price: '299{currency}',
-          tag: '7 дней',
+          tag: '7 days',
         },
         month: {
-          label: 'Месячный пакет',
-          desc: 'Полный premium + включенные бонусы',
+          label: 'Month Pass',
+          desc: 'Full Premium for 30 days + included quotas.',
           details: {
-            0: 'Полный пакет конверсии',
-            1: 'Лучший режим постоянного использования',
+            0: 'Premium badge with full rights',
+            1: 'Monthly included quotas',
           },
           price: '599{currency}',
-          tag: '30 дней',
+          tag: '30 days',
         },
       },
       bundles: {
@@ -1148,7 +1186,7 @@ export const translations: Record<Locale, Dictionary> = {
         essential: 'Essential',
         gold: 'Gold',
         platinum: 'Platinum',
-        elite: 'Elite / VIP',
+        elite: 'Elite',
       },
       tokens: {
         superlikes: 'Суперлайки',

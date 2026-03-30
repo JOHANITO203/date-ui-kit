@@ -103,6 +103,15 @@ const instantProducts = [
     glowToken: '--glow-pink' as GlowToken,
   },
   {
+    id: 'travel-pass',
+    labelKey: 'boost.instant.travelPass.label',
+    descKey: 'boost.instant.travelPass.desc',
+    detailKeys: ['boost.instant.travelPass.details.0', 'boost.instant.travelPass.details.1'],
+    priceKey: 'boost.instant.travelPass.price',
+    metaKey: 'boost.instant.travelPass.meta',
+    glowToken: '--glow-blue' as GlowToken,
+  },
+  {
     id: 'superlike',
     labelKey: 'boost.instant.superlike.label',
     descKey: 'boost.instant.superlike.desc',
@@ -130,6 +139,7 @@ const timePacks = [
     detailKeys: ['boost.passes.day.details.0', 'boost.passes.day.details.1'],
     priceKey: 'boost.passes.day.price',
     tagKey: 'boost.passes.day.tag',
+    temporaryBadgeKey: 'badges.dayPass',
     glowToken: '--glow-silver' as GlowToken,
   },
   {
@@ -139,6 +149,7 @@ const timePacks = [
     detailKeys: ['boost.passes.week.details.0', 'boost.passes.week.details.1'],
     priceKey: 'boost.passes.week.price',
     tagKey: 'boost.passes.week.tag',
+    temporaryBadgeKey: 'badges.weekPass',
     glowToken: '--glow-gold' as GlowToken,
   },
   {
@@ -537,7 +548,6 @@ const BoostScreen = () => {
                 'boost.badges.premiumStatuses.0',
                 'boost.badges.premiumStatuses.1',
                 'boost.badges.premiumStatuses.2',
-                'boost.badges.premiumStatuses.3',
               ].map((key, idx) => (
                 <li key={key} className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(idx + 6))} />
@@ -545,6 +555,12 @@ const BoostScreen = () => {
                 </li>
               ))}
             </ul>
+            <p className="mt-3 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/85">
+              {t('boost.badges.shortPassRule')}
+            </p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/65">
+              {t('boost.badges.travelPassRule')}
+            </p>
           </div>
         </section>
 
@@ -609,31 +625,41 @@ const BoostScreen = () => {
           )}
 
           {catalogView === 'passes' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
-              {timePacks.map((item) => (
-                <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-lg">{t(item.labelKey)}</p>
-                    <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{t(item.tagKey)}</span>
-                  </div>
-                  <p className="text-sm text-secondary mt-2">{t(item.descKey)}</p>
-                  <ul className="mt-2 space-y-1.5">
-                    {item.detailKeys.map((detailKey, detailIdx) => (
-                      <li key={detailKey} className="flex items-center gap-2 text-[0.86rem] text-white/76">
-                        <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(detailIdx + 3))} />
-                        <span>{t(detailKey)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="font-mono text-2xl font-black whitespace-nowrap">{price(item.priceKey)}</p>
-                    <button className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
-                      {t('boost.buy.choose')}
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
+                {timePacks.map((item) => (
+                  <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-lg">{t(item.labelKey)}</p>
+                      <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{t(item.tagKey)}</span>
+                    </div>
+                    {item.temporaryBadgeKey && (
+                      <div className="mt-2 inline-flex rounded-full border border-orange-300/35 bg-orange-500/12 px-2.5 py-1 text-[9px] uppercase tracking-[0.12em] font-black text-orange-100">
+                        {t(item.temporaryBadgeKey)}
+                      </div>
+                    )}
+                    <p className="text-sm text-secondary mt-2">{t(item.descKey)}</p>
+                    <ul className="mt-2 space-y-1.5">
+                      {item.detailKeys.map((detailKey, detailIdx) => (
+                        <li key={detailKey} className="flex items-center gap-2 text-[0.86rem] text-white/76">
+                          <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(detailIdx + 3))} />
+                          <span>{t(detailKey)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 flex items-center justify-between">
+                      <p className="font-mono text-2xl font-black whitespace-nowrap">{price(item.priceKey)}</p>
+                      <button className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
+                        {t('boost.buy.choose')}
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/45">
+                {t('boost.badges.travelPassRule')}
+              </p>
+            </>
           )}
 
           {catalogView === 'bundles' && (

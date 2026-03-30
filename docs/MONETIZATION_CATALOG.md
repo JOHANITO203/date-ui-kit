@@ -22,7 +22,8 @@ Date: 2026-03-28
 ## 2) Entitlements / Droits Utilisateur
 
 - `premium_active: boolean`
-- `premium_status_badge: \"essential\" | \"gold\" | \"platinum\" | \"elite\" | null`
+- `premium_status_badge: \"premium\" | \"platinum\" | \"premium_plus\" | null`
+- `short_pass_badge: \"day\" | \"week\" | null` (temporaire)
 - `verified_identity_badge: boolean` (KYC, non vendable)
 - `unlimited_conversations: boolean`
 - `boost_active_until: datetime | null`
@@ -46,10 +47,11 @@ Date: 2026-03-28
 
 ## 4) Packs Temporels
 
-- `Pass Jour (24h)` : mini premium + 1 boost
-- `Pass Semaine (7j)` : premium temporaire + jetons inclus
+- `Pass Jour (24h)` : no ads + IceBreaker 24h + badge temporaire Day Pass
+- `Pass Semaine (7j)` : no ads + IceBreaker + 5 SuperLikes/jour + 2 Boosts total + badge temporaire Week Pass
 - `Pass Mois (30j)` : premium complet + quotas inclus
 - `Pass Trimestre` / `Annuel` : remises de fidelite
+- `Travel Pass` : pass utilitaire geographique (non-badge), 1 ville active max
 
 ---
 
@@ -65,9 +67,12 @@ Date: 2026-03-28
 
 - Un `Boost` est consomme a l'activation.
 - `SuperLike` et `Rewind` sont consommes a l'action.
-- `Premium` active:
-  - `premium_status_badge != null`
-  - `unlimited_conversations = true`
+- `Premium` active `premium_status_badge != null` et `unlimited_conversations = true`.
+- Regle UX badge:
+  - user `free` => pas de badge premium
+  - user payant (`essential`/`gold` + passes courts) => badge `premium`
+  - user `platinum` => badge `platinum`
+  - user `elite` ou bundle `Premium+` actif => badge `premium_plus`
 - `Rewind` est inclus Premium mais reste achetable en jetons.
 - Les packs de jetons ne se renouvellent pas automatiquement.
 - Les abonnements temporels suivent les regles de renouvellement choisies (auto-renouvellement actif/inactif).

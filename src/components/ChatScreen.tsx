@@ -214,6 +214,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               ageMasked={activePeer.flags.hideAge}
               verified={activePeer.flags.verifiedIdentity}
               premiumTier={activePeer.flags.premiumTier}
+              shortPassTier={activePeer.flags.shortPassTier}
               size="md"
               className="w-fit"
             />

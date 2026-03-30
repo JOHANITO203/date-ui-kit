@@ -1,4 +1,5 @@
 export type PlanTier = 'free' | 'essential' | 'gold' | 'platinum' | 'elite';
+export type ShortPassTier = 'day' | 'week';
 
 export type CityId = 'voronezh' | 'moscow' | 'saint-petersburg' | 'sochi';
 
@@ -15,6 +16,7 @@ export interface TokenBalance {
 export interface ProfileFlags {
   verifiedIdentity: boolean;
   premiumTier: PlanTier;
+  shortPassTier?: ShortPassTier;
   hideAge: boolean;
   hideDistance: boolean;
   shadowGhost: boolean;

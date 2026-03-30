@@ -68,6 +68,7 @@ export const profileCards: ProfileCard[] = [
     flags: {
       verifiedIdentity: false,
       premiumTier: 'free',
+      shortPassTier: 'day',
       hideAge: true,
       hideDistance: false,
       shadowGhost: false,
@@ -134,6 +135,7 @@ export const profileCards: ProfileCard[] = [
     flags: {
       verifiedIdentity: false,
       premiumTier: 'free',
+      shortPassTier: 'week',
       hideAge: false,
       hideDistance: false,
       shadowGhost: true,

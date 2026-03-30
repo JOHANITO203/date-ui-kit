@@ -52,6 +52,7 @@ const SwipeScreen = () => {
       ...candidate,
       verified: candidate.flags.verifiedIdentity,
       premiumTier: candidate.flags.premiumTier,
+      shortPassTier: candidate.flags.shortPassTier,
       ageMasked: candidate.age <= 0,
       distanceMasked: candidate.distanceKm < 0,
       distanceLabel:
@@ -531,6 +532,7 @@ const SwipeScreen = () => {
                         ageMasked={user.ageMasked}
                         verified={user.verified}
                         premiumTier={user.premiumTier}
+                        shortPassTier={user.shortPassTier}
                         size={isDesktop ? 'xl' : 'lg'}
                         textClassName={isLarge ? '' : 'max-w-[75%]'}
                         badgeClassName={isLarge ? '' : 'mt-0.5'}
@@ -669,6 +671,7 @@ const SwipeScreen = () => {
                       ageMasked={user.ageMasked}
                       verified={user.verified}
                       premiumTier={user.premiumTier}
+                      shortPassTier={user.shortPassTier}
                       size={isLarge ? 'xl' : 'lg'}
                       textClassName={isLarge ? '' : 'max-w-[75%]'}
                       badgeClassName={isLarge ? '' : 'mt-0.5'}

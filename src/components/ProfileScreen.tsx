@@ -28,6 +28,39 @@ const ProfileScreen = () => {
   const [profileScrollProgress, setProfileScrollProgress] = useState(0);
   const [profileScrollThumb, setProfileScrollThumb] = useState(28);
   const planTitle = t(`settings.plan.${previewPlan}`);
+  const planBadgeLabel =
+    previewPlan === 'elite'
+      ? t('badges.premiumPlus')
+      : previewPlan === 'platinum'
+        ? t('badges.platinum')
+        : previewPlan === 'free'
+          ? t('settings.plan.free')
+          : t('badges.premium');
+  const planToneClass =
+    previewPlan === 'elite'
+      ? 'border-fuchsia-300/32 bg-[radial-gradient(circle_at_88%_0%,rgba(217,70,239,0.24)_0%,transparent_58%),linear-gradient(160deg,rgba(15,10,18,0.96),rgba(10,8,14,0.92))] shadow-[0_0_34px_rgba(217,70,239,0.28)]'
+      : previewPlan === 'platinum'
+        ? 'border-cyan-300/32 bg-[radial-gradient(circle_at_88%_0%,rgba(56,189,248,0.22)_0%,transparent_58%),linear-gradient(160deg,rgba(10,14,18,0.96),rgba(7,10,14,0.92))] shadow-[0_0_34px_rgba(34,211,238,0.24)]'
+        : previewPlan === 'free'
+          ? 'border-slate-300/28 bg-[radial-gradient(circle_at_88%_0%,rgba(148,163,184,0.16)_0%,transparent_58%),linear-gradient(160deg,rgba(14,14,18,0.96),rgba(9,10,14,0.92))] shadow-[0_0_24px_rgba(148,163,184,0.15)]'
+          : 'border-amber-300/34 bg-[radial-gradient(circle_at_88%_0%,rgba(245,158,11,0.2)_0%,transparent_58%),linear-gradient(160deg,rgba(10,10,14,0.96),rgba(7,7,10,0.92))] shadow-[0_0_34px_rgba(245,158,11,0.24)]';
+  const planPillClass =
+    previewPlan === 'elite'
+      ? 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white'
+      : previewPlan === 'platinum'
+        ? 'border border-cyan-300/40 bg-cyan-500/16 text-cyan-100'
+        : previewPlan === 'free'
+          ? 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
+          : 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black';
+  const planIconClass =
+    previewPlan === 'elite'
+      ? 'border-fuchsia-300/24 text-fuchsia-300 shadow-[0_0_14px_rgba(217,70,239,0.26)]'
+      : previewPlan === 'platinum'
+        ? 'border-cyan-300/24 text-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.24)]'
+        : previewPlan === 'free'
+          ? 'border-slate-300/24 text-slate-300'
+          : 'border-amber-300/20 text-amber-400';
+  const planSubtitle = previewPlan === 'free' ? t('profile.premiumSubtitle') : t('profile.planGoldSubtitle');
   const hideAge = settings.privacy.hideAge;
   const hideDistance = settings.privacy.hideDistance;
 
@@ -140,17 +173,19 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[1] = el;
             }}
-            className="relative overflow-hidden product-card-base product-card-gold cursor-pointer"
+            className={`relative overflow-hidden product-card-base cursor-pointer ${planToneClass}`}
           >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
-                <span className="product-pill-gold">{t('profile.planPopular')}</span>
-                <div className="ml-auto w-10 h-10 rounded-2xl glass-panel-soft border-amber-300/20 flex items-center justify-center">
-                  <ICONS.Star size={16} className="text-amber-400" />
+                <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[0.58rem] font-black uppercase tracking-[0.16em] ${planPillClass}`}>
+                  {planBadgeLabel}
+                </span>
+                <div className={`ml-auto w-10 h-10 rounded-2xl glass-panel-soft flex items-center justify-center ${planIconClass}`}>
+                  <ICONS.Star size={16} />
                 </div>
               </div>
               <h4 className="font-black italic tracking-tighter text-[clamp(2rem,3vw,2.6rem)] leading-[0.92] text-white mb-2">{planTitle}</h4>
-              <p className="text-secondary text-sm leading-relaxed mb-5">{t('profile.planGoldSubtitle')}</p>
+              <p className="text-secondary text-sm leading-relaxed mb-5">{planSubtitle}</p>
 
               <div className="grid grid-cols-3 gap-2 mb-5">
                 {([

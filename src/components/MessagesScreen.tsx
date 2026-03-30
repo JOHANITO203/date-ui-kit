@@ -269,76 +269,84 @@ const MessagesScreen = () => {
             className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
             style={{ touchAction: 'pan-y' }}
           >
-            {conversationItems.map((conversation, index) => (
-              <div 
-                key={conversation.id}
-                ref={(el) => {
-                  conversationItemRefs.current[index] = el;
-                }}
-                onClick={() => handleUserSelect(conversation.peer.id)}
-                className={`flex items-center ${isLarge ? (isTablet ? 'gap-2.5 p-3.5 rounded-[20px] min-h-[88px]' : 'gap-4 p-4 rounded-[24px]') : 'gap-[var(--messages-conv-card-gap)] p-[var(--messages-conv-card-pad)] rounded-[var(--messages-conv-card-radius)]'} transition-all cursor-pointer ${
-                  isLarge && selectedUserId === conversation.peer.id 
-                  ? 'bg-[var(--messages-selected-bg)] border border-[var(--messages-selected-border)] shadow-[0_0_18px_rgba(236,72,153,0.18)]' 
-                  : 'glass border border-transparent hover:bg-white/7'
-                }`}
-                style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
-              >
-                <div className="relative shrink-0">
-                  <img src={conversation.peer.photos[0]} className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`} alt={conversation.peer.name} referrerPolicy="no-referrer" />
-                  {conversation.online && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 mb-1">
-                    <NameWithBadge
-                      name={conversation.peer.name}
-                      age={conversation.peer.age}
-                      ageMasked={conversation.peer.flags.hideAge}
-                      verified={conversation.peer.flags.verifiedIdentity}
-                      premiumTier={conversation.peer.flags.premiumTier}
-                      size={isTablet ? 'md' : 'lg'}
-                      textClassName="truncate"
-                      badgeClassName={isTablet ? 'scale-90' : ''}
-                    />
-                    <span className="text-[10px] text-secondary font-bold shrink-0">
-                      {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                  <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
-                    {conversation.lastMessagePreview}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.12em] font-black ${
-                        conversation.relationState === 'active'
-                          ? 'border border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
-                          : conversation.relationState === 'blocked_by_me'
-                            ? 'border border-orange-300/35 bg-orange-500/12 text-orange-100'
-                            : conversation.relationState === 'blocked_me'
-                              ? 'border border-red-300/35 bg-red-500/12 text-red-100'
-                              : 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
-                      }`}
-                    >
-                      {t(`messages.conversationStates.${conversation.relationState}`)}
-                    </span>
-                    {conversation.receivedSuperLikeTraceAtIso && (
-                      <span className="text-[9px] uppercase tracking-[0.12em] text-fuchsia-200">
-                        {t('messages.receivedSuperLike')}
-                      </span>
+            {conversationItems.map((conversation, index) => {
+                const relationPreview =
+                  conversation.relationState === 'active'
+                    ? conversation.lastMessagePreview
+                    : t(`messages.conversationStates.${conversation.relationState}`);
+                return (
+                  <div
+                    key={conversation.id}
+                    ref={(el) => {
+                      conversationItemRefs.current[index] = el;
+                    }}
+                    onClick={() => handleUserSelect(conversation.peer.id)}
+                    className={`flex items-center ${isLarge ? (isTablet ? 'gap-2.5 p-3.5 rounded-[20px] min-h-[88px]' : 'gap-4 p-4 rounded-[24px]') : 'gap-[var(--messages-conv-card-gap)] p-[var(--messages-conv-card-pad)] rounded-[var(--messages-conv-card-radius)]'} transition-all cursor-pointer ${
+                      isLarge && selectedUserId === conversation.peer.id
+                        ? 'bg-[var(--messages-selected-bg)] border border-[var(--messages-selected-border)] shadow-[0_0_18px_rgba(236,72,153,0.18)]'
+                        : 'glass border border-transparent hover:bg-white/7'
+                    }`}
+                    style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
+                  >
+                    <div className="relative shrink-0">
+                      <img src={conversation.peer.photos[0]} className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`} alt={conversation.peer.name} referrerPolicy="no-referrer" />
+                      {conversation.online && (
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 mb-1">
+                        <NameWithBadge
+                          name={conversation.peer.name}
+                          age={conversation.peer.age}
+                          ageMasked={conversation.peer.flags.hideAge}
+                          verified={conversation.peer.flags.verifiedIdentity}
+                          premiumTier={conversation.peer.flags.premiumTier}
+                          shortPassTier={conversation.peer.flags.shortPassTier}
+                          size={isTablet ? 'md' : 'lg'}
+                          textClassName="truncate"
+                          className="w-full min-w-0"
+                          badgeClassName={isTablet ? 'scale-90' : ''}
+                        />
+                        <span className="text-[10px] text-secondary font-bold shrink-0">
+                          {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
+                        {relationPreview}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.12em] font-black ${
+                            conversation.relationState === 'active'
+                              ? 'border border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
+                              : conversation.relationState === 'blocked_by_me'
+                                ? 'border border-orange-300/35 bg-orange-500/12 text-orange-100'
+                                : conversation.relationState === 'blocked_me'
+                                  ? 'border border-red-300/35 bg-red-500/12 text-red-100'
+                                  : 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
+                          }`}
+                        >
+                          {t(`messages.conversationStates.${conversation.relationState}`)}
+                        </span>
+                        {conversation.receivedSuperLikeTraceAtIso && (
+                          <span className="text-[9px] uppercase tracking-[0.12em] text-fuchsia-200">
+                            {t('messages.receivedSuperLike')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {conversation.unreadCount > 0 && (
+                      <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>
+                        {conversation.unreadCount}
+                      </div>
                     )}
                   </div>
-                </div>
-                {conversation.unreadCount > 0 && (
-                  <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>
-                    {conversation.unreadCount}
-                  </div>
-                )}
-              </div>
-            ))}
+                );
+              })}
           </div>
           )}
           </div>
