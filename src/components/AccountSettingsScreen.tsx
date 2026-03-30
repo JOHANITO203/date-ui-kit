@@ -52,7 +52,6 @@ const AccountSettingsScreen = () => {
       .then((payload) => {
         if (isCancelled) return;
         setSettingsEnvelope(payload);
-        setLocale(payload.settings.preferences.language);
       })
       .catch(() => {
         if (isCancelled) return;
@@ -88,7 +87,7 @@ const AccountSettingsScreen = () => {
         ? 'settings.items.women'
         : 'settings.items.everyone';
 
-  const selectedLanguageOption = `locale.${settings?.preferences.language ?? locale}`;
+  const selectedLanguageOption = `locale.${locale}`;
 
   const selectedTravelCityOption =
     settings?.preferences.travelPassCity === 'voronezh'
