@@ -12,6 +12,12 @@ const ProfileScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const previewPlan = 'gold';
+  const balances = { superlikes: 7, boosts: 2, rewinds: 14 };
+  const [hideAge, setHideAge] = useState(true);
+  const [hideDistance, setHideDistance] = useState(true);
+  const [onlineOnly, setOnlineOnly] = useState(false);
+  const shadowGhostLocked = true;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [profileScrollProgress, setProfileScrollProgress] = useState(0);
@@ -114,31 +120,50 @@ const ProfileScreen = () => {
             <div className="absolute -inset-4 bg-pink-500/5 blur-3xl rounded-full -z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
           </div>
 
-          {/* Premium Membership Card */}
+          {/* Current Plan Card (Gold Theme) */}
           <div
             ref={(el) => {
               sectionRefs.current[1] = el;
             }}
-            className="relative overflow-hidden rounded-[var(--card-radius)] p-6 md:p-8 bg-gradient-to-br from-zinc-900 to-black border border-white/5 group cursor-pointer"
+            className="relative overflow-hidden product-card-base product-card-gold cursor-pointer"
           >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/20">
-                  <ICONS.Star size={20} className="text-white" />
+                <span className="product-pill-gold">{t('profile.planPopular')}</span>
+                <div className="ml-auto w-10 h-10 rounded-2xl glass-panel-soft border-amber-300/20 flex items-center justify-center">
+                  <ICONS.Star size={16} className="text-amber-400" />
                 </div>
-                <span className="text-xs font-black uppercase tracking-[0.2em] text-pink-500">{t('profile.premiumTag')}</span>
               </div>
-              <h4 className="text-2xl font-bold mb-2">{t('profile.premiumTitle')}</h4>
-              <p className="text-secondary text-sm leading-relaxed mb-6">{t('profile.premiumSubtitle')}</p>
+              <h4 className="font-black italic tracking-tighter text-[clamp(2rem,3vw,2.6rem)] leading-[0.92] text-white mb-2">{t('profile.planGoldTitle')}</h4>
+              <p className="text-secondary text-sm leading-relaxed mb-5">{t('profile.planGoldSubtitle')}</p>
+
+              <div className="grid grid-cols-3 gap-2 mb-5">
+                {([
+                  { id: 'superlikes', label: t('settings.tokens.superlikes'), value: balances.superlikes, glow: 'rgb(var(--glow-pink) / 0.18)' },
+                  { id: 'boosts', label: t('settings.tokens.boosts'), value: balances.boosts, glow: 'rgb(var(--glow-gold) / 0.18)' },
+                  { id: 'rewinds', label: t('settings.tokens.rewinds'), value: balances.rewinds, glow: 'rgb(var(--glow-blue) / 0.18)' },
+                ] as const).map((item) => (
+                  <div key={item.id} className="rounded-xl glass-panel-soft p-2 text-center" style={{ boxShadow: `0 0 16px ${item.glow}` }}>
+                    <motion.div
+                      key={`${item.id}-${item.value}`}
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-lg font-black leading-none"
+                    >
+                      {item.value}
+                    </motion.div>
+                    <div className="text-[9px] uppercase tracking-widest text-secondary font-bold mt-1 line-clamp-1">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+
               <GlassButton
                 onClick={() => navigate('/boost')}
-                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-pink-500 hover:text-white transition-all"
+                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black border-0"
               >
-                {t('profile.premiumButton')}
+                {t('settings.plan.manage')}
               </GlassButton>
             </div>
-            {/* Abstract background shape */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl group-hover:bg-pink-500/20 transition-all duration-1000" />
           </div>
         </div>
 
@@ -151,7 +176,7 @@ const ProfileScreen = () => {
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]"
           >
-            <div className="p-8 rounded-[var(--card-radius)] space-y-4 bg-[#10131b]/95 border border-white/10 hover:bg-[#131723] transition-colors group">
+            <div className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group" style={{ boxShadow: '0 0 18px rgb(var(--glow-blue) / 0.16)' }}>
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
                   <ICONS.Eye size={24} />
@@ -164,7 +189,7 @@ const ProfileScreen = () => {
               </div>
             </div>
             
-            <div className="p-8 rounded-[var(--card-radius)] space-y-4 bg-[#10131b]/95 border border-white/10 hover:bg-[#131723] transition-colors group">
+            <div className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group" style={{ boxShadow: '0 0 18px rgb(var(--glow-pink) / 0.16)' }}>
               <div className="flex justify-between items-start">
                 <div className="p-3 rounded-2xl bg-pink-500/10 text-pink-400 group-hover:scale-110 transition-transform">
                   <ICONS.Heart size={24} />
@@ -183,7 +208,8 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[3] = el;
             }}
-            className="p-6 md:p-8 rounded-[var(--card-radius)] space-y-8 relative overflow-hidden bg-[#0d0f16]/95 border border-white/10"
+            className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-8 relative overflow-hidden"
+            style={{ boxShadow: '0 0 18px rgb(var(--glow-silver) / 0.14)' }}
           >
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
@@ -218,8 +244,87 @@ const ProfileScreen = () => {
             </div>
           </div>
 
+          {/* Special Access Panel */}
+          <div className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-6" style={{ boxShadow: '0 0 16px rgb(var(--glow-blue) / 0.1)' }}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h4 className="text-xl font-black italic uppercase tracking-tight">{t('profile.controlTitle')}</h4>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-2xl glass p-4 space-y-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.privacyLabel')}</div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold">{t('settings.items.hideAge')}</span>
+                  <button
+                    onClick={() => setHideAge((v) => !v)}
+                    aria-pressed={hideAge}
+                    className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
+                      hideAge ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
+                    }`}
+                  >
+                    <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideAge ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(236,72,153,0.45)] group-hover:shadow-[0_0_18px_rgba(236,72,153,0.65)]' : 'left-[3px] bg-black/90'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold">{t('settings.items.hideDistance')}</span>
+                  <button
+                    onClick={() => setHideDistance((v) => !v)}
+                    aria-pressed={hideDistance}
+                    className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
+                      hideDistance ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
+                    }`}
+                  >
+                    <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideDistance ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(59,130,246,0.45)] group-hover:shadow-[0_0_18px_rgba(59,130,246,0.65)]' : 'left-[3px] bg-black/90'}`} />
+                  </button>
+                </div>
+                <button
+                  onClick={() => navigate('/settings/privacy')}
+                  className="w-full mt-2 py-2 rounded-xl glass text-[10px] uppercase tracking-[0.16em] font-black hover:bg-white/10 transition-colors"
+                >
+                  {t('settings.sections.privacy')}
+                </button>
+              </div>
+
+              <div className="rounded-2xl glass p-4 space-y-4">
+                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.benefits')}</div>
+                <div className="flex items-center justify-between rounded-xl glass-panel-soft px-3 py-2">
+                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/12 border border-violet-300/25 shadow-[0_0_14px_rgba(167,139,250,0.35)]">
+                    <ICONS.Ghost size={22} className="text-violet-200" />
+                  </span>
+                  <button
+                    onClick={() => navigate('/boost')}
+                    className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
+                  >
+                    {shadowGhostLocked && <ICONS.Lock size={12} className="text-amber-300" />}
+                    {shadowGhostLocked ? t('profile.locked') : t('profile.stateOn')}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>{t('profile.onlineFilter')}</span>
+                  <button
+                    onClick={() => setOnlineOnly((v) => !v)}
+                    aria-pressed={onlineOnly}
+                    className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
+                      onlineOnly ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
+                    }`}
+                  >
+                    <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${onlineOnly ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(34,211,238,0.45)] group-hover:shadow-[0_0_18px_rgba(34,211,238,0.65)]' : 'left-[3px] bg-black/90'}`} />
+                  </button>
+                </div>
+                <button
+                  onClick={() => navigate('/discover')}
+                  className="w-full mt-2 py-2.5 rounded-xl glass border border-white/18 text-[10px] uppercase tracking-[0.16em] font-black text-white/90 hover:bg-white/10 transition-colors"
+                >
+                  {t('profile.openDiscover')}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Public Profile */}
-          <div className="p-6 md:p-8 rounded-[var(--card-radius)] bg-[#0f1118]/92 border border-white/10 space-y-5">
+          <div className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-5" style={{ boxShadow: '0 0 18px rgb(var(--glow-silver) / 0.12)' }}>
             <h4 className="text-xl font-bold">{t('editProfile.title')}</h4>
             <p className="text-sm text-secondary">{t('editProfile.subtitle')}</p>
             <div className="grid grid-cols-2 gap-4">
@@ -253,7 +358,7 @@ const ProfileScreen = () => {
               <button 
                 key={i}
                 onClick={() => navigate(action.to)}
-                className="p-6 rounded-[var(--card-radius)] flex flex-col items-center gap-3 bg-[#0f1118]/92 border border-white/10 hover:bg-[#151925] transition-all group"
+                className="p-6 rounded-[var(--card-radius)] glass-panel glass-panel-float flex flex-col items-center gap-3 transition-all group"
               >
                 <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
                   {action.icon}
@@ -264,7 +369,7 @@ const ProfileScreen = () => {
           </div>
 
           {/* Options */}
-          <div className="rounded-[var(--card-radius)] bg-[#0f1118]/92 border border-white/10 overflow-hidden">
+          <div className="rounded-[var(--card-radius)] glass-panel glass-panel-float overflow-hidden">
             {[
               { icon: <ICONS.Profile size={16} />, label: t('settings.sections.account'), to: '/settings/account' },
               { icon: <ICONS.Shield size={16} />, label: t('settings.sections.privacy'), to: '/settings/privacy' },

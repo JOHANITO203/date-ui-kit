@@ -25,7 +25,9 @@ import {
   LogOut,
   Edit,
   Eye,
-  HelpCircle
+  HelpCircle,
+  Ghost,
+  Lock
 } from 'lucide-react';
 
 export type Screen = 'splash' | 'onboarding' | 'main';
@@ -180,5 +182,7 @@ export const ICONS = {
   LogOut,
   Edit,
   Eye,
-  HelpCircle
+  HelpCircle,
+  Ghost,
+  Lock
 };

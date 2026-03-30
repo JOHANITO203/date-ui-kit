@@ -910,6 +910,58 @@
     transition: transform 500ms ease-in-out, opacity 500ms ease-in-out, border-color 220ms ease-in-out, background-color 500ms ease-in-out;
   }
 
+  .product-card-base {
+    border-radius: var(--boost-tier-card-radius);
+    min-height: var(--boost-tier-card-min-h);
+    padding: var(--boost-tier-pad);
+    background: var(--glass-card-bg);
+    border: 1px solid var(--glass-card-border);
+    backdrop-filter: blur(var(--glass-card-blur));
+    -webkit-backdrop-filter: blur(var(--glass-card-blur));
+    transition: transform 320ms ease, box-shadow 320ms ease, border-color 220ms ease;
+  }
+
+  .product-card-base:hover {
+    transform: translateY(-2px);
+  }
+
+  .product-card-gold {
+    border-color: rgb(var(--glow-gold) / 0.34);
+    background:
+      radial-gradient(circle at 88% 0%, rgb(var(--glow-gold) / 0.2) 0%, transparent 58%),
+      linear-gradient(160deg, rgb(10 10 14 / 0.96), rgb(7 7 10 / 0.92));
+    box-shadow: 0 0 34px rgb(var(--glow-gold) / 0.24);
+  }
+
+  .product-pill-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.28rem 0.68rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #0b0b0f;
+    background: linear-gradient(90deg, #fbbf24, #eab308);
+  }
+
+  .product-pill-blue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.28rem 0.68rem;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #d9efff;
+    border: 1px solid rgb(var(--glow-blue) / 0.4);
+    background: linear-gradient(90deg, rgb(var(--glow-blue) / 0.2), rgb(var(--glow-cyan) / 0.18));
+  }
+
   .premium-blur-overlay {
     backdrop-filter: blur(var(--blur-premium-overlay));
     -webkit-backdrop-filter: blur(var(--blur-premium-overlay));

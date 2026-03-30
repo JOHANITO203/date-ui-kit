@@ -56,6 +56,9 @@ const AccountSettingsScreen = () => {
       icon: <ICONS.Shield size={18} />,
       items: [
         { labelKey: 'settings.items.visibility', id: 'visibility', type: 'toggle', descKey: 'settings.items.visibilityDesc' },
+        { labelKey: 'settings.items.hideAge', id: 'hide-age', type: 'toggle', descKey: 'settings.items.hideAgeDesc' },
+        { labelKey: 'settings.items.hideDistance', id: 'hide-distance', type: 'toggle', descKey: 'settings.items.hideDistanceDesc' },
+        { labelKey: 'settings.items.shadowGhost', id: 'shadow-ghost', type: 'toggle', descKey: 'settings.items.shadowGhostDesc' },
         { labelKey: 'settings.items.incognito', id: 'incognito', type: 'toggle', descKey: 'settings.items.incognitoDesc' },
         { labelKey: 'settings.items.readReceipts', id: 'read-receipts', type: 'toggle', descKey: 'settings.items.readReceiptsDesc' },
         { labelKey: 'settings.items.blocked', id: 'blocked', type: 'list', descKey: 'settings.items.blockedDesc' },
@@ -94,6 +97,13 @@ const AccountSettingsScreen = () => {
           type: 'select',
           options: ['locale.en', 'locale.ru'],
           selectedOption: `locale.${locale}`,
+        },
+        {
+          labelKey: 'settings.items.travelPass',
+          id: 'travel-pass-city',
+          type: 'select',
+          options: ['settings.cities.voronezh', 'settings.cities.moscow', 'settings.cities.saintPetersburg', 'settings.cities.sochi'],
+          selectedOption: 'settings.cities.moscow',
         },
       ],
       path: '/settings/preferences',
@@ -235,7 +245,7 @@ const AccountSettingsScreen = () => {
 
     return (
       <div className={`${isEmbedded ? 'p-8' : 'p-6'} space-y-8`}>
-        {isEmbedded && <h2 className="text-2xl font-bold">{t('settings.detailTitle', { section: getSectionTitle(section) })}</h2>}
+        {isEmbedded && <h2 className="text-2xl font-black italic uppercase tracking-tight">{t('settings.detailTitle', { section: getSectionTitle(section) })}</h2>}
         <div className="rounded-[32px] overflow-hidden border border-[var(--menu-premium-border)] bg-[rgba(18,22,30,0.78)] backdrop-blur-xl">
           {section.items.map((item, i, arr) => (
             <button
@@ -266,7 +276,7 @@ const AccountSettingsScreen = () => {
             <button onClick={() => navigate('/profile')} className="p-2 hover-effect rounded-full glass">
               <ICONS.ChevronLeft />
             </button>
-            <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
+            <h2 className="text-2xl font-black italic uppercase tracking-tight">{t('settings.title')}</h2>
           </div>
 
           <div className="space-y-2">
@@ -277,7 +287,7 @@ const AccountSettingsScreen = () => {
                 className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all ${
                   category === section.id || (!category && section.id === 'account')
                     ? 'bg-gradient-to-r from-pink-500/18 to-blue-500/14 border border-pink-400/35 text-white shadow-[0_0_18px_rgba(236,72,153,0.2)]'
-                    : 'text-secondary border border-transparent hover:bg-white/5 hover:border-white/10 hover:text-white'
+                    : 'text-secondary glass-panel-soft hover:text-white'
                 }`}
               >
                 <div className={`p-2 rounded-xl ${category === section.id || (!category && section.id === 'account') ? 'bg-pink-500/20 text-pink-500' : 'bg-white/5'}`}>{section.icon}</div>
@@ -297,7 +307,7 @@ const AccountSettingsScreen = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar bg-[rgba(24,28,36,0.55)]">{renderDetail()}</div>
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-[rgba(24,28,36,0.45)] premium-blur-overlay">{renderDetail()}</div>
       </div>
     );
   }
@@ -314,7 +324,7 @@ const AccountSettingsScreen = () => {
           <button onClick={() => navigate('/settings')} className="p-2 hover-effect rounded-full glass">
             <ICONS.ChevronLeft />
           </button>
-          <h2 className="text-xl font-bold">{getSectionTitle(getSection())}</h2>
+          <h2 className="text-xl font-black italic uppercase tracking-tight">{getSectionTitle(getSection())}</h2>
         </div>
         <div className="flex-1 pb-28">{renderDetail()}</div>
       </motion.div>
@@ -333,7 +343,7 @@ const AccountSettingsScreen = () => {
           <button onClick={() => navigate('/profile')} className="p-2 hover-effect rounded-full glass">
             <ICONS.ChevronLeft />
           </button>
-          <h2 className="text-2xl font-bold">{t('settings.title')}</h2>
+          <h2 className="text-2xl font-black italic uppercase tracking-tight">{t('settings.title')}</h2>
         </div>
         <GlassButton className="py-2 px-4 rounded-full text-xs">{t('settings.save')}</GlassButton>
         </div>
@@ -348,7 +358,7 @@ const AccountSettingsScreen = () => {
                 className={`px-3 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border transition-colors ${
                   isActive
                     ? 'text-white border-pink-400/45 bg-gradient-to-r from-pink-500/20 to-blue-500/20'
-                    : 'text-secondary border-white/10 bg-white/5'
+                    : 'text-secondary border-white/10 glass-panel-soft'
                 }`}
               >
                 {getSectionTitle(section)}
@@ -358,8 +368,9 @@ const AccountSettingsScreen = () => {
         </div>
 
         <div className="space-y-8">
-          {sections.map((section) => (
-            <div key={section.id} className="space-y-4">
+
+        {sections.map((section) => (
+          <div key={section.id} className="space-y-4">
               <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] px-2">{getSectionTitle(section)}</h3>
               <div className="rounded-[32px] overflow-hidden border border-[var(--menu-premium-border)] bg-[rgba(18,22,30,0.82)] backdrop-blur-xl">
               {section.items.map((item, i) => (
