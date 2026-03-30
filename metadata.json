@@ -1,6 +1,6 @@
 {
-  "name": "Lumina Dating 2026",
-  "description": "Premium international dating experience with dark glassmorphism and real-time translation.",
+  "name": "Exotic",
+  "description": "Premium dating experience with translation-first matching.",
   "requestFramePermissions": [
     "geolocation"
   ]

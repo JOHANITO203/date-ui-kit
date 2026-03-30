@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg-main" x1="80" y1="40" x2="1130" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#05060c"/>
+      <stop offset="0.45" stop-color="#0d1221"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="glow-pink" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(240 210) rotate(15) scale(420 360)">
+      <stop stop-color="#ff1493" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#ff1493" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-cyan" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(980 460) rotate(-10) scale(440 320)">
+      <stop stop-color="#00bfff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#00bfff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="logo-bg" x1="300" y1="160" x2="520" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff1493"/>
+      <stop offset="0.55" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#00bfff"/>
+    </linearGradient>
+    <linearGradient id="logo-card" x1="390" y1="180" x2="470" y2="310" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.82"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg-main)"/>
+  <rect width="1200" height="630" fill="url(#glow-pink)"/>
+  <rect width="1200" height="630" fill="url(#glow-cyan)"/>
+
+  <g opacity="0.2">
+    <circle cx="1045" cy="120" r="2.5" fill="#ffffff"/>
+    <circle cx="1080" cy="165" r="1.5" fill="#ffffff"/>
+    <circle cx="1118" cy="128" r="2" fill="#ffffff"/>
+    <circle cx="1088" cy="102" r="1" fill="#ffffff"/>
+  </g>
+
+  <g>
+    <rect x="274" y="134" width="230" height="230" rx="68" fill="url(#logo-bg)"/>
+    <rect x="312" y="160" width="92" height="138" rx="30" fill="#ffffff" fill-opacity="0.14" stroke="#ffffff" stroke-opacity="0.32" stroke-width="6"/>
+    <g transform="translate(54 2) rotate(7 422 236)">
+      <rect x="386" y="150" width="104" height="156" rx="34" fill="url(#logo-card)" stroke="#ffffff" stroke-opacity="0.8" stroke-width="4"/>
+      <path d="M454 208C447.8 201.8 437.8 201.8 431.6 208L427.3 212.3L423 208C416.8 201.8 406.8 201.8 400.6 208C394.4 214.2 394.4 224.2 400.6 230.4L427.3 257.1L454 230.4C460.2 224.2 460.2 214.2 454 208Z" fill="#ec4899"/>
+    </g>
+  </g>
+
+  <text x="560" y="245" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="104" font-style="italic" font-weight="900" letter-spacing="-2">EXOTIC</text>
+  <text x="562" y="300" fill="#f472b6" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800" letter-spacing="7">RUSSIAN DATING</text>
+  <text x="562" y="368" fill="#d1d5db" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="600">Premium dating with translation-first matching.</text>
+</svg>
