@@ -2,6 +2,8 @@ import type {
   FeedQuickFilter,
   GetFeedResponse,
   GetReceivedLikesResponse,
+  ActivateBoostResponse,
+  BoostStatus,
   RewindResponse,
   SendMessageRequest,
   SendMessageResponse,
@@ -13,6 +15,8 @@ import type {
   ChatMessage,
   SettingsEnvelope,
   PatchSettingsRequest,
+  UpdateConversationRelationStateRequest,
+  UpdateConversationRelationStateResponse,
 } from '../contracts';
 import { runtimeApi } from '../state';
 
@@ -36,6 +40,14 @@ export const appApi = {
 
   rewind(): Promise<RewindResponse> {
     return withLatency(runtimeApi.rewind(), 80);
+  },
+
+  getBoostStatus(): Promise<BoostStatus> {
+    return withLatency(runtimeApi.getBoostStatus(), 40);
+  },
+
+  activateBoost(): Promise<ActivateBoostResponse> {
+    return withLatency(runtimeApi.activateBoost(), 60);
   },
 
   getLikes(): Promise<GetReceivedLikesResponse> {
@@ -68,6 +80,12 @@ export const appApi = {
 
   sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     return withLatency(runtimeApi.sendMessage(request), 60);
+  },
+
+  setConversationRelationState(
+    request: UpdateConversationRelationStateRequest,
+  ): Promise<UpdateConversationRelationStateResponse> {
+    return withLatency(runtimeApi.setConversationRelationState(request), 50);
   },
 
   setTranslationToggle(request: TranslationToggleRequest): Promise<TranslationToggleResponse> {

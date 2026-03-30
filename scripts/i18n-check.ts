@@ -3,7 +3,7 @@ import { translations, type Locale } from '../src/i18n/translations.ts';
 type FlatMap = Record<string, string>;
 
 const PLACEHOLDER_RE = /\{(\w+)\}/g;
-const MOJIBAKE_RE = /[\u00D0\u00D1\u00C3\u00C2\uFFFD]/;
+const MOJIBAKE_RE = /(?:\u00D0.|\u00D1.|\u00C3.|\u00C2.)|\uFFFD/;
 const CYRILLIC_RE = /[\u0400-\u04FF]/;
 
 const requiredRuKeys: string[] = [

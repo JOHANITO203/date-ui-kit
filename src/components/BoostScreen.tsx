@@ -4,9 +4,11 @@ import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
+import { appApi } from '../services';
+import { useRuntimeSelector } from '../state';
 
 type CatalogView = 'instant' | 'passes' | 'bundles';
-type TierId = 'essential' | 'gold' | 'platinum';
+type TierId = 'essential' | 'gold' | 'platinum' | 'elite';
 type GlowToken = '--glow-silver' | '--glow-gold' | '--glow-blue' | '--glow-pink' | '--glow-orange' | '--glow-cyan';
 
 type TierDef = {
@@ -60,6 +62,24 @@ const tiers: TierDef[] = [
     bulletClass: 'bg-blue-400',
     glowToken: '--glow-blue',
     ctaButtonClass: 'bg-gradient-to-r from-indigo-400 via-blue-500 to-cyan-400 text-white',
+  },
+  {
+    id: 'elite',
+    nameKey: 'boost.tiers.elite.name',
+    tierTagKey: 'boost.tiers.elite.tag',
+    priceKey: 'boost.tiers.elite.price',
+    periodKey: 'boost.tiers.periodMonth',
+    featureKeys: [
+      'boost.tiers.elite.features.0',
+      'boost.tiers.elite.features.1',
+      'boost.tiers.elite.features.2',
+      'boost.tiers.elite.features.3',
+    ],
+    hasStar: true,
+    tagClass: 'bg-fuchsia-400 text-black',
+    bulletClass: 'bg-fuchsia-300',
+    glowToken: '--glow-pink',
+    ctaButtonClass: 'bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 text-white',
   },
 ];
 
@@ -143,12 +163,12 @@ const bundles = [
     glowToken: '--glow-silver' as GlowToken,
   },
   {
-    id: 'pro',
-    labelKey: 'boost.bundles.pro.label',
-    descKey: 'boost.bundles.pro.desc',
-    detailKeys: ['boost.bundles.pro.details.0', 'boost.bundles.pro.details.1'],
-    priceKey: 'boost.bundles.pro.price',
-    tagKey: 'boost.bundles.pro.tag',
+    id: 'datingpro',
+    labelKey: 'boost.bundles.datingpro.label',
+    descKey: 'boost.bundles.datingpro.desc',
+    detailKeys: ['boost.bundles.datingpro.details.0', 'boost.bundles.datingpro.details.1'],
+    priceKey: 'boost.bundles.datingpro.price',
+    tagKey: 'boost.bundles.datingpro.tag',
     glowToken: '--glow-pink' as GlowToken,
   },
   {
@@ -193,11 +213,11 @@ const BoostScreen = () => {
   const [catalogView, setCatalogView] = useState<CatalogView>('instant');
   const [activeTier, setActiveTier] = useState<TierId>('gold');
   const [glowPulseTier, setGlowPulseTier] = useState<TierId | null>(null);
-  const [isBoostActive, setIsBoostActive] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [boostClock, setBoostClock] = useState(() => Date.now());
+  const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
+  const boostsLeft = useRuntimeSelector((payload) => payload.balances.boostsLeft);
 
   const selectedTier = tiers.find((tier) => tier.id === activeTier) ?? tiers[1];
-  const BOOST_DURATION = 30 * 60;
   const glowShadow = (token: GlowToken, alpha = 0.28, blur = 34) => ({
     boxShadow: `0 0 ${blur}px ${glowColor(token, alpha)}`,
   });
@@ -225,18 +245,19 @@ const BoostScreen = () => {
     'h-10 px-5 rounded-[24px] text-[11px] font-black uppercase tracking-[0.26em] transition-all';
 
   useEffect(() => {
-    if (!isBoostActive) return;
+    if (!boostActiveUntilIso) return;
+    const activeUntilMs = new Date(boostActiveUntilIso).getTime();
+    if (activeUntilMs <= Date.now()) return;
+    setBoostClock(Date.now());
     const interval = window.setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setIsBoostActive(false);
-          return 0;
-        }
-        return prev - 1;
-      });
+      const now = Date.now();
+      setBoostClock(now);
+      if (now >= activeUntilMs) {
+        window.clearInterval(interval);
+      }
     }, 1000);
     return () => window.clearInterval(interval);
-  }, [isBoostActive]);
+  }, [boostActiveUntilIso]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -265,15 +286,26 @@ const BoostScreen = () => {
     };
   }, []);
 
-  const timer = useMemo(() => {
-    const min = Math.floor(timeLeft / 60);
-    const sec = timeLeft % 60;
+  const boostRemainingSeconds = useMemo(() => {
+    if (!boostActiveUntilIso) return 0;
+    return Math.max(0, Math.ceil((new Date(boostActiveUntilIso).getTime() - boostClock) / 1000));
+  }, [boostActiveUntilIso, boostClock]);
+
+  const boostTimer = useMemo(() => {
+    const min = Math.floor(boostRemainingSeconds / 60);
+    const sec = boostRemainingSeconds % 60;
     return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  }, [timeLeft]);
+  }, [boostRemainingSeconds]);
+
+  const boostAvailability = boostRemainingSeconds > 0 ? 'active' : boostsLeft > 0 ? 'available' : 'out_of_tokens';
 
   const activateBoost = () => {
-    setIsBoostActive(true);
-    setTimeLeft((prev) => (prev > 0 ? prev + BOOST_DURATION : BOOST_DURATION));
+    if (boostAvailability === 'active') return;
+    void appApi.activateBoost().then((response) => {
+      if (response.status === 'no_tokens') {
+        setCatalogView('instant');
+      }
+    });
   };
 
   const handleSelectTier = (tierId: TierId) => {
@@ -323,10 +355,18 @@ const BoostScreen = () => {
                 <GlassButton
                   onClick={activateBoost}
                   variant="glass"
-                  className={`w-full md:w-auto min-w-[14rem] h-[var(--boost-cta-h)] md:h-[var(--cta-height)] text-sm md:text-base font-black uppercase tracking-[0.18em] transition-[background,box-shadow,color] duration-500 ease-in-out border-0 ${selectedTier.ctaButtonClass}`}
+                  className={`w-full md:w-auto min-w-[14rem] h-[var(--boost-cta-h)] md:h-[var(--cta-height)] text-sm md:text-base font-black uppercase tracking-[0.18em] transition-[background,box-shadow,color] duration-500 ease-in-out border-0 ${
+                    boostAvailability === 'out_of_tokens'
+                      ? 'bg-white/10 text-white/70'
+                      : selectedTier.ctaButtonClass
+                  }`}
                   style={glowShadow(selectedTier.glowToken, 0.3, 36)}
                 >
-                  {isBoostActive ? t('boost.boostActive', { timer }) : t('boost.activateBoost')}
+                  {boostAvailability === 'active'
+                    ? t('boost.boostActive', { timer: boostTimer })
+                    : boostAvailability === 'available'
+                      ? t('boost.activateBoostWithStock', { count: boostsLeft })
+                      : t('boost.buyBoostNow')}
                 </GlassButton>
               </motion.div>
             </div>
@@ -340,7 +380,11 @@ const BoostScreen = () => {
           className="space-y-5"
         >
           <motion.div
-            className={isLarge ? 'grid grid-cols-3 gap-[var(--grid-gap)]' : 'flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1'}
+            className={
+              isLarge
+                ? 'grid grid-cols-2 xl:grid-cols-4 gap-[var(--grid-gap)]'
+                : 'flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1'
+            }
             initial="hidden"
             animate="show"
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}
@@ -471,6 +515,39 @@ const BoostScreen = () => {
           </div>
         </section>
 
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
+          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-blue-400/25 bg-blue-500/5">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-black">
+              {t('boost.badges.identityTitle')}
+            </p>
+            <h3 className="mt-2 text-lg font-black">{t('boost.badges.identityBadge')}</h3>
+            <p className="mt-2 text-sm text-white/70">{t('boost.badges.identityDesc')}</p>
+            <p className="mt-3 text-[10px] uppercase tracking-[0.16em] text-blue-100/80">
+              {t('boost.badges.identityRule')}
+            </p>
+          </div>
+          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-fuchsia-400/25 bg-fuchsia-500/5">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-200 font-black">
+              {t('boost.badges.premiumTitle')}
+            </p>
+            <h3 className="mt-2 text-lg font-black">{t('boost.badges.premiumBadge')}</h3>
+            <p className="mt-2 text-sm text-white/70">{t('boost.badges.premiumDesc')}</p>
+            <ul className="mt-3 space-y-1.5 text-[0.82rem] text-white/78">
+              {[
+                'boost.badges.premiumStatuses.0',
+                'boost.badges.premiumStatuses.1',
+                'boost.badges.premiumStatuses.2',
+                'boost.badges.premiumStatuses.3',
+              ].map((key, idx) => (
+                <li key={key} className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full" style={dotStyle(dotTokenAt(idx + 6))} />
+                  <span>{t(key)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         <section
           ref={(el) => {
             sectionRefs.current[2] = el;
@@ -563,15 +640,15 @@ const BoostScreen = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
               {bundles.map((item) => (
                 <motion.div
-                  whileTap={tapGlow(item.glowToken, item.id === 'pro' ? 0.48 : 0.4)}
-                  whileHover={{ ...glowShadow(item.glowToken, item.id === 'pro' ? 0.38 : 0.3, 34), scale: 1.01 }}
+                  whileTap={tapGlow(item.glowToken, item.id === 'datingpro' ? 0.48 : 0.4)}
+                  whileHover={{ ...glowShadow(item.glowToken, item.id === 'datingpro' ? 0.38 : 0.3, 34), scale: 1.01 }}
                   key={item.id}
                   className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
-                  style={glowCardStyle(item.glowToken, item.id === 'pro' ? 0.24 : 0.16, item.id === 'pro' ? 0.1 : 0.05, item.id === 'pro' ? 0.32 : 0.2)}
+                  style={glowCardStyle(item.glowToken, item.id === 'datingpro' ? 0.24 : 0.16, item.id === 'datingpro' ? 0.1 : 0.05, item.id === 'datingpro' ? 0.32 : 0.2)}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-bold text-xl">{t(item.labelKey)}</p>
-                    <span className={`text-[10px] uppercase tracking-[0.16em] px-2 py-1 rounded-full ${item.id === 'pro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
+                    <span className={`text-[10px] uppercase tracking-[0.16em] px-2 py-1 rounded-full ${item.id === 'datingpro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
                       {t(item.tagKey)}
                     </span>
                   </div>
@@ -588,7 +665,7 @@ const BoostScreen = () => {
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
                     <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{price(item.priceKey)}</p>
-                    <button className={`${buyBtnBase} w-full ${item.id === 'pro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
+                    <button className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}>
                       {t('boost.buy.bundle')}
                     </button>
                   </div>

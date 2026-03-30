@@ -12,7 +12,8 @@ export type AnalyticsEventName =
   | 'first_message_sent'
   | 'first_message_reply'
   | 'conversation_reached_6_messages'
-  | 'translation_toggle_changed';
+  | 'translation_toggle_changed'
+  | 'block_user';
 
 export interface AnalyticsEventPayload {
   userId: string;

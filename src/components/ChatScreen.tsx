@@ -96,6 +96,9 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   }, [userId, embedded, navigate]);
 
   const activePeer = conversation?.peer;
+  const relationState = conversation?.relationState ?? 'active';
+  const isConversationRestricted = relationState !== 'active';
+  const canToggleBlock = relationState === 'active' || relationState === 'blocked_by_me';
 
   const orderedMessages = useMemo(
     () =>
@@ -117,12 +120,34 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   };
 
   const handleSend = () => {
-    if (!conversationId || !draft.trim()) return;
+    if (!conversationId || !draft.trim() || isConversationRestricted) return;
     const text = draft.trim();
     setDraft('');
     void appApi.sendMessage({ conversationId, text }).then((response) => {
-      setMessages((prev) => [...prev, response.message]);
+      if (response.status === 'sent' && response.message) {
+        setMessages((prev) => [...prev, response.message]);
+      }
     });
+  };
+
+  const handleToggleBlock = () => {
+    if (!conversationId || !conversation || !canToggleBlock) return;
+    const nextState = conversation.relationState === 'blocked_by_me' ? 'active' : 'blocked_by_me';
+    void appApi
+      .setConversationRelationState({
+        conversationId,
+        state: nextState,
+      })
+      .then((response) => {
+        setConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                relationState: response.state,
+              }
+            : prev,
+        );
+      });
   };
 
   if (!activePeer && isLoading) {
@@ -192,12 +217,34 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               size="md"
               className="w-fit"
             />
-            <span className="pl-0.5 text-[9px] text-green-400 uppercase font-black tracking-widest">
-              {t('chat.online')}
+            <span
+              className={`pl-0.5 text-[9px] uppercase font-black tracking-widest ${
+                relationState === 'active'
+                  ? 'text-green-400'
+                  : relationState === 'blocked_by_me'
+                    ? 'text-orange-300'
+                    : relationState === 'blocked_me'
+                      ? 'text-red-300'
+                      : 'text-slate-300'
+              }`}
+            >
+              {t(`chat.conversationStates.${relationState}`)}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {canToggleBlock && (
+            <button
+              onClick={handleToggleBlock}
+              className={`h-10 px-3 rounded-full text-[9px] font-black uppercase tracking-[0.14em] transition-colors ${
+                relationState === 'blocked_by_me'
+                  ? 'border border-emerald-300/35 bg-emerald-500/10 text-emerald-100'
+                  : 'border border-orange-300/35 bg-orange-500/10 text-orange-100'
+              }`}
+            >
+              {relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
+            </button>
+          )}
           <button
             onClick={handleToggleTranslation}
             className={`w-11 h-11 rounded-full transition-all flex items-center justify-center ${
@@ -241,6 +288,23 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-fuchsia-200">
               {t('chat.superLikeTrace')}
             </p>
+          </div>
+        )}
+
+        {isConversationRestricted && (
+          <div
+            className={`mx-auto max-w-[26rem] rounded-2xl px-4 py-2 text-center border ${
+              relationState === 'blocked_by_me'
+                ? 'border-orange-300/35 bg-orange-500/10'
+                : relationState === 'blocked_me'
+                  ? 'border-red-300/35 bg-red-500/10'
+                  : 'border-slate-300/35 bg-slate-500/10'
+            }`}
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/90">
+              {t(`chat.restrictions.${relationState}.title`)}
+            </p>
+            <p className="mt-1 text-xs text-white/70">{t(`chat.restrictions.${relationState}.subtitle`)}</p>
           </div>
         )}
 
@@ -312,6 +376,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           <input
             type="text"
             value={draft}
+            disabled={isConversationRestricted}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
@@ -319,12 +384,15 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                 handleSend();
               }
             }}
-            placeholder={t('chat.placeholder')}
-            className="flex-1 bg-transparent outline-none text-sm px-2 placeholder:text-white/20"
+            placeholder={
+              isConversationRestricted ? t(`chat.restrictions.${relationState}.inputPlaceholder`) : t('chat.placeholder')
+            }
+            className="flex-1 bg-transparent outline-none text-sm px-2 placeholder:text-white/20 disabled:text-white/40"
           />
           <button
             onClick={handleSend}
-            className="w-11 h-11 gradient-premium rounded-full flex items-center justify-center shadow-xl shadow-pink-500/20 active:scale-90 transition-transform"
+            disabled={isConversationRestricted || !draft.trim()}
+            className="w-11 h-11 gradient-premium rounded-full flex items-center justify-center shadow-xl shadow-pink-500/20 active:scale-90 transition-transform disabled:opacity-45 disabled:cursor-not-allowed"
           >
             <ICONS.Send size={20} />
           </button>

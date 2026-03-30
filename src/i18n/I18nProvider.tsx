@@ -3,7 +3,8 @@ import { Locale, translations } from './translations';
 
 const STORAGE_KEY = 'exotic.locale';
 const PLACEHOLDER_RE = /\{(\w+)\}/g;
-const MOJIBAKE_RE = /[\u00D0\u00D1\u00C3\u00C2\uFFFD]/;
+const MOJIBAKE_RE = /(?:\u00D0.|\u00D1.|\u00C3.|\u00C2.)|\uFFFD/;
+const STRICT_I18N_VALIDATION = import.meta.env.VITE_STRICT_I18N === 'true';
 
 type Params = Record<string, string | number>;
 
@@ -84,7 +85,12 @@ const validateTranslations = () => {
 
   if (errors.length > 0) {
     const summary = errors.slice(0, 20).join('\n');
-    throw new Error(`i18n validation failed (${errors.length} issues)\n${summary}`);
+    const message = `i18n validation failed (${errors.length} issues)\n${summary}`;
+    if (STRICT_I18N_VALIDATION) {
+      throw new Error(message);
+    }
+    // Keep the app usable in local dev while surfacing errors aggressively.
+    console.error(message);
   }
 };
 

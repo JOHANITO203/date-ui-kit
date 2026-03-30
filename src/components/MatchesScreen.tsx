@@ -206,6 +206,11 @@ const MatchesScreen: React.FC = () => {
           </div>
         </header>
 
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/75">
+          <span className="w-1.5 h-1.5 rounded-full bg-pink-400" />
+          <span>{t(`likes.states.${screenState}`)}</span>
+        </div>
+
         {screenState === 'loading' && (
           <section className="glass-panel rounded-[var(--card-radius)] p-7 text-center">
             <div className="w-8 h-8 mx-auto rounded-full border-2 border-white/20 border-t-white/75 animate-spin" />

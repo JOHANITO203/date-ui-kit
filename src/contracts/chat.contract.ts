@@ -1,6 +1,7 @@
 import type { ProfileCard } from './common.contract';
 
 export type ChatMessageDirection = 'incoming' | 'outgoing';
+export type ConversationRelationState = 'active' | 'blocked_by_me' | 'blocked_me' | 'unmatched';
 
 export interface ChatMessage {
   id: string;
@@ -22,6 +23,8 @@ export interface ConversationSummary {
   lastMessagePreview: string;
   lastMessageAtIso: string;
   online: boolean;
+  relationState: ConversationRelationState;
+  relationStateUpdatedAtIso?: string;
   receivedSuperLikeTraceAtIso?: string;
 }
 
@@ -40,7 +43,8 @@ export interface SendMessageRequest {
 }
 
 export interface SendMessageResponse {
-  message: ChatMessage;
+  status: 'sent' | 'blocked_by_me' | 'blocked_me' | 'unmatched' | 'invalid';
+  message?: ChatMessage;
 }
 
 export interface TranslationToggleRequest {
@@ -52,4 +56,14 @@ export interface TranslationToggleRequest {
 export interface TranslationToggleResponse {
   conversationId: string;
   enabled: boolean;
+}
+
+export interface UpdateConversationRelationStateRequest {
+  conversationId: string;
+  state: ConversationRelationState;
+}
+
+export interface UpdateConversationRelationStateResponse {
+  conversationId: string;
+  state: ConversationRelationState;
 }

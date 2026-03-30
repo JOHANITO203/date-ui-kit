@@ -36,9 +36,20 @@ const testDiscoverFlow = () => {
   const candidate = feed.window.candidates[0];
   const superlikesBefore = runtimeApi.getState().balances.superlikesLeft;
   const rewindsBefore = runtimeApi.getState().balances.rewindsLeft;
+  const boostsBefore = runtimeApi.getState().balances.boostsLeft;
 
   runtimeApi.markProfileImpression(candidate.id);
   expectEvent('profile_impression');
+
+  const boostActivation = runtimeApi.activateBoost();
+  assert.equal(boostActivation.status, 'activated', 'Boost should activate when at least one token is available.');
+  assert.equal(
+    runtimeApi.getState().balances.boostsLeft,
+    boostsBefore - 1,
+    'Boost activation must consume exactly one boost token.',
+  );
+  assert.equal(boostActivation.boost.active, true, 'Boost status should be active right after activation.');
+  expectEvent('boost_activated');
 
   const swipeResult = runtimeApi.swipe(candidate.id, 'superlike');
   const afterSwipe = runtimeApi.getState();
@@ -98,7 +109,8 @@ const testChatFlow = () => {
   const before = runtimeApi.getConversationMessages(conversationId).length;
 
   const firstSent = runtimeApi.sendMessage({ conversationId, text: 'Hi from runtime test.' });
-  assert.equal(firstSent.message.direction, 'outgoing', 'Sent message should be outgoing.');
+  assert.equal(firstSent.status, 'sent', 'Active conversations should allow sending messages.');
+  assert.equal(firstSent.message?.direction, 'outgoing', 'Sent message should be outgoing.');
   assert.equal(
     runtimeApi.getConversationMessages(conversationId).length,
     before + 1,
@@ -130,6 +142,18 @@ const testChatFlow = () => {
     'Conversation translation state should be queryable after toggle.',
   );
   expectEvent('translation_toggle_changed');
+
+  runtimeApi.setConversationRelationState({ conversationId, state: 'blocked_by_me' });
+  expectEvent('block_user');
+  const blockedAttempt = runtimeApi.sendMessage({
+    conversationId,
+    text: 'This should not be sent while blocked.',
+  });
+  assert.equal(
+    blockedAttempt.status,
+    'blocked_by_me',
+    'Blocked-by-me conversations must reject outgoing messages.',
+  );
 };
 
 const testSettingsFlow = () => {

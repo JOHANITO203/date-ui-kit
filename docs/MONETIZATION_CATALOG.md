@@ -8,7 +8,8 @@ Date: 2026-03-28
   Augmente la visibilite du profil pendant une duree definie.
 
 - `Premium`  
-  Donne le badge `Verified` et retire les restrictions de conversation.
+  Active un `Premium Status Badge` (Essential/Gold/Platinum/Elite) et les droits associes.
+  Le badge `Verified Identity` reste non monnayable (KYC uniquement).
 
 - `SuperLike Token`  
   Permet d'apparaitre en priorite dans les conversations avec message prioritaire.
@@ -21,7 +22,8 @@ Date: 2026-03-28
 ## 2) Entitlements / Droits Utilisateur
 
 - `premium_active: boolean`
-- `verified_badge: boolean`
+- `premium_status_badge: \"essential\" | \"gold\" | \"platinum\" | \"elite\" | null`
+- `verified_identity_badge: boolean` (KYC, non vendable)
 - `unlimited_conversations: boolean`
 - `boost_active_until: datetime | null`
 - `superlike_tokens: number`
@@ -64,7 +66,7 @@ Date: 2026-03-28
 - Un `Boost` est consomme a l'activation.
 - `SuperLike` et `Rewind` sont consommes a l'action.
 - `Premium` active:
-  - `verified_badge = true`
+  - `premium_status_badge != null`
   - `unlimited_conversations = true`
 - `Rewind` est inclus Premium mais reste achetable en jetons.
 - Les packs de jetons ne se renouvellent pas automatiquement.
@@ -80,4 +82,3 @@ Objectif:
 - reduire la friction du premier achat
 - augmenter la frequence d'usage via tokens
 - convertir vers revenu recurrent via abonnement
-

@@ -11,17 +11,26 @@ import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { FeedCandidate, FeedQuickFilter, SwipeDecision } from '../contracts';
 
+const formatBoostTimer = (seconds: number) => {
+  const safe = Math.max(0, seconds);
+  const minutes = Math.floor(safe / 60);
+  const remaining = safe % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
+};
+
 const SwipeScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   const balances = useRuntimeSelector((payload) => payload.balances);
+  const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const likedCount = useRuntimeSelector((payload) => payload.likedProfileIds.length);
   const matchCount = useRuntimeSelector((payload) => payload.conversations.length);
   const selfPreviewPhoto = useRuntimeSelector(
     (payload) => payload.feedSource[0]?.photos?.[1] ?? payload.feedSource[0]?.photos?.[0] ?? '',
   );
+  const [boostTick, setBoostTick] = useState(() => Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
@@ -84,9 +93,29 @@ const SwipeScreen = () => {
     return () => window.clearTimeout(timer);
   }, [isFiltering]);
 
+  useEffect(() => {
+    if (!boostActiveUntilIso) return;
+    const activeUntilMs = new Date(boostActiveUntilIso).getTime();
+    if (activeUntilMs <= Date.now()) return;
+    setBoostTick(Date.now());
+    const interval = window.setInterval(() => {
+      const now = Date.now();
+      setBoostTick(now);
+      if (now >= activeUntilMs) {
+        window.clearInterval(interval);
+      }
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [boostActiveUntilIso]);
+
   const hasUsers = filteredUsers.length > 0;
   const user = hasUsers ? filteredUsers[currentIndex % filteredUsers.length] : null;
   const nextUser = hasUsers ? filteredUsers[(currentIndex + 1) % filteredUsers.length] : null;
+  const boostRemainingSeconds = useMemo(() => {
+    if (!boostActiveUntilIso) return 0;
+    return Math.max(0, Math.ceil((new Date(boostActiveUntilIso).getTime() - boostTick) / 1000));
+  }, [boostActiveUntilIso, boostTick]);
+  const boostState = boostRemainingSeconds > 0 ? 'active' : balances.boostsLeft > 0 ? 'available' : 'out_of_tokens';
 
   useEffect(() => {
     if (!user) return;
@@ -169,6 +198,19 @@ const SwipeScreen = () => {
         : [...withoutAll, id];
       return next.length === 0 ? ['all'] : next;
     });
+  };
+
+  const handleBoostTap = () => {
+    if (boostState === 'active') return;
+    if (boostState === 'available') {
+      void appApi.activateBoost().then((response) => {
+        if (response.status === 'no_tokens') {
+          navigate('/boost');
+        }
+      });
+      return;
+    }
+    navigate('/boost');
   };
 
   const actionButtons = (
@@ -266,10 +308,57 @@ const SwipeScreen = () => {
               {balances.rewindsLeft}
             </span>
           </button>
-          <button onClick={() => navigate('/boost')} className="flex items-center gap-2 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)] active:scale-95 transition-all group">
-            <ICONS.Boost size={14} className="text-orange-400 group-hover:animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-orange-400/90">{t('discover.boost')}</span>
-          </button>
+          <motion.button
+            onClick={handleBoostTap}
+            animate={
+              boostState === 'active'
+                ? {
+                    scale: [1, 1.03, 1],
+                    boxShadow: [
+                      '0 0 10px rgba(249,115,22,0.22)',
+                      '0 0 22px rgba(249,115,22,0.4)',
+                      '0 0 10px rgba(249,115,22,0.22)',
+                    ],
+                  }
+                : undefined
+            }
+            transition={
+              boostState === 'active' ? { duration: 2.6, repeat: Infinity, ease: 'easeInOut' } : undefined
+            }
+            className={`flex items-center gap-2 px-4 py-2 rounded-full border active:scale-95 transition-all group ${
+              boostState === 'active'
+                ? 'border-orange-300/70 bg-orange-500/20'
+                : boostState === 'available'
+                  ? 'border-orange-300/70 bg-orange-500 text-black shadow-[0_0_18px_rgba(249,115,22,0.28)]'
+                  : 'border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)]'
+            }`}
+          >
+            <ICONS.Boost
+              size={14}
+              className={`${
+                boostState === 'available'
+                  ? 'text-black'
+                  : boostState === 'active'
+                    ? 'text-orange-100'
+                    : 'text-orange-400'
+              }`}
+            />
+            <span
+              className={`text-[10px] font-black uppercase tracking-widest ${
+                boostState === 'available'
+                  ? 'text-black'
+                  : boostState === 'active'
+                    ? 'text-orange-100'
+                    : 'text-orange-400/90'
+              }`}
+            >
+              {boostState === 'active'
+                ? t('discover.boostActive', { timer: formatBoostTimer(boostRemainingSeconds) })
+                : boostState === 'available'
+                  ? t('discover.boostReady', { count: balances.boostsLeft })
+                  : t('discover.boost')}
+            </span>
+          </motion.button>
         </div>
       </div>
 

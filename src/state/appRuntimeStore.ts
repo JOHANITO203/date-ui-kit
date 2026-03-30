@@ -6,6 +6,8 @@ import type {
   FeedQuickFilter,
   GetFeedResponse,
   GetReceivedLikesResponse,
+  ActivateBoostResponse,
+  BoostStatus,
   LikesInventory,
   PatchSettingsRequest,
   DeepPartial,
@@ -19,12 +21,15 @@ import type {
   SwipeResponse,
   TranslationToggleRequest,
   TranslationToggleResponse,
+  UpdateConversationRelationStateRequest,
+  UpdateConversationRelationStateResponse,
   UserSettings,
 } from '../contracts';
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
 import { conversationsSeed, messagesSeed, profileCards, receivedLikesSeed } from './runtimeData';
 
 const STORAGE_KEY = 'exotic.runtime.settings.v1';
+const BOOST_DURATION_SECONDS = 30 * 60;
 
 type RuntimeState = {
   currentUserId: string;
@@ -33,6 +38,9 @@ type RuntimeState = {
     superlikesLeft: number;
     boostsLeft: number;
     rewindsLeft: number;
+  };
+  boost: {
+    activeUntilIso: string | null;
   };
   settings: UserSettings;
   feedSource: ProfileCard[];
@@ -118,6 +126,9 @@ const createInitialState = (): RuntimeState => ({
     superlikesLeft: 5,
     boostsLeft: 1,
     rewindsLeft: 3,
+  },
+  boost: {
+    activeUntilIso: null,
   },
   settings: readPersistedSettings() ?? defaultSettings,
   feedSource: [...profileCards],
@@ -212,6 +223,7 @@ const ensureConversationForProfile = (profileId: string, fromSuperLike = false):
       : 'New match. Say hello.',
     lastMessageAtIso: nowIso(),
     online: peer.online,
+    relationState: 'active',
     receivedSuperLikeTraceAtIso: fromSuperLike ? nowIso() : undefined,
   };
 
@@ -251,6 +263,31 @@ const mergeSettings = (prev: UserSettings, patch: DeepPartial<UserSettings>): Us
   preferences: { ...prev.preferences, ...(patch.preferences ?? {}) },
   translation: { ...prev.translation, ...(patch.translation ?? {}) },
 });
+
+const resolveBoostStatus = (payload: RuntimeState): BoostStatus => {
+  const activeUntilIso = payload.boost.activeUntilIso ?? undefined;
+  if (!activeUntilIso) {
+    return {
+      active: false,
+      remainingSeconds: 0,
+      boostsLeft: payload.balances.boostsLeft,
+      availability: payload.balances.boostsLeft > 0 ? 'available' : 'out_of_tokens',
+      durationSeconds: BOOST_DURATION_SECONDS,
+    };
+  }
+
+  const activeUntilMs = new Date(activeUntilIso).getTime();
+  const remainingSeconds = Math.max(0, Math.ceil((activeUntilMs - Date.now()) / 1000));
+  const active = remainingSeconds > 0;
+  return {
+    active,
+    activeUntilIso,
+    remainingSeconds,
+    boostsLeft: payload.balances.boostsLeft,
+    availability: active ? 'active' : payload.balances.boostsLeft > 0 ? 'available' : 'out_of_tokens',
+    durationSeconds: BOOST_DURATION_SECONDS,
+  };
+};
 
 export const runtimeApi = {
   getSettingsEnvelope(): SettingsEnvelope {
@@ -376,6 +413,53 @@ export const runtimeApi = {
     };
   },
 
+  getBoostStatus(): BoostStatus {
+    return resolveBoostStatus(state);
+  },
+
+  activateBoost(): ActivateBoostResponse {
+    const currentStatus = resolveBoostStatus(state);
+    if (currentStatus.active) {
+      return {
+        status: 'already_active',
+        boost: currentStatus,
+      };
+    }
+
+    if (state.balances.boostsLeft <= 0) {
+      return {
+        status: 'no_tokens',
+        boost: currentStatus,
+      };
+    }
+
+    const activeUntilIso = new Date(Date.now() + BOOST_DURATION_SECONDS * 1000).toISOString();
+    setState((prev) => ({
+      ...prev,
+      boost: {
+        activeUntilIso,
+      },
+      balances: {
+        ...prev.balances,
+        boostsLeft: Math.max(0, prev.balances.boostsLeft - 1),
+      },
+    }));
+
+    trackEvent('boost_activated', {
+      userId: state.currentUserId,
+      sourceScreen: 'discover',
+      metadata: {
+        duration_seconds: BOOST_DURATION_SECONDS,
+        boosts_left: state.balances.boostsLeft,
+      },
+    });
+
+    return {
+      status: 'activated',
+      boost: resolveBoostStatus(state),
+    };
+  },
+
   getLikes(): GetReceivedLikesResponse {
     const unlocked = state.likesUnlocked || canUnlockLikes(state.planTier);
     const hiddenCount = unlocked ? 0 : state.likes.length;
@@ -436,19 +520,15 @@ export const runtimeApi = {
 
   sendMessage(request: SendMessageRequest): SendMessageResponse {
     const { conversationId, text } = request;
+    const conversation = state.conversations.find((entry) => entry.id === conversationId);
+    const relationState = conversation?.relationState ?? 'active';
+    if (relationState !== 'active') {
+      return { status: relationState };
+    }
+
     const trimmed = text.trim();
     if (!trimmed) {
-      return {
-        message: {
-          id: `m-empty-${Date.now()}`,
-          conversationId,
-          senderUserId: state.currentUserId,
-          direction: 'outgoing',
-          originalText: '',
-          translated: false,
-          createdAtIso: nowIso(),
-        },
-      };
+      return { status: 'invalid' };
     }
 
     const message: ChatMessage = {
@@ -464,7 +544,6 @@ export const runtimeApi = {
     const previousMessages = state.messagesByConversation[conversationId] ?? [];
     const nextMessages = [...previousMessages, message];
 
-    const conversation = state.conversations.find((entry) => entry.id === conversationId);
     const updatedConversation: ConversationSummary | undefined = conversation
       ? {
           ...conversation,
@@ -526,7 +605,55 @@ export const runtimeApi = {
       });
     }
 
-    return { message };
+    return { status: 'sent', message };
+  },
+
+  setConversationRelationState(
+    request: UpdateConversationRelationStateRequest,
+  ): UpdateConversationRelationStateResponse {
+    const { conversationId, state: nextState } = request;
+    const existing = state.conversations.find((entry) => entry.id === conversationId);
+    if (!existing) {
+      return { conversationId, state: nextState };
+    }
+
+    const updatedAtIso = nowIso();
+    setState((prev) => ({
+      ...prev,
+      conversations: prev.conversations.map((entry) =>
+        entry.id === conversationId
+          ? {
+              ...entry,
+              relationState: nextState,
+              relationStateUpdatedAtIso: updatedAtIso,
+              lastMessagePreview:
+                nextState === 'blocked_by_me'
+                  ? 'You blocked this conversation.'
+                  : nextState === 'blocked_me'
+                    ? 'You were blocked by this user.'
+                    : nextState === 'unmatched'
+                      ? 'Conversation no longer available.'
+                      : entry.relationState !== 'active'
+                        ? 'Conversation reopened.'
+                        : entry.lastMessagePreview,
+            }
+          : entry,
+      ),
+    }));
+
+    if (nextState === 'blocked_by_me') {
+      trackEvent('block_user', {
+        userId: state.currentUserId,
+        sourceScreen: 'chat',
+        targetId: existing.peer.id,
+        conversationId,
+      });
+    }
+
+    return {
+      conversationId,
+      state: nextState,
+    };
   },
 
   setTranslationToggle(request: TranslationToggleRequest): TranslationToggleResponse {

@@ -39,6 +39,8 @@ export const translations: Record<Locale, Dictionary> = {
       eyebrow: 'Explorer',
       title: 'DISCOVER',
       boost: 'Boost',
+      boostActive: 'Boost {timer}',
+      boostReady: 'Activate Boost x{count}',
       hiddenDistance: 'Distance hidden',
       distanceKm: '{value} km',
       quickFilters: {
@@ -112,6 +114,13 @@ export const translations: Record<Locale, Dictionary> = {
         advancedFilters: 'Advanced filters',
         weeklyBoost: 'Weekly boost',
       },
+      states: {
+        loading: 'Syncing',
+        empty: 'No likes',
+        locked: 'Locked',
+        unlocked: 'Unlocked',
+        error: 'Unavailable',
+      },
     },
     messages: {
       title: 'Messages',
@@ -133,15 +142,46 @@ export const translations: Record<Locale, Dictionary> = {
       selectSubtitle: 'Choose a match on the left to start chatting.',
       jumpConversation: 'Go to conversation {name}',
       matchesSliderAria: 'Navigate between new matches',
+      conversationStates: {
+        active: 'Active',
+        blocked_by_me: 'Blocked by you',
+        blocked_me: 'Blocked you',
+        unmatched: 'Unmatched',
+      },
     },
     chat: {
       online: 'Online',
       today: 'Today',
+      block: 'Block',
+      unblock: 'Unblock',
       translationLabel: 'Translation',
       superLikeTrace: 'This conversation was opened with a SuperLike',
       errorTitle: 'Conversation unavailable',
       errorSubtitle: 'Unable to load this chat.',
       backToMessages: 'Back to messages',
+      conversationStates: {
+        active: 'Online',
+        blocked_by_me: 'Blocked by you',
+        blocked_me: 'Blocked you',
+        unmatched: 'Unmatched',
+      },
+      restrictions: {
+        blocked_by_me: {
+          title: 'You blocked this conversation',
+          subtitle: 'Unblock to send messages again.',
+          inputPlaceholder: 'Unblock this user to send a message',
+        },
+        blocked_me: {
+          title: 'You were blocked',
+          subtitle: 'You cannot send messages in this conversation.',
+          inputPlaceholder: 'Sending disabled in this conversation',
+        },
+        unmatched: {
+          title: 'Conversation closed',
+          subtitle: 'This match is no longer available.',
+          inputPlaceholder: 'Conversation no longer available',
+        },
+      },
       sample: {
         incoming: 'Hey! I saw your profile and loved your photography. Where was that last photo taken?',
         incomingTranslated: 'Hi! I saw your profile and loved your photos...',
@@ -160,7 +200,9 @@ export const translations: Record<Locale, Dictionary> = {
       heroSubtitle:
         'Activate your Boost to highlight your profile, get more likes, create more matches, and start more conversations.',
       activateBoost: 'Activate Boost',
+      activateBoostWithStock: 'Activate Boost x{count}',
       boostActive: 'Boost active {timer}',
+      buyBoostNow: 'Buy boost tokens',
       subscribePrefix: 'SUBSCRIBE TO ',
       secureHint: 'Cancellation anytime - Secure payment',
       jumpSection: 'Go to boost section {index}',
@@ -183,13 +225,13 @@ export const translations: Record<Locale, Dictionary> = {
         essential: {
           ctaName: 'ESSENTIAL',
           name: 'VIBE Essential',
-          tag: 'BASIC',
+          tag: 'ENTRY',
           price: '499{currency}',
           features: {
             0: 'See who liked you',
-            1: '5 Super Likes per day',
-            2: 'Unlimited likes',
-            3: 'Chat auto-translation',
+            1: 'No ads + premium badge',
+            2: '5 Super Likes per day',
+            3: 'Unlimited chat translation',
           },
         },
         gold: {
@@ -208,7 +250,7 @@ export const translations: Record<Locale, Dictionary> = {
         platinum: {
           ctaName: 'PLATINUM',
           name: 'VIBE Platinum',
-          tag: 'ELITE',
+          tag: 'PRO',
           price: '1490{currency}',
           features: {
             0: 'Everything in Gold',
@@ -217,6 +259,35 @@ export const translations: Record<Locale, Dictionary> = {
             3: 'See who is online',
             4: 'ShadowGhost + 1 Travel Pass/month',
           },
+        },
+        elite: {
+          ctaName: 'ELITE',
+          name: 'VIBE Elite / VIP',
+          tag: 'VIP',
+          price: '2990{currency}',
+          features: {
+            0: 'Everything in Platinum',
+            1: 'Exclusive premium badge',
+            2: 'Light premium exposure',
+            3: 'Priority support',
+          },
+        },
+      },
+      badges: {
+        identityTitle: 'Identity Trust',
+        identityBadge: 'Verified Identity Badge',
+        identityDesc:
+          'Granted after selfie + passport verification. Improves trust and safety only.',
+        identityRule: 'Not sold in Premium offers',
+        premiumTitle: 'Monetized Status',
+        premiumBadge: 'Premium Status Badge',
+        premiumDesc:
+          'Granted after purchasing plans or passes. This is a status marker, not identity proof.',
+        premiumStatuses: {
+          0: 'Essential badge',
+          1: 'Gold badge',
+          2: 'Platinum badge',
+          3: 'Elite / VIP badge',
         },
       },
       instant: {
@@ -295,30 +366,30 @@ export const translations: Record<Locale, Dictionary> = {
       },
       bundles: {
         starter: {
-          label: 'SuperLikes x15',
-          desc: 'Strong intent bundle for fast outreach.',
+          label: 'Starter',
+          desc: '1 Boost + 5 SuperLikes.',
           details: {
-            0: '15 SuperLikes',
-            1: 'Price-optimized pack',
+            0: 'First conversion bundle',
+            1: 'Ideal first purchase',
           },
           price: '499{currency}',
-          tag: 'Token bundle',
+          tag: 'First purchase',
         },
-        pro: {
-          label: 'Boosts x5',
-          desc: 'Performance bundle for visibility acceleration.',
+        datingpro: {
+          label: 'Dating Pro',
+          desc: '5 Boosts + 20 SuperLikes + 10 Rewinds.',
           details: {
-            0: '5 Boost tokens',
-            1: 'Save vs single purchases',
+            0: 'Best price/value ratio',
+            1: 'Built for repeat buyers',
           },
           price: '599{currency}',
           tag: 'Recommended',
         },
         premiumplus: {
-          label: 'Boosts x15',
-          desc: 'High-volume visibility bundle.',
+          label: 'Premium+',
+          desc: 'Monthly premium + 4 boosts/month + monthly tokens.',
           details: {
-            0: '15 Boost tokens',
+            0: 'Continuous premium growth',
             1: 'Best long-run value',
           },
           price: '1490{currency}',
@@ -419,7 +490,7 @@ export const translations: Record<Locale, Dictionary> = {
         cityPlaceholder: 'Search a city',
       },
       step4: {
-        badge: 'Premium Verified Profile',
+        badge: 'Verified Identity Ready',
         title: 'Congratulations!',
         subtitle: 'Your journey starts now. Get ready for unforgettable connections.',
         rewardTitle: 'Welcome Boost',
@@ -586,6 +657,8 @@ export const translations: Record<Locale, Dictionary> = {
       eyebrow: 'Обзор',
       title: 'DISCOVER',
       boost: 'Буст',
+      boostActive: 'Буст {timer}',
+      boostReady: 'Активировать буст x{count}',
       hiddenDistance: 'Distance hidden',
       distanceKm: '{value} km',
       quickFilters: {
@@ -659,6 +732,13 @@ export const translations: Record<Locale, Dictionary> = {
         advancedFilters: 'Расширенные фильтры',
         weeklyBoost: 'Еженедельный буст',
       },
+      states: {
+        loading: 'Синхронизация',
+        empty: 'Лайков нет',
+        locked: 'Закрыто',
+        unlocked: 'Открыто',
+        error: 'Недоступно',
+      },
     },
     messages: {
       title: 'Сообщения',
@@ -680,15 +760,46 @@ export const translations: Record<Locale, Dictionary> = {
       selectSubtitle: 'Выберите мэтч слева, чтобы начать общение.',
       jumpConversation: 'Перейти к диалогу {name}',
       matchesSliderAria: 'Навигация по новым мэтчам',
+      conversationStates: {
+        active: 'Активен',
+        blocked_by_me: 'Заблокирован вами',
+        blocked_me: 'Заблокировал вас',
+        unmatched: 'Мэтч закрыт',
+      },
     },
     chat: {
       online: 'В сети',
       today: 'Сегодня',
+      block: 'Блок',
+      unblock: 'Разблокировать',
       translationLabel: 'Перевод',
       superLikeTrace: 'This conversation was opened with a SuperLike',
       errorTitle: 'Conversation unavailable',
       errorSubtitle: 'Unable to load this chat.',
       backToMessages: 'Back to messages',
+      conversationStates: {
+        active: 'В сети',
+        blocked_by_me: 'Заблокирован вами',
+        blocked_me: 'Заблокировал вас',
+        unmatched: 'Мэтч закрыт',
+      },
+      restrictions: {
+        blocked_by_me: {
+          title: 'Вы заблокировали этот чат',
+          subtitle: 'Разблокируйте, чтобы снова писать сообщения.',
+          inputPlaceholder: 'Разблокируйте пользователя, чтобы отправить сообщение',
+        },
+        blocked_me: {
+          title: 'Пользователь вас заблокировал',
+          subtitle: 'Отправка сообщений в этом чате недоступна.',
+          inputPlaceholder: 'Отправка в этом чате отключена',
+        },
+        unmatched: {
+          title: 'Диалог закрыт',
+          subtitle: 'Этот мэтч больше недоступен.',
+          inputPlaceholder: 'Диалог больше недоступен',
+        },
+      },
       sample: {
         incoming:
           'Привет! Я увидел(а) твой профиль и мне очень понравились твои фото. Где сделан последний снимок?',
@@ -708,7 +819,9 @@ export const translations: Record<Locale, Dictionary> = {
       heroSubtitle:
         'Активируй Буст, чтобы поднять профиль в выдаче, получить больше лайков, матчей и живых диалогов.',
       activateBoost: 'Активировать Буст',
+      activateBoostWithStock: 'Активировать буст x{count}',
       boostActive: 'Буст активен {timer}',
+      buyBoostNow: 'Купить бусты',
       subscribePrefix: 'ПОДПИСАТЬСЯ НА ',
       secureHint: 'Отмена в любой момент - Безопасная оплата',
       jumpSection: 'Перейти к разделу буста {index}',
@@ -735,9 +848,9 @@ export const translations: Record<Locale, Dictionary> = {
           price: '499{currency}',
           features: {
             0: 'Смотреть кто лайкнул тебя',
-            1: '5 Super Likes в день',
-            2: 'Безлимитные лайки',
-            3: 'Без рекламы',
+            1: 'Без рекламы + premium-бейдж',
+            2: '5 SuperLikes в день',
+            3: 'Безлимитный перевод чата',
           },
         },
         gold: {
@@ -747,9 +860,9 @@ export const translations: Record<Locale, Dictionary> = {
           price: '899{currency}',
           features: {
             0: 'Все из Essential',
-            1: 'Passport (весь мир)',
-            2: 'Безлимитный rewind',
-            3: '1 бесплатный Буст в месяц',
+            1: '10 SuperLikes в день',
+            2: '1 Буст в неделю',
+            3: '3 Rewind в день',
             4: 'Скрыть возраст/дистанцию',
           },
         },
@@ -760,11 +873,38 @@ export const translations: Record<Locale, Dictionary> = {
           price: '1490{currency}',
           features: {
             0: 'Все из Gold',
-            1: 'Приоритет лайков',
-            2: 'Сообщение до матча',
+            1: '20 SuperLikes в день',
+            2: '1 Буст в день',
             3: 'Показывать кто онлайн',
-            4: '2 бесплатных Буста в месяц',
+            4: 'ShadowGhost + 1 Travel Pass/месяц',
           },
+        },
+        elite: {
+          ctaName: 'ELITE',
+          name: 'VIBE Elite / VIP',
+          tag: 'VIP',
+          price: '2990{currency}',
+          features: {
+            0: 'Все из Platinum',
+            1: 'Эксклюзивный premium-бейдж',
+            2: 'Легкая premium-экспозиция',
+            3: 'Приоритетная поддержка',
+          },
+        },
+      },
+      badges: {
+        identityTitle: 'Identity trust',
+        identityBadge: 'Verified identity badge',
+        identityDesc: 'Выдается после selfie + passport проверки. Это сигнал доверия, не продажи.',
+        identityRule: 'Не продается через Premium',
+        premiumTitle: 'Monetized status',
+        premiumBadge: 'Premium status badge',
+        premiumDesc: 'Выдается после покупки планов/пассов. Это статус, а не подтверждение личности.',
+        premiumStatuses: {
+          0: 'Essential badge',
+          1: 'Gold badge',
+          2: 'Platinum badge',
+          3: 'Elite / VIP badge',
         },
       },
       instant: {
@@ -779,14 +919,14 @@ export const translations: Record<Locale, Dictionary> = {
           meta: 'Моментальный эффект',
         },
         premium: {
-          label: 'Premium verified',
-          desc: 'Проверенный бейдж + свободные переписки.',
+          label: 'IceBreaker 24h',
+          desc: 'Открой скрытые лайки и ускорь старт диалогов.',
           details: {
-            0: 'Видимый проверенный бейдж',
-            1: 'Полный доступ к диалогам',
+            0: '24h доступ',
+            1: 'Работает для скрытых лайков',
           },
           price: '149{currency}',
-          meta: 'В месяц',
+          meta: '24h item',
         },
         superlike: {
           label: 'Токены SuperLike',
@@ -852,7 +992,7 @@ export const translations: Record<Locale, Dictionary> = {
           price: '499{currency}',
           tag: 'Первая покупка',
         },
-        pro: {
+        datingpro: {
           label: 'Dating Pro',
           desc: '5 Бустов + 20 SuperLikes + 10 Rewinds',
           details: {
@@ -967,7 +1107,7 @@ export const translations: Record<Locale, Dictionary> = {
         cityPlaceholder: 'Найти город',
       },
       step4: {
-        badge: 'Премиум профиль подтвержден',
+        badge: 'Подтвержденная личность',
         title: 'Поздравляем!',
         subtitle: 'Ваш путь начинается сейчас. Впереди яркие знакомства.',
         rewardTitle: 'Приветственный Буст',

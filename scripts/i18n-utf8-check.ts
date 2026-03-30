@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve('src', 'i18n');
 const ALLOWED_EXT = new Set(['.ts', '.tsx', '.json']);
-const MOJIBAKE_RE = /[\u00D0\u00D1\u00C3\u00C2\uFFFD]/;
+const MOJIBAKE_RE = /(?:\u00D0.|\u00D1.|\u00C3.|\u00C2.)|\uFFFD/;
 
 const decoder = new TextDecoder('utf-8', { fatal: true });
 
@@ -47,4 +47,3 @@ if (errors.length > 0) {
 }
 
 console.log(`UTF-8/i18n check passed (${files.length} files).`);
-

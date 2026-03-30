@@ -18,7 +18,7 @@ const MessagesScreen = () => {
   const likesCount = useRuntimeSelector((payload) => payload.likes.length);
   const conversationsRefreshKey = useRuntimeSelector((payload) =>
     payload.conversations
-      .map((entry) => `${entry.id}:${entry.lastMessageAtIso}:${entry.unreadCount}`)
+      .map((entry) => `${entry.id}:${entry.lastMessageAtIso}:${entry.unreadCount}:${entry.relationState}`)
       .join('|'),
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -201,7 +201,9 @@ const MessagesScreen = () => {
                 <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
                   <img src={conversation.peer.photos[0]} className="w-full h-full object-cover" alt={conversation.peer.name} referrerPolicy="no-referrer" />
                 </div>
-                <span className="text-[10px] font-bold tracking-wider">{conversation.peer.name}, {conversation.peer.age}</span>
+                <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider">
+                  {conversation.peer.name}, {conversation.peer.age}
+                </span>
               </div>
             ))}
           </div>
@@ -279,6 +281,7 @@ const MessagesScreen = () => {
                   ? 'bg-[var(--messages-selected-bg)] border border-[var(--messages-selected-border)] shadow-[0_0_18px_rgba(236,72,153,0.18)]' 
                   : 'glass border border-transparent hover:bg-white/7'
                 }`}
+                style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
               >
                 <div className="relative shrink-0">
                   <img src={conversation.peer.photos[0]} className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`} alt={conversation.peer.name} referrerPolicy="no-referrer" />
@@ -308,11 +311,26 @@ const MessagesScreen = () => {
                   <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
                     {conversation.lastMessagePreview}
                   </p>
-                  {conversation.receivedSuperLikeTraceAtIso && (
-                    <p className="mt-1 text-[9px] uppercase tracking-[0.12em] text-fuchsia-200">
-                      {t('messages.receivedSuperLike')}
-                    </p>
-                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.12em] font-black ${
+                        conversation.relationState === 'active'
+                          ? 'border border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
+                          : conversation.relationState === 'blocked_by_me'
+                            ? 'border border-orange-300/35 bg-orange-500/12 text-orange-100'
+                            : conversation.relationState === 'blocked_me'
+                              ? 'border border-red-300/35 bg-red-500/12 text-red-100'
+                              : 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
+                      }`}
+                    >
+                      {t(`messages.conversationStates.${conversation.relationState}`)}
+                    </span>
+                    {conversation.receivedSuperLikeTraceAtIso && (
+                      <span className="text-[9px] uppercase tracking-[0.12em] text-fuchsia-200">
+                        {t('messages.receivedSuperLike')}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {conversation.unreadCount > 0 && (
                   <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>
