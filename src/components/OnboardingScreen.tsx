@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Check, ChevronsUpDown, Search } from 'lucide-react';
@@ -228,48 +228,118 @@ const parseIsoDate = (date: string) => {
 const toIsoDate = (day: number, month: number, year: number) =>
   `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
+const ONBOARDING_DRAFT_STORAGE_KEY = 'exotic.onboarding.draft.v1';
+const ONBOARDING_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+type OnboardingDraftPayload = {
+  step: Step;
+  form: FormState;
+  updatedAtIso: string;
+};
+
+const createInitialForm = (locale: 'en' | 'ru'): FormState => ({
+  consentAge: false,
+  consentTerms: false,
+  authMethod: 'phone',
+  phone: '',
+  email: '',
+  otp: '',
+  firstName: '',
+  birthDate: '',
+  gender: '',
+  city: '',
+  originCountry: '',
+  languages: [],
+  photos: 0,
+  lookingFor: 'tous',
+  ageMin: 18,
+  ageMax: AGE_RANGE_MAX,
+  distance: 50,
+  intent: '',
+  interests: [],
+  interfaceLang: locale,
+  targetLang: locale === 'ru' ? 'ru' : 'en',
+  autoTranslate: true,
+  autoDetectLanguage: true,
+  verifyNow: false,
+  preciseLocation: false,
+  notifications: false,
+});
+
+const isValidStep = (value: unknown): value is Step =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= TOTAL_STEPS;
+
+const readOnboardingDraft = (
+  locale: 'en' | 'ru',
+): {
+  step: Step;
+  form: FormState;
+} => {
+  const fallback = {
+    step: 1 as Step,
+    form: createInitialForm(locale),
+  };
+
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as OnboardingDraftPayload;
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    if (!isValidStep(parsed.step)) return fallback;
+
+    const updatedAtMs = new Date(parsed.updatedAtIso).getTime();
+    if (!Number.isFinite(updatedAtMs)) return fallback;
+    if (Date.now() - updatedAtMs > ONBOARDING_DRAFT_TTL_MS) return fallback;
+
+    return {
+      step: parsed.step,
+      form: {
+        ...fallback.form,
+        ...(parsed.form ?? {}),
+      },
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+const persistOnboardingDraft = (step: Step, form: FormState) => {
+  if (typeof window === 'undefined') return;
+  const payload: OnboardingDraftPayload = {
+    step,
+    form,
+    updatedAtIso: new Date().toISOString(),
+  };
+  window.localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+};
+
+const clearOnboardingDraft = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+};
+
 const OnboardingScreen = () => {
   const navigate = useNavigate();
   const { locale } = useI18n();
   const copy = onboardingCopy[locale];
   const { isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
+  const [initialDraft] = useState(() => readOnboardingDraft(locale));
 
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<Step>(initialDraft.step);
   const [citySearch, setCitySearch] = useState('');
   const [nationalitySearch, setNationalitySearch] = useState('');
   const [isDateSelectorOpen, setIsDateSelectorOpen] = useState(false);
   const [isCitySelectorOpen, setIsCitySelectorOpen] = useState(false);
   const [isNationalitySelectorOpen, setIsNationalitySelectorOpen] = useState(false);
   const [dateDraft, setDateDraft] = useState(() => parseIsoDate(''));
-  const [form, setForm] = useState<FormState>({
-    consentAge: false,
-    consentTerms: false,
-    authMethod: 'phone',
-    phone: '',
-    email: '',
-    otp: '',
-    firstName: '',
-    birthDate: '',
-    gender: '',
-    city: '',
-    originCountry: '',
-    languages: [],
-    photos: 0,
-    lookingFor: 'tous',
-    ageMin: 18,
-    ageMax: AGE_RANGE_MAX,
-    distance: 50,
-    intent: '',
-    interests: [],
-    interfaceLang: locale,
-    targetLang: locale === 'ru' ? 'ru' : 'en',
-    autoTranslate: true,
-    autoDetectLanguage: true,
-    verifyNow: false,
-    preciseLocation: false,
-    notifications: false,
-  });
+  const [form, setForm] = useState<FormState>(initialDraft.form);
+
+  useEffect(() => {
+    persistOnboardingDraft(step, form);
+  }, [step, form]);
 
   const age = useMemo(() => ageFromDob(form.birthDate), [form.birthDate]);
   const zodiac = useMemo(() => zodiacFromDob(form.birthDate), [form.birthDate]);
@@ -354,6 +424,7 @@ const OnboardingScreen = () => {
       setStep((s) => (s + 1) as Step);
       return;
     }
+    clearOnboardingDraft();
     navigate('/discover');
   };
 
@@ -1042,10 +1113,20 @@ const OnboardingScreen = () => {
                       (form.city && copy.cities[form.city]) || copy.ready.fallbackCity
                     }`}
                   </p>
-                  <GlassButton variant="premium" onClick={() => navigate('/discover')} className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]">
+                  <GlassButton
+                    variant="premium"
+                    onClick={() => {
+                      clearOnboardingDraft();
+                      navigate('/discover');
+                    }}
+                    className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]"
+                  >
                     {copy.ready.viewProfiles}
                   </GlassButton>
-                  <button onClick={() => navigate('/profile/edit')} className="text-xs font-black uppercase tracking-[0.2em] text-white/55">
+                  <button
+                    onClick={() => navigate('/profile/edit', { state: { fromOnboarding: true } })}
+                    className="text-xs font-black uppercase tracking-[0.2em] text-white/55"
+                  >
                     {copy.ready.improveProfile}
                   </button>
                 </div>

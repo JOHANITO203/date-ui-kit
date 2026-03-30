@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, ChevronLeft, Trash2, GripVertical } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import GlassButton from './ui/GlassButton';
@@ -8,6 +8,8 @@ import { useI18n } from '../i18n/I18nProvider';
 
 const EditProfileScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromOnboarding = Boolean((location.state as { fromOnboarding?: boolean } | null)?.fromOnboarding);
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const { t } = useI18n();
@@ -23,7 +25,16 @@ const EditProfileScreen: React.FC = () => {
     >
       <header className="flex items-center justify-between mb-12">
         <div className="flex items-center gap-6">
-          <button onClick={() => navigate(-1)} className="p-3 rounded-2xl glass hover-effect">
+          <button
+            onClick={() => {
+              if (fromOnboarding) {
+                navigate('/onboarding');
+                return;
+              }
+              navigate(-1);
+            }}
+            className="p-3 rounded-2xl glass hover-effect"
+          >
             <ChevronLeft size={24} />
           </button>
           <div>
