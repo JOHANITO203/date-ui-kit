@@ -9,7 +9,12 @@ import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
-import type { FeedCandidate, FeedQuickFilter, SwipeDecision } from '../contracts';
+import type { FeedCandidate, FeedQuickFilter, PlanTier, SwipeDecision } from '../contracts';
+
+const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
+  if (tier !== 'free') return tier;
+  return shortPassTier ? 'essential' : 'free';
+};
 
 const formatBoostTimer = (seconds: number) => {
   const safe = Math.max(0, seconds);
@@ -51,8 +56,7 @@ const SwipeScreen = () => {
     return feedCandidates.map((candidate) => ({
       ...candidate,
       verified: candidate.flags.verifiedIdentity,
-      premiumTier: candidate.flags.premiumTier,
-      shortPassTier: candidate.flags.shortPassTier,
+      premiumTier: resolveDisplayPremiumTier(candidate.flags.premiumTier, candidate.flags.shortPassTier),
       ageMasked: candidate.age <= 0,
       distanceMasked: candidate.distanceKm < 0,
       distanceLabel:
@@ -532,7 +536,6 @@ const SwipeScreen = () => {
                         ageMasked={user.ageMasked}
                         verified={user.verified}
                         premiumTier={user.premiumTier}
-                        shortPassTier={user.shortPassTier}
                         size={isDesktop ? 'xl' : 'lg'}
                         textClassName={isLarge ? '' : 'max-w-[75%]'}
                         badgeClassName={isLarge ? '' : 'mt-0.5'}
@@ -671,7 +674,6 @@ const SwipeScreen = () => {
                       ageMasked={user.ageMasked}
                       verified={user.verified}
                       premiumTier={user.premiumTier}
-                      shortPassTier={user.shortPassTier}
                       size={isLarge ? 'xl' : 'lg'}
                       textClassName={isLarge ? '' : 'max-w-[75%]'}
                       badgeClassName={isLarge ? '' : 'mt-0.5'}

@@ -52,6 +52,8 @@
     --panel-width-sm: 16rem;
     --panel-width-md: 20rem;
     --panel-width-lg: 22rem;
+    --messages-pane-width-md: 23.5rem;
+    --messages-pane-width-lg: 27rem;
     --discover-header-top: 1.5rem;
     --discover-card-h: min(62dvh, 28rem);
     --discover-overlay-pad: 2rem;

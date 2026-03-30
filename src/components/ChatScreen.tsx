@@ -7,7 +7,7 @@ import NameWithBadge from './ui/NameWithBadge';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
-import type { ChatMessage, ConversationSummary } from '../contracts';
+import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
 
 interface ChatScreenProps {
   embedded?: boolean;
@@ -19,6 +19,11 @@ const formatTime = (isoDate: string) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
+  if (tier !== 'free') return tier;
+  return shortPassTier ? 'essential' : 'free';
+};
 
 const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const { userId: routeUserId } = useParams();
@@ -213,9 +218,12 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               age={activePeer.age}
               ageMasked={activePeer.flags.hideAge}
               verified={activePeer.flags.verifiedIdentity}
-              premiumTier={activePeer.flags.premiumTier}
-              shortPassTier={activePeer.flags.shortPassTier}
+              premiumTier={resolveDisplayPremiumTier(
+                activePeer.flags.premiumTier,
+                activePeer.flags.shortPassTier,
+              )}
               size="md"
+              premiumBadgeMode="dense"
               className="w-fit"
             />
             <span

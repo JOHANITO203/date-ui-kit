@@ -7,7 +7,12 @@ import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
-import type { ConversationSummary } from '../contracts';
+import type { ConversationSummary, PlanTier } from '../contracts';
+
+const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
+  if (tier !== 'free') return tier;
+  return shortPassTier ? 'essential' : 'free';
+};
 
 const MessagesScreen = () => {
   const navigate = useNavigate();
@@ -152,7 +157,7 @@ const MessagesScreen = () => {
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
-      <div className={`group/messages-pane relative flex flex-col ${isLarge ? (isTablet ? 'w-full md:w-[calc(var(--panel-width-md)+2rem)] xl:w-[calc(var(--panel-width-lg)+1rem)]' : 'w-full md:w-[var(--panel-width-md)] xl:w-[var(--panel-width-lg)]') + ' border-r border-white/5 overflow-hidden pb-6 pt-6' : 'w-full overflow-y-auto no-scrollbar pt-[var(--messages-header-top)]'} h-full px-[var(--page-x)]`}>
+      <div className={`group/messages-pane relative flex flex-col ${isLarge ? (isTablet ? 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]' : 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]') + ' border-r border-white/5 overflow-hidden pb-6 pt-6' : 'w-full overflow-y-auto no-scrollbar pt-[var(--messages-header-top)]'} h-full px-[var(--page-x)]`}>
         <div className={`flex items-center justify-between ${isLarge ? (isTablet ? 'mb-6' : 'mb-8') : 'mb-[var(--messages-header-gap)]'}`}>
           <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>{t('messages.title')}</h2>
           <button onClick={() => navigate('/settings')} className={`glass rounded-full hover-effect flex items-center justify-center ${isLarge ? 'w-12 h-12' : 'w-11 h-11'}`}><ICONS.Settings size={isLarge ? 20 : 18} /></button>
@@ -270,10 +275,6 @@ const MessagesScreen = () => {
             style={{ touchAction: 'pan-y' }}
           >
             {conversationItems.map((conversation, index) => {
-                const relationPreview =
-                  conversation.relationState === 'active'
-                    ? conversation.lastMessagePreview
-                    : t(`messages.conversationStates.${conversation.relationState}`);
                 return (
                   <div
                     key={conversation.id}
@@ -295,20 +296,23 @@ const MessagesScreen = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 mb-1">
+                      <div className="flex items-start justify-between gap-2 mb-1">
                         <NameWithBadge
                           name={conversation.peer.name}
                           age={conversation.peer.age}
                           ageMasked={conversation.peer.flags.hideAge}
                           verified={conversation.peer.flags.verifiedIdentity}
-                          premiumTier={conversation.peer.flags.premiumTier}
-                          shortPassTier={conversation.peer.flags.shortPassTier}
+                          premiumTier={resolveDisplayPremiumTier(
+                            conversation.peer.flags.premiumTier,
+                            conversation.peer.flags.shortPassTier,
+                          )}
                           size={isTablet ? 'md' : 'lg'}
-                          textClassName="truncate"
+                          textClassName="truncate max-w-[7.75rem] md:max-w-[9.75rem] xl:max-w-[11rem]"
                           className="w-full min-w-0"
+                          premiumBadgeMode="dense"
                           badgeClassName={isTablet ? 'scale-90' : ''}
                         />
-                        <span className="text-[10px] text-secondary font-bold shrink-0">
+                        <span className="mt-0.5 text-[10px] text-secondary font-bold shrink-0">
                           {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
                             hour: '2-digit',
                             minute: '2-digit',
@@ -316,7 +320,7 @@ const MessagesScreen = () => {
                         </span>
                       </div>
                       <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
-                        {relationPreview}
+                        {conversation.lastMessagePreview}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         <span
@@ -333,7 +337,7 @@ const MessagesScreen = () => {
                           {t(`messages.conversationStates.${conversation.relationState}`)}
                         </span>
                         {conversation.receivedSuperLikeTraceAtIso && (
-                          <span className="text-[9px] uppercase tracking-[0.12em] text-fuchsia-200">
+                          <span className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-fuchsia-300/35 bg-fuchsia-500/12 text-fuchsia-100">
                             {t('messages.receivedSuperLike')}
                           </span>
                         )}

@@ -10,6 +10,7 @@ interface NameWithBadgeProps {
   verified?: boolean;
   premiumTier?: PlanTier;
   shortPassTier?: ShortPassTier | null;
+  premiumBadgeMode?: 'full' | 'dense' | 'compact' | 'hidden';
   ageMasked?: boolean;
   size?: NameSize;
   className?: string;
@@ -55,6 +56,7 @@ const NameWithBadge: React.FC<NameWithBadgeProps> = ({
   verified = false,
   premiumTier = 'free',
   shortPassTier,
+  premiumBadgeMode = 'full',
   ageMasked = false,
   size = 'lg',
   className = '',
@@ -72,6 +74,8 @@ const NameWithBadge: React.FC<NameWithBadgeProps> = ({
         : statusBadgeTone === 'premium'
           ? t('badges.premium')
           : null;
+  const compactStatusBadgeLabel =
+    statusBadgeTone === 'premium_plus' ? 'P+' : statusBadgeTone === 'platinum' ? 'PL' : statusBadgeTone === 'premium' ? 'P' : null;
   const shortPassLabel =
     shortPassTier === 'day'
       ? t('badges.dayPass')
@@ -105,13 +109,19 @@ const NameWithBadge: React.FC<NameWithBadgeProps> = ({
             </svg>
           </div>
         )}
-        {statusBadgeTone && statusBadgeLabel && (
+        {premiumBadgeMode !== 'hidden' && statusBadgeTone && statusBadgeLabel && (
           <div
-            className={`h-[var(--verified-badge-size)] rounded-full border px-2.5 inline-flex items-center justify-center text-[9px] font-black uppercase tracking-[0.12em] ${statusBadgeClassMap[statusBadgeTone]}`}
+            className={`h-[var(--verified-badge-size)] rounded-full border ${
+              premiumBadgeMode === 'compact'
+                ? 'px-1.5 text-[8px] tracking-[0.09em]'
+                : premiumBadgeMode === 'dense'
+                  ? 'px-2 text-[8px] tracking-[0.1em]'
+                  : 'px-2.5 text-[9px] tracking-[0.12em]'
+            } inline-flex items-center justify-center font-black uppercase ${statusBadgeClassMap[statusBadgeTone]}`}
             aria-label={statusBadgeLabel}
             title={statusBadgeLabel}
           >
-            {statusBadgeLabel}
+            {premiumBadgeMode === 'compact' ? compactStatusBadgeLabel : statusBadgeLabel}
           </div>
         )}
         {shortPassTier && shortPassLabel && (

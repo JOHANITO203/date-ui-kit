@@ -139,7 +139,6 @@ const timePacks = [
     detailKeys: ['boost.passes.day.details.0', 'boost.passes.day.details.1'],
     priceKey: 'boost.passes.day.price',
     tagKey: 'boost.passes.day.tag',
-    temporaryBadgeKey: 'badges.dayPass',
     glowToken: '--glow-silver' as GlowToken,
   },
   {
@@ -149,7 +148,6 @@ const timePacks = [
     detailKeys: ['boost.passes.week.details.0', 'boost.passes.week.details.1'],
     priceKey: 'boost.passes.week.price',
     tagKey: 'boost.passes.week.tag',
-    temporaryBadgeKey: 'badges.weekPass',
     glowToken: '--glow-gold' as GlowToken,
   },
   {
@@ -555,9 +553,6 @@ const BoostScreen = () => {
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/85">
-              {t('boost.badges.shortPassRule')}
-            </p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/65">
               {t('boost.badges.travelPassRule')}
             </p>
@@ -633,11 +628,6 @@ const BoostScreen = () => {
                       <p className="font-bold text-lg">{t(item.labelKey)}</p>
                       <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{t(item.tagKey)}</span>
                     </div>
-                    {item.temporaryBadgeKey && (
-                      <div className="mt-2 inline-flex rounded-full border border-orange-300/35 bg-orange-500/12 px-2.5 py-1 text-[9px] uppercase tracking-[0.12em] font-black text-orange-100">
-                        {t(item.temporaryBadgeKey)}
-                      </div>
-                    )}
                     <p className="text-sm text-secondary mt-2">{t(item.descKey)}</p>
                     <ul className="mt-2 space-y-1.5">
                       {item.detailKeys.map((detailKey, detailIdx) => (
