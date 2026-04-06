@@ -26,6 +26,9 @@ import '@fontsource/jetbrains-mono/700.css';
 import './index.css';
 import { I18nProvider } from './i18n/I18nProvider';
 import { AuthProvider } from './auth/AuthProvider';
+import { initMonitoring } from './services/monitoring';
+
+initMonitoring();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -14,17 +14,12 @@ import { authApi } from '../services';
 import type { AuthErrorResponse, AuthResponse } from '../contracts';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-type AuthMethod = 'phone' | 'email';
 type Distance = 25 | 50 | 100;
 type ApiStatus = 'idle' | 'loading' | 'success' | 'error' | 'retry';
 
 type FormState = {
   consentAge: boolean;
   consentTerms: boolean;
-  authMethod: AuthMethod;
-  phone: string;
-  email: string;
-  otp: string;
   firstName: string;
   birthDate: string;
   gender: '' | 'homme' | 'femme' | 'autre';
@@ -247,10 +242,6 @@ const isAuthError = (payload: AuthResponse<unknown>): payload is AuthErrorRespon
 const createInitialForm = (locale: 'en' | 'ru'): FormState => ({
   consentAge: false,
   consentTerms: false,
-  authMethod: 'phone',
-  phone: '',
-  email: '',
-  otp: '',
   firstName: '',
   birthDate: '',
   gender: '',
@@ -345,11 +336,8 @@ const OnboardingScreen = () => {
   const [isNationalitySelectorOpen, setIsNationalitySelectorOpen] = useState(false);
   const [dateDraft, setDateDraft] = useState(() => parseIsoDate(''));
   const [form, setForm] = useState<FormState>(initialDraft.form);
-  const [authActionPending, setAuthActionPending] = useState(false);
-  const [authActionMessage, setAuthActionMessage] = useState('');
   const [submitErrorMessage, setSubmitErrorMessage] = useState('');
   const [profileHydrationStatus, setProfileHydrationStatus] = useState<ApiStatus>('idle');
-  const [authActionStatus, setAuthActionStatus] = useState<ApiStatus>('idle');
   const [submitStatus, setSubmitStatus] = useState<ApiStatus>('idle');
   const hydrationRequestIdRef = useRef(0);
 
@@ -537,31 +525,6 @@ const OnboardingScreen = () => {
     setSubmitStatus('success');
     clearOnboardingDraft();
     navigate('/discover');
-  };
-
-  const sendMagicLink = async () => {
-    if (!/\S+@\S+\.\S+/.test(form.email)) {
-      setAuthActionMessage('Enter a valid email first.');
-      return;
-    }
-    setAuthActionPending(true);
-    setAuthActionStatus(authActionStatus === 'error' ? 'retry' : 'loading');
-    setAuthActionMessage('');
-    try {
-      const response = await authApi.sendMagicLink(form.email.trim(), '/onboarding');
-      if (isAuthError(response)) {
-        setAuthActionMessage(response.message ?? 'Unable to send magic link.');
-        setAuthActionStatus('error');
-        return;
-      }
-      setAuthActionMessage('Magic link sent. Open your email then return here.');
-      setAuthActionStatus('success');
-    } catch {
-      setAuthActionStatus('error');
-      setAuthActionMessage('Unable to send magic link.');
-    } finally {
-      setAuthActionPending(false);
-    }
   };
 
   const back = () => {
@@ -908,25 +871,8 @@ const OnboardingScreen = () => {
                     </div>
                   ) : (
                     <>
-                      <p className="text-white/60 text-sm">Connect your account with a real auth endpoint before continuing.</p>
-                      <input
-                        className={fieldClass}
-                        value={form.email}
-                        onChange={(e) => setField('email', e.target.value)}
-                        placeholder={copy.auth.emailPlaceholder}
-                        type="email"
-                      />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={sendMagicLink}
-                          disabled={authActionPending}
-                          className={`h-11 rounded-[14px] border text-[11px] font-black uppercase tracking-[0.16em] transition-all ${
-                            authActionPending ? 'bg-white/20 text-white/45 border-white/20 cursor-not-allowed' : 'gradient-premium text-white border-transparent'
-                          }`}
-                        >
-                          {authActionPending ? 'Please wait...' : 'Send Magic Link'}
-                        </button>
+                      <p className="text-white/60 text-sm">Connect your account with Google before continuing.</p>
+                      <div className="grid grid-cols-1 gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -937,25 +883,18 @@ const OnboardingScreen = () => {
                           Continue with Google
                         </button>
                       </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/login/methods?from=/onboarding')}
-                    className="h-10 px-4 rounded-full border border-white/15 bg-white/5 text-[11px] font-black uppercase tracking-[0.14em] text-white/75"
-                  >
-                    Open full login methods
-                  </button>
-                  {authActionMessage && <p className="text-xs text-cyan-200">{authActionMessage}</p>}
-                  {authActionStatus === 'error' && (
-                    <p className="text-xs text-red-300">Status: error</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/login?from=/onboarding')}
+                        className="h-10 px-4 rounded-full border border-white/15 bg-white/5 text-[11px] font-black uppercase tracking-[0.14em] text-white/75"
+                      >
+                        Open login
+                      </button>
+                      {submitErrorMessage && <p className="text-xs text-red-300">{submitErrorMessage}</p>}
+                    </>
                   )}
-                  {authActionStatus === 'retry' && (
-                    <p className="text-xs text-cyan-200">Status: retry</p>
-                  )}
-                  {submitErrorMessage && <p className="text-xs text-red-300">{submitErrorMessage}</p>}
-                </>
+                </div>
               )}
-            </div>
-          )}
 
               {step === 4 && (
                 <div className="space-y-4">

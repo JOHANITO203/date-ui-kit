@@ -48,6 +48,79 @@ export const buildServer = () => {
     credentials: true,
   });
 
+  const scheduleIncomingReply = (input: {
+    userId: string;
+    conversationId: string;
+    peerProfileId: string;
+  }) => {
+    setTimeout(async () => {
+      const replyText = "Nice! I will answer soon.";
+      const createdAtIso = new Date().toISOString();
+
+      if (supabaseServiceClient) {
+        const [messageInsert, conversationUpdate] = await Promise.all([
+          supabaseServiceClient.from("chat_messages").upsert(
+            {
+              user_id: input.userId,
+              message_id: `m-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              conversation_id: input.conversationId,
+              sender_user_id: input.peerProfileId,
+              direction: "incoming",
+              original_text: replyText,
+              translated: false,
+              created_at: createdAtIso,
+            },
+            { onConflict: "user_id,message_id" },
+          ),
+          supabaseServiceClient
+            .from("chat_conversations")
+            .update({
+              unread_count: 1,
+              last_message_preview: replyText,
+              last_message_at: createdAtIso,
+            })
+            .eq("user_id", input.userId)
+            .eq("conversation_id", input.conversationId),
+        ]);
+
+        if (messageInsert.error || conversationUpdate.error) {
+          app.log.warn(
+            { conversationId: input.conversationId },
+            "chat_auto_reply_supabase_failed",
+          );
+        }
+
+        return;
+      }
+
+      const incoming: ChatMessage = {
+        id: `m-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        conversationId: input.conversationId,
+        senderUserId: input.peerProfileId,
+        direction: "incoming",
+        originalText: replyText,
+        translated: false,
+        createdAtIso,
+      };
+
+      store.messagesByConversation[input.conversationId] = [
+        ...(store.messagesByConversation[input.conversationId] ?? []),
+        incoming,
+      ];
+
+      store.conversations = store.conversations.map((entry) =>
+        entry.id === input.conversationId
+          ? {
+              ...entry,
+              unreadCount: Math.max(1, entry.unreadCount + 1),
+              lastMessagePreview: replyText,
+              lastMessageAtIso: createdAtIso,
+            }
+          : entry,
+      );
+    }, 1200);
+  };
+
   app.get("/health", async () => ({
     status: "ok",
     service: "chat-service",
@@ -331,6 +404,12 @@ export const buildServer = () => {
         return { code: "CHAT_SEND_FAILED" };
       }
 
+      scheduleIncomingReply({
+        userId,
+        conversationId,
+        peerProfileId: conversationResult.data.peer_profile_id,
+      });
+
       return {
         status: "sent" as const,
         message,
@@ -373,6 +452,12 @@ export const buildServer = () => {
           }
         : entry,
     );
+
+    scheduleIncomingReply({
+      userId,
+      conversationId,
+      peerProfileId: conversation.peer.id,
+    });
 
     return {
       status: "sent" as const,

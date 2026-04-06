@@ -67,6 +67,34 @@ const MessagesScreen = () => {
   }, [conversationsRefreshKey, urlUserId, reloadNonce]);
 
   useEffect(() => {
+    let isCancelled = false;
+    let inFlight = false;
+
+    const refreshLive = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const items = await appApi.getConversations();
+        if (isCancelled) return;
+        setConversationItems(items);
+      } catch {
+        // Ignore transient live errors; manual retry keeps explicit recovery path.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void refreshLive();
+    }, 3000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
     const matchesNode = matchesRef.current;
     const convNode = conversationsRef.current;
     if (!isLarge || !matchesNode || !convNode) return;

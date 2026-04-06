@@ -20,8 +20,8 @@ const EditProfileScreen: React.FC = () => {
 
   return (
     <div
-      className={`h-full flex flex-col bg-black ${isLarge ? 'p-12' : 'p-6 pb-28'} overflow-y-auto no-scrollbar`}
-      style={isTouch && isKeyboardOpen ? { paddingBottom: `calc(7rem + ${keyboardInset}px)` } : undefined}
+      className={`screen-safe h-full flex flex-col bg-black ${isLarge ? 'p-12' : 'p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]'} overflow-y-auto no-scrollbar`}
+      style={isTouch && isKeyboardOpen ? { paddingBottom: `calc(5.5rem + ${keyboardInset}px)` } : undefined}
     >
       <header className="flex items-center justify-between mb-12">
         <div className="flex items-center gap-6">

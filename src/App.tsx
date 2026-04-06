@@ -18,6 +18,8 @@ import EditProfilePage from './pages/EditProfilePage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import AppShell from './pages/AppShell';
 import NotFound from './pages/NotFound';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 import { RequireAuth, RequireGuest } from './auth/RouteGuards';
 
 export default function App() {
@@ -28,6 +30,8 @@ export default function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/splash" element={<Navigate to="/" replace />} />
             <Route path="/entry" element={<Navigate to="/" replace />} />
             <Route element={<RequireGuest />}>

@@ -1,10 +1,12 @@
 import { motion } from 'motion/react';
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
 import { authApi } from '../services';
+import { useAuth } from '../auth/AuthProvider';
 
 const GoogleMark = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
@@ -15,27 +17,21 @@ const GoogleMark = () => (
   </svg>
 );
 
-const AppleMark = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white/90" aria-hidden>
-    <path d="M16.7 12.8c0-2.2 1.8-3.3 1.8-3.3-1-1.5-2.6-1.7-3.1-1.7-1.3-.1-2.5.8-3.2.8-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 6.9 1.2 9.1.8 1.1 1.7 2.3 2.9 2.2 1.1 0 1.6-.7 3-.7 1.4 0 1.9.7 3 .7 1.2 0 2-.9 2.8-2 .9-1.2 1.3-2.4 1.3-2.5 0 0-2-.8-2-3.1Z" />
-    <path d="M14.6 6.4c.7-.8 1.1-1.9.9-3.1-1 .1-2.2.7-2.9 1.5-.7.8-1.2 1.9-1 3 1.1.1 2.2-.5 3-1.4Z" />
-  </svg>
-);
-
 const LoginScreen = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { ephemeralAccessEnabled, enableEphemeralAccess, disableEphemeralAccess } = useAuth();
   const params = new URLSearchParams(location.search);
   const from = params.get('from');
+  const ephemeralParam = params.get('ephemeral');
   const safeFrom = from && from.startsWith('/') && !from.startsWith('//') ? from : '/discover';
 
-  const detectedAccount = {
-    name: 'Johan',
-    email: 'johaneoyaraht@gmail.com',
-    avatar:
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80',
-  };
+  useEffect(() => {
+    if (ephemeralParam !== '1' || ephemeralAccessEnabled) return;
+    enableEphemeralAccess();
+    window.location.replace(safeFrom);
+  }, [enableEphemeralAccess, ephemeralAccessEnabled, ephemeralParam, safeFrom]);
 
   return (
     <motion.div
@@ -57,56 +53,34 @@ const LoginScreen = () => {
       </div>
 
       <div className="space-y-4 mt-auto mb-12">
-        <div className="space-y-3">
-          <GlassButton
-            variant="premium"
-            className="w-full py-5 flex items-center justify-center gap-3"
-            onClick={() => {
-              window.location.href = authApi.getGoogleStartUrl(safeFrom, `/login/methods?from=${encodeURIComponent(safeFrom)}`);
-            }}
-          >
-            <GoogleMark />
-            <span className="font-bold">{t('login.continueGoogle')}</span>
-          </GlassButton>
-
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            onClick={() => navigate(`/login/methods?from=${encodeURIComponent(safeFrom)}`)}
-            className="w-full py-3 flex items-center justify-center gap-2 text-white/40 hover:text-white/60 transition-colors text-sm"
-          >
-            <img
-              src={detectedAccount.avatar}
-              alt={detectedAccount.name}
-              className="w-5 h-5 rounded-full grayscale opacity-50"
-              referrerPolicy="no-referrer"
-            />
-            <span>{t('login.continueAs', { name: detectedAccount.name })}</span>
-          </motion.button>
-        </div>
-
         <GlassButton
-          className="w-full py-5 flex items-center justify-center gap-3 border border-white/10"
-          onClick={() => navigate(`/login/methods?from=${encodeURIComponent(safeFrom)}`)}
+          variant="premium"
+          className="w-full py-5 flex items-center justify-center gap-3"
+          onClick={() => {
+            window.location.href = authApi.getGoogleStartUrl(
+              safeFrom,
+              `/login/methods?from=${encodeURIComponent(safeFrom)}`,
+            );
+          }}
         >
-          <AppleMark />
-          <span className="font-bold">{t('login.continueApple')}</span>
+          <GoogleMark />
+          <span className="font-bold">{t('login.continueGoogle')}</span>
         </GlassButton>
 
-        <div className="pt-4 flex flex-col items-center gap-4">
-          <button
-            onClick={() => navigate(`/login/methods?from=${encodeURIComponent(safeFrom)}`)}
-            className="text-white/40 text-sm font-medium hover:text-white/60 transition-colors underline underline-offset-4"
-          >
-            {t('login.otherMethods')}
-          </button>
-
-          <div className="flex items-center gap-2 text-[10px] text-white/20 uppercase tracking-widest mt-4">
-            <ICONS.Fingerprint size={12} />
-            <span>{t('login.biometric')}</span>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (ephemeralAccessEnabled) {
+              disableEphemeralAccess();
+              return;
+            }
+            enableEphemeralAccess();
+            window.location.replace(safeFrom);
+          }}
+          className="w-full py-4 rounded-[16px] border border-white/15 bg-white/5 text-[11px] font-black uppercase tracking-[0.16em] text-white/75 hover:border-pink-500/35 transition-all"
+        >
+          {ephemeralAccessEnabled ? 'Disable temporary access' : 'Temporary access (12h)'}
+        </button>
       </div>
 
       <p className="text-[10px] text-center text-white/30 px-8">

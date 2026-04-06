@@ -21,18 +21,18 @@ type OnboardingIntent = {
   createdAt: number;
 };
 
+type OAuthStateEntry = {
+  codeVerifier: string;
+  createdAt: number;
+  next: string;
+  redirect: string;
+};
+
 const DEFAULT_NEXT_PATH = "/onboarding";
 const DEFAULT_REDIRECT_PATH = "/login/methods";
+const OAUTH_STATE_COOKIE = "exotic-oauth-google";
 
-const stateStore = new Map<
-  string,
-  {
-    codeVerifier: string;
-    createdAt: number;
-    next: string;
-    redirect: string;
-  }
->();
+const stateStore = new Map<string, OAuthStateEntry>();
 
 const CALLBACK_EXPIRATION = 1000 * 60 * 10; // 10 minutes
 const INTENT_EXPIRATION = 1000 * 60 * 5; // 5 minutes
@@ -47,6 +47,7 @@ const startQuerySchema = z.object({
 const callbackQuerySchema = z.object({
   code: z.string(),
   state: z.string(),
+  iss: z.string().optional(),
   error: z.string().optional(),
   error_description: z.string().optional(),
 });
@@ -57,6 +58,37 @@ const sanitizeRelativePath = (raw?: string): string | undefined => {
   if (!trimmed.startsWith("/")) return undefined;
   if (trimmed.startsWith("//")) return undefined;
   return trimmed;
+};
+
+const serializeOAuthStateCookie = (state: string, entry: OAuthStateEntry) =>
+  Buffer.from(JSON.stringify({ state, entry }), "utf8").toString("base64url");
+
+const parseOAuthStateCookie = (
+  raw: string | undefined
+): { state: string; entry: OAuthStateEntry } | null => {
+  if (!raw) return null;
+  try {
+    const decoded = Buffer.from(raw, "base64url").toString("utf8");
+    const parsed = JSON.parse(decoded) as {
+      state?: string;
+      entry?: OAuthStateEntry;
+    };
+    if (
+      !parsed?.state ||
+      !parsed?.entry?.codeVerifier ||
+      !parsed?.entry?.createdAt ||
+      !parsed?.entry?.next ||
+      !parsed?.entry?.redirect
+    ) {
+      return null;
+    }
+    return {
+      state: parsed.state,
+      entry: parsed.entry,
+    };
+  } catch {
+    return null;
+  }
 };
 
 export async function registerGoogleAuthRoutes(app: FastifyInstance) {
@@ -74,14 +106,24 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         const { codeVerifier, codeChallenge } = generatePKCE();
         const state = generateState();
 
-        stateStore.set(state, {
+        const entry: OAuthStateEntry = {
           codeVerifier,
           createdAt: Date.now(),
           next,
           redirect,
-        });
+        };
+
+        stateStore.set(state, entry);
 
         setTimeout(() => stateStore.delete(state), CALLBACK_EXPIRATION).unref?.();
+        reply.setCookie(OAUTH_STATE_COOKIE, serializeOAuthStateCookie(state, entry), {
+          httpOnly: true,
+          path: "/",
+          sameSite: env.cookie.sameSite,
+          secure: env.cookie.secure,
+          domain: env.cookie.domain,
+          maxAge: Math.floor(CALLBACK_EXPIRATION / 1000),
+        });
 
         const authUrl = client.authorizationUrl({
           scope: "openid email profile",
@@ -100,7 +142,7 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
           500,
           "OAUTH_START_FAILED",
           "Failed to start Google authentication.",
-          ["login_with_password", "send_magic_link"]
+          ["login_with_google"]
         );
       }
     });
@@ -118,11 +160,11 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         400,
         "OAUTH_INVALID_CALLBACK",
         "Invalid OAuth callback query.",
-        ["login_with_password", "send_magic_link"]
+        ["login_with_google"]
       );
     }
 
-    const { code, state, error, error_description } = parse.data;
+    const { code, state, iss, error, error_description } = parse.data;
 
     if (error) {
       request.log.warn({ state, error, error_description }, "auth.google.callback_error");
@@ -131,11 +173,14 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         401,
         "OAUTH_EXCHANGE_FAILED",
         error_description ?? "Google authentication canceled.",
-        ["login_with_password", "send_magic_link"]
+        ["login_with_google"]
       );
     }
 
-    const entry = stateStore.get(state);
+    const cookieState = parseOAuthStateCookie(request.cookies[OAUTH_STATE_COOKIE]);
+    const mapState = stateStore.get(state);
+    const entry = mapState ?? (cookieState && cookieState.state === state ? cookieState.entry : undefined);
+
     if (!entry || Date.now() - entry.createdAt > CALLBACK_EXPIRATION) {
       request.log.warn({ state }, "auth.google.callback_state_expired");
       return sendAuthError(
@@ -143,17 +188,15 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         401,
         "OAUTH_STATE_MISMATCH",
         "OAuth state expired.",
-        ["login_with_password", "send_magic_link"]
+        ["login_with_google"]
       );
     }
-
-    stateStore.delete(state);
 
     try {
       const client = await getGoogleClient();
       const tokenSet = await client.callback(
         env.GOOGLE_REDIRECT_URI,
-        { code, state },
+        { code, state, iss },
         {
           code_verifier: entry.codeVerifier,
           state,
@@ -170,7 +213,7 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
           401,
           "ID_TOKEN_MISSING",
           "Missing Google tokens.",
-          ["login_with_password", "send_magic_link"]
+          ["login_with_google"]
         );
       }
 
@@ -187,7 +230,7 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
           401,
           "SUPABASE_SIGNIN_FAILED",
           "Google sign-in failed on Supabase.",
-          ["login_with_password", "send_magic_link"]
+          ["login_with_google"]
         );
       }
 
@@ -234,15 +277,28 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         redirectUrl.searchParams.set("expires_in", String(data.session.expires_in));
       }
 
+      stateStore.delete(state);
+      reply.clearCookie(OAUTH_STATE_COOKIE, {
+        path: "/",
+        domain: env.cookie.domain,
+      });
+
       reply.redirect(redirectUrl.toString());
     } catch (err) {
-      request.log.error({ err }, "auth.google.callback_exception");
+      request.log.error(
+        {
+          err,
+          state,
+          callbackRedirectUri: env.GOOGLE_REDIRECT_URI,
+        },
+        "auth.google.callback_exception"
+      );
       return sendAuthError(
         reply,
         401,
         "OAUTH_EXCHANGE_FAILED",
         "Failed to exchange Google OAuth code.",
-        ["login_with_password", "send_magic_link"]
+        ["login_with_google"]
       );
     }
   });

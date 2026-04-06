@@ -17,7 +17,7 @@ const BottomNav = () => {
   ];
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-[var(--bottom-nav-height)] rounded-t-[32px] flex items-center justify-around px-4 pb-safe z-50 border border-[var(--menu-premium-border)] border-b-0 bg-[var(--menu-premium-gray)] backdrop-blur-2xl shadow-[0_-8px_28px_rgba(0,0,0,0.45)]">
+    <div className="fixed bottom-0 left-0 right-0 h-[var(--bottom-nav-height)] rounded-t-[32px] flex items-center justify-around px-4 pb-safe z-50 border border-[var(--menu-premium-border)] border-b-0 bg-[var(--menu-premium-gray)] backdrop-blur-2xl shadow-[0_-8px_28px_rgba(0,0,0,0.45)]">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive =
@@ -28,7 +28,7 @@ const BottomNav = () => {
           <button
             key={tab.id}
             onClick={() => navigate(tab.path)}
-            className="relative flex flex-col items-center justify-center w-12 h-12"
+            className="relative flex flex-col items-center justify-center w-12 h-12 touch-manipulation"
             aria-label={tab.label}
           >
             <Icon 

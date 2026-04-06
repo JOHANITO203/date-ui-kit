@@ -28,6 +28,9 @@ Auth BFF microservice for this project.
 4. Run:
    - `npm run backend:auth:dev`
 
+Detailed Supabase + Google OAuth setup:
+- `backend/supabase/AUTH_BFF_SUPABASE_SETUP.md`
+
 ## Health
 
 - `GET /health`

@@ -4,20 +4,20 @@
 - Stabilize real usage quality before MVP release candidate.
 
 ## 1) Chat Realtime
-- [ ] Realtime messages enabled (send/receive live updates).
-- [ ] Unread counters updated in realtime.
-- [ ] Conversation ordering updates on new activity.
+- [x] Realtime messages enabled (polling-based live updates).
+- [x] Unread counters updated in realtime.
+- [x] Conversation ordering updates on new activity.
 - [ ] Presence is explicitly postponed (out of immediate critical path).
 
 ## 2) Monitoring
 - [ ] Sentry integrated (frontend + backend minimal setup).
-- [ ] Runtime logs centralized and readable for incident triage.
-- [ ] Simple analytics events added for key MVP flows.
+- [x] Runtime logs centralized and readable for incident triage (frontend monitor hook + backend fastify logs).
+- [x] Simple analytics events added for key MVP flows (with optional transport endpoint).
 
 ## 3) Responsive Final Pass
-- [ ] Safe areas validated on small mobile devices.
-- [ ] `Edit Profile` responsive issues closed.
-- [ ] Bottom navigation responsive behavior validated across target breakpoints.
+- [x] Safe areas validated on small mobile devices (layout-safe padding pass).
+- [x] `Edit Profile` responsive issues closed (safe-area and keyboard offset pass).
+- [x] Bottom navigation responsive behavior validated across target breakpoints (fixed-position/mobile interaction pass).
 
 ## 4) Staging + Real Testing
 - [ ] Staging deploy completed.

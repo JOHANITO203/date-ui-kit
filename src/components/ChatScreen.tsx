@@ -104,6 +104,44 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     };
   }, [userId, embedded, navigate, reloadNonce]);
 
+  useEffect(() => {
+    if (!conversationId) return;
+    let isCancelled = false;
+    let inFlight = false;
+
+    const refreshLive = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const [history, list] = await Promise.all([
+          appApi.getMessages(conversationId),
+          appApi.getConversations(),
+        ]);
+        if (isCancelled) return;
+        setMessages(history);
+        const nextConversation =
+          list.find((entry) => entry.id === conversationId) ??
+          list.find((entry) => entry.peer.id === userId);
+        if (nextConversation) {
+          setConversation(nextConversation);
+        }
+      } catch {
+        // Keep UI stable; live refresh silently retries on next tick.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void refreshLive();
+    }, 2500);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [conversationId, userId]);
+
   const activePeer = conversation?.peer;
   const relationState = conversation?.relationState ?? 'active';
   const isConversationRestricted = relationState !== 'active';

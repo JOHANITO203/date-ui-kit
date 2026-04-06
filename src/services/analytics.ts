@@ -1,4 +1,5 @@
 import type { AnalyticsEvent, AnalyticsEventName, AnalyticsEventPayload } from '../contracts';
+import { captureAnalyticsEvent } from './monitoring';
 
 const events: AnalyticsEvent[] = [];
 
@@ -12,6 +13,7 @@ export const trackEvent = (name: AnalyticsEventName, payload: AnalyticsEventPayl
     payload,
   };
   events.push(event);
+  captureAnalyticsEvent(event);
   return event;
 };
 
