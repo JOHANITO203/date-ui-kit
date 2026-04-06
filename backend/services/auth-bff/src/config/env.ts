@@ -21,6 +21,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   GOOGLE_REDIRECT_URI: z.string().url(),
+  STORAGE_PROFILE_PHOTOS_BUCKET: z.string().min(1).default("profile-photos"),
+  STORAGE_SIGNED_URL_TTL_SEC: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
   COOKIE_NAME_AT: z.string().min(1),
   COOKIE_NAME_RT: z.string().min(1),
   COOKIE_NAME_SESSION: z.string().min(1),

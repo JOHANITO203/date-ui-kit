@@ -47,6 +47,7 @@ Run in Supabase SQL Editor:
 3. `backend/supabase/migrations/20260406_000003_payments_entitlements.sql`
 4. `backend/supabase/migrations/20260406_000004_chat_safety.sql`
 5. `backend/supabase/migrations/20260406_000005_wave_b_security_baseline.sql`
+6. `backend/supabase/migrations/20260407_000006_profile_photos_storage.sql`
 
 ## 6) Smoke checks
 - `GET http://127.0.0.1:8787/health` returns healthy

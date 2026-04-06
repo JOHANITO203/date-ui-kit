@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, Check, ChevronsUpDown, Search } from 'lucide-react';
@@ -236,6 +237,15 @@ type OnboardingDraftPayload = {
   updatedAtIso: string;
 };
 
+type UploadedPhoto = {
+  id: string;
+  path: string;
+  url: string | null;
+  sort_order: number;
+  is_primary: boolean;
+  created_at: string;
+};
+
 const isAuthError = (payload: AuthResponse<unknown>): payload is AuthErrorResponse =>
   payload.ok === false;
 
@@ -339,7 +349,11 @@ const OnboardingScreen = () => {
   const [submitErrorMessage, setSubmitErrorMessage] = useState('');
   const [profileHydrationStatus, setProfileHydrationStatus] = useState<ApiStatus>('idle');
   const [submitStatus, setSubmitStatus] = useState<ApiStatus>('idle');
+  const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState<ApiStatus>('idle');
+  const [photoErrorMessage, setPhotoErrorMessage] = useState('');
   const hydrationRequestIdRef = useRef(0);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     persistOnboardingDraft(step, form);
@@ -479,6 +493,90 @@ const OnboardingScreen = () => {
   const applyDateSelection = () => {
     setField('birthDate', toIsoDate(dateDraft.day, dateDraft.month, dateDraft.year));
     closeDateSelector();
+  };
+
+  const syncPhotosCount = useCallback((count: number) => {
+    setField('photos', count);
+  }, []);
+
+  const openPhotoPicker = () => {
+    photoInputRef.current?.click();
+  };
+
+  const loadProfilePhotos = useCallback(async () => {
+    if (!isAuthenticated) return;
+    const payload = await authApi.getProfilePhotos();
+    if (isAuthError(payload)) return;
+    const next = payload.data?.photos ?? [];
+    setUploadedPhotos(next);
+    syncPhotosCount(next.length);
+  }, [isAuthenticated, syncPhotosCount]);
+
+  useEffect(() => {
+    void loadProfilePhotos();
+  }, [loadProfilePhotos]);
+
+  const removePhotoAt = async (index: number) => {
+    const target = uploadedPhotos[index];
+    if (!target) return;
+
+    setPhotoUploadStatus(photoUploadStatus === 'error' ? 'retry' : 'loading');
+    setPhotoErrorMessage('');
+
+    const response = await authApi.deleteProfilePhoto(target.id);
+    if (isAuthError(response)) {
+      setPhotoUploadStatus('error');
+      setPhotoErrorMessage(response.message ?? 'Unable to remove photo now.');
+      return;
+    }
+
+    const next = uploadedPhotos.filter((photo) => photo.id !== target.id);
+    setUploadedPhotos(next);
+    syncPhotosCount(next.length);
+    setPhotoUploadStatus('success');
+  };
+
+  const onPhotoFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files: File[] = Array.from(event.target.files ?? []).filter(
+      (file): file is File => file instanceof File && file.type.startsWith('image/'),
+    );
+    if (files.length === 0) return;
+
+    const available = PHOTO_SLOTS - uploadedPhotos.length;
+    if (available <= 0) {
+      event.currentTarget.value = '';
+      return;
+    }
+
+    setPhotoUploadStatus(photoUploadStatus === 'error' ? 'retry' : 'loading');
+    setPhotoErrorMessage('');
+
+    const accepted = files.slice(0, available);
+    const appended: UploadedPhoto[] = [];
+
+    for (const file of accepted) {
+      const response = await authApi.uploadProfilePhoto(file);
+      if (isAuthError(response)) {
+        setPhotoUploadStatus('error');
+        setPhotoErrorMessage(response.message ?? 'Unable to upload photo now.');
+        break;
+      }
+      if (!response.data?.photo) {
+        setPhotoUploadStatus('error');
+        setPhotoErrorMessage('Unable to upload photo now.');
+        break;
+      }
+      appended.push(response.data.photo);
+    }
+
+    if (appended.length > 0) {
+      const next = [...uploadedPhotos, ...appended].sort((a, b) => a.sort_order - b.sort_order);
+      setUploadedPhotos(next);
+      syncPhotosCount(next.length);
+      setPhotoUploadStatus('success');
+    }
+
+    event.currentTarget.value = '';
   };
 
   const next = async () => {
@@ -993,10 +1091,26 @@ const OnboardingScreen = () => {
                 <div className="space-y-4">
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.photo.title}</h2>
                   <p className="text-white/60">{copy.photo.subtitle}</p>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={onPhotoFilesSelected}
+                  />
+                  <button
+                    type="button"
+                    onClick={openPhotoPicker}
+                    className="w-full h-11 rounded-[14px] border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-[0.16em] hover:border-pink-500/35 transition-all"
+                  >
+                    Select photos from device
+                  </button>
                   <div className="grid grid-cols-3 auto-rows-[88px] sm:auto-rows-[96px] md:auto-rows-[110px] gap-3 max-w-[32rem]">
                     {Array.from({ length: PHOTO_SLOTS }).map((_, index) => {
                       const slotNumber = index + 1;
-                      const isFilled = form.photos >= slotNumber;
+                      const uploadedPhoto = uploadedPhotos[index] ?? null;
+                      const isFilled = Boolean(uploadedPhoto);
                       const isMain = index === 0;
                       const slotLayout =
                         index === 0
@@ -1013,18 +1127,31 @@ const OnboardingScreen = () => {
                         <button
                           key={`photo-slot-${slotNumber}`}
                           type="button"
-                          onClick={() => setField('photos', isFilled ? slotNumber - 1 : slotNumber)}
+                          onClick={() => {
+                            if (isFilled) {
+                              removePhotoAt(index);
+                              return;
+                            }
+                            openPhotoPicker();
+                          }}
                           className={`${slotLayout} relative h-full min-h-[88px] rounded-[20px] border border-dashed transition-all overflow-hidden ${
                             isFilled
-                              ? 'border-pink-500/45 bg-gradient-to-br from-pink-500/20 to-sky-500/20'
+                              ? 'border-pink-500/45 bg-black/40'
                               : 'border-white/20 bg-white/[0.02] hover:border-pink-500/35'
                           }`}
                         >
+                          {uploadedPhoto && (
+                            <img
+                              src={uploadedPhoto?.url ?? '/placeholder.svg'}
+                              alt={`Selected photo ${slotNumber}`}
+                              className="absolute inset-0 h-full w-full object-cover"
+                            />
+                          )}
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                             <div
                               className={`rounded-full flex items-center justify-center ${
                                 isMain ? 'w-12 h-12' : 'w-9 h-9'
-                              } ${isFilled ? 'bg-pink-500/25 text-pink-200' : 'bg-white/5 text-white/45'}`}
+                              } ${isFilled ? 'bg-black/45 text-pink-200' : 'bg-white/5 text-white/45'}`}
                             >
                               {isFilled ? <Check size={isMain ? 22 : 16} /> : <ICONS.Camera size={isMain ? 22 : 16} />}
                             </div>
@@ -1038,9 +1165,13 @@ const OnboardingScreen = () => {
                   </div>
                   <p className="text-sm text-white/55">
                     {copy.photo.added
-                      .replace('{count}', String(form.photos))
+                      .replace('{count}', String(uploadedPhotos.length))
                       .replace('{total}', String(PHOTO_SLOTS))}
                   </p>
+                  {photoUploadStatus === 'loading' || photoUploadStatus === 'retry' ? (
+                    <p className="text-xs text-white/60">Uploading photo...</p>
+                  ) : null}
+                  {photoErrorMessage ? <p className="text-xs text-red-300">{photoErrorMessage}</p> : null}
                 </div>
               )}
 

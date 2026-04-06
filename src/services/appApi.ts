@@ -151,8 +151,13 @@ export const appApi = {
   async getFeed(quickFilters: FeedQuickFilter[]): Promise<GetFeedResponse> {
     if (DISCOVER_API_URL) {
       try {
+        const preferences = runtimeApi.getSettingsEnvelope().settings.preferences;
         const query = new URLSearchParams({
           quickFilters: quickFilters.join(','),
+          ageMin: String(preferences.ageMin),
+          ageMax: String(preferences.ageMax),
+          distanceKm: String(preferences.distanceKm),
+          genderPreference: preferences.genderPreference,
         });
         return await discoverRequest<GetFeedResponse>(`/discover/feed?${query.toString()}`);
       } catch (error) {

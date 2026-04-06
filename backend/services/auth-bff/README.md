@@ -10,6 +10,7 @@ Auth BFF microservice for this project.
 - Supabase session refresh handling
 - Internal session token cookie
 - Profile/settings bootstrap endpoints (`/profiles/me`)
+- Profile photos real upload endpoints (`/profiles/photos`)
 - Dedicated onboarding finalize endpoint (`POST /onboarding/complete`)
 
 ## Setup
@@ -22,6 +23,8 @@ Auth BFF microservice for this project.
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
    - `GOOGLE_REDIRECT_URI`
+   - `STORAGE_PROFILE_PHOTOS_BUCKET`
+   - `STORAGE_SIGNED_URL_TTL_SEC`
    - `INTERNAL_JWT_SECRET`
 3. Install deps:
    - `npm --prefix backend/services/auth-bff install`

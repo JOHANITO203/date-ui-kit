@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { supabaseServiceClient } from "../lib/supabaseClient";
 import { sendAuthError, sendAuthSuccess } from "./auth/utils";
 import type { AuthResponse } from "./auth/types";
 import { requireSessionMiddleware } from "../middleware/requireSession";
+import { env } from "../config/env";
 
 const settingsSchema = z
   .object({
@@ -36,6 +38,79 @@ const profileUpdateSchema = z.object({
   onboarding_version: z.string().optional(),
   settings: settingsSchema.optional(),
 });
+
+const deletePhotoParamsSchema = z.object({
+  photoId: z.string().uuid(),
+});
+
+const uploadPhotoBodySchema = z.object({
+  mimeType: z.string().min(1),
+  base64Data: z.string().min(1),
+});
+
+type ProfilePhotoRow = {
+  id: string;
+  user_id: string;
+  storage_path: string;
+  sort_order: number;
+  is_primary: boolean;
+  created_at: string;
+};
+
+const PROFILE_PHOTOS_BUCKET = env.STORAGE_PROFILE_PHOTOS_BUCKET;
+const PHOTO_MAX_COUNT = 5;
+
+const extensionFromMimeType = (mimeType: string) => {
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType === "image/heic") return "heic";
+  if (mimeType === "image/heif") return "heif";
+  return "bin";
+};
+
+const buildPhotoPublicPayload = async (row: ProfilePhotoRow) => {
+  const { data, error } = await supabaseServiceClient.storage
+    .from(PROFILE_PHOTOS_BUCKET)
+    .createSignedUrl(row.storage_path, env.STORAGE_SIGNED_URL_TTL_SEC);
+
+  if (error) {
+    return {
+      id: row.id,
+      path: row.storage_path,
+      url: null,
+      sort_order: row.sort_order,
+      is_primary: row.is_primary,
+      created_at: row.created_at,
+    };
+  }
+
+  return {
+    id: row.id,
+    path: row.storage_path,
+    url: data.signedUrl,
+    sort_order: row.sort_order,
+    is_primary: row.is_primary,
+    created_at: row.created_at,
+  };
+};
+
+const syncPhotosCount = async (userId: string) => {
+  const countResult = await supabaseServiceClient
+    .from("profile_photos")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  if (countResult.error) return;
+
+  await supabaseServiceClient.from("profiles").upsert(
+    {
+      user_id: userId,
+      photos_count: countResult.count ?? 0,
+    },
+    { onConflict: "user_id" }
+  );
+};
 
 const sanitizeProfilePayload = (input: unknown): Record<string, unknown> => {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -82,6 +157,171 @@ const sanitizeProfilePayload = (input: unknown): Record<string, unknown> => {
 export async function registerProfileRoutes(app: FastifyInstance) {
   app.register(async (protectedRoutes) => {
     protectedRoutes.addHook("preHandler", requireSessionMiddleware);
+
+    protectedRoutes.get("/profiles/photos", async (request, reply) => {
+      const session = request.userSession;
+      if (!session) return;
+
+      const photosResult = await supabaseServiceClient
+        .from("profile_photos")
+        .select("id,user_id,storage_path,sort_order,is_primary,created_at")
+        .eq("user_id", session.user.id)
+        .order("sort_order", { ascending: true });
+
+      if (photosResult.error) {
+        request.log.error({ err: photosResult.error, userId: session.user.id }, "profile.photos.fetch_failed");
+        return sendAuthError(reply, 500, "PROFILE_PHOTOS_FETCH_FAILED", "Unable to fetch profile photos.");
+      }
+
+      const payload = await Promise.all(
+        (photosResult.data ?? []).map((row) => buildPhotoPublicPayload(row as ProfilePhotoRow))
+      );
+
+      return sendAuthSuccess(reply, {
+        ok: true,
+        data: {
+          photos: payload,
+        },
+      } satisfies AuthResponse);
+    });
+
+    protectedRoutes.post("/profiles/photos", async (request, reply) => {
+      const session = request.userSession;
+      if (!session) return;
+
+      const existingResult = await supabaseServiceClient
+        .from("profile_photos")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.user.id);
+
+      if (existingResult.error) {
+        request.log.error({ err: existingResult.error, userId: session.user.id }, "profile.photos.count_failed");
+        return sendAuthError(reply, 500, "PROFILE_PHOTOS_COUNT_FAILED", "Unable to validate photo count.");
+      }
+
+      const currentCount = existingResult.count ?? 0;
+      if (currentCount >= PHOTO_MAX_COUNT) {
+        return sendAuthError(reply, 400, "PROFILE_PHOTOS_LIMIT_REACHED", "Maximum number of photos reached.");
+      }
+
+      const parsedBody = uploadPhotoBodySchema.safeParse(request.body);
+      if (!parsedBody.success) {
+        return sendAuthError(reply, 400, "PHOTO_INVALID_PAYLOAD", "Invalid photo payload.");
+      }
+
+      const { mimeType, base64Data } = parsedBody.data;
+
+      if (!mimeType.startsWith("image/")) {
+        return sendAuthError(reply, 400, "PHOTO_INVALID_TYPE", "Only image uploads are allowed.");
+      }
+
+      const buffer = Buffer.from(base64Data, "base64");
+      if (!buffer || buffer.length === 0) {
+        return sendAuthError(reply, 400, "PHOTO_INVALID_PAYLOAD", "Photo data is empty.");
+      }
+      if (buffer.length > 10 * 1024 * 1024) {
+        return sendAuthError(reply, 400, "PHOTO_FILE_TOO_LARGE", "Photo exceeds max allowed size.");
+      }
+
+      const ext = extensionFromMimeType(mimeType);
+      const storagePath = `${session.user.id}/${Date.now()}-${randomUUID()}.${ext}`;
+
+      const uploadResult = await supabaseServiceClient.storage
+        .from(PROFILE_PHOTOS_BUCKET)
+        .upload(storagePath, buffer, {
+          contentType: mimeType,
+          upsert: false,
+        });
+
+      if (uploadResult.error) {
+        request.log.error({ err: uploadResult.error, userId: session.user.id }, "profile.photos.upload_failed");
+        return sendAuthError(reply, 500, "PROFILE_PHOTO_UPLOAD_FAILED", "Unable to upload profile photo.");
+      }
+
+      const maxSortResult = await supabaseServiceClient
+        .from("profile_photos")
+        .select("sort_order")
+        .eq("user_id", session.user.id)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextSortOrder = (maxSortResult.data?.sort_order ?? 0) + 1;
+
+      const insertResult = await supabaseServiceClient
+        .from("profile_photos")
+        .insert({
+          user_id: session.user.id,
+          storage_path: storagePath,
+          sort_order: nextSortOrder,
+          is_primary: nextSortOrder === 1,
+        })
+        .select("id,user_id,storage_path,sort_order,is_primary,created_at")
+        .single();
+
+      if (insertResult.error || !insertResult.data) {
+        request.log.error({ err: insertResult.error, userId: session.user.id }, "profile.photos.insert_failed");
+        await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([storagePath]);
+        return sendAuthError(reply, 500, "PROFILE_PHOTO_INSERT_FAILED", "Unable to persist profile photo.");
+      }
+
+      await syncPhotosCount(session.user.id);
+      const photoPayload = await buildPhotoPublicPayload(insertResult.data as ProfilePhotoRow);
+
+      return sendAuthSuccess(reply, {
+        ok: true,
+        data: {
+          photo: photoPayload,
+        },
+      } satisfies AuthResponse);
+    });
+
+    protectedRoutes.delete("/profiles/photos/:photoId", async (request, reply) => {
+      const session = request.userSession;
+      if (!session) return;
+
+      const parsedParams = deletePhotoParamsSchema.safeParse(request.params);
+      if (!parsedParams.success) {
+        return sendAuthError(reply, 400, "INVALID_PHOTO_ID", "Invalid photo id.");
+      }
+
+      const lookup = await supabaseServiceClient
+        .from("profile_photos")
+        .select("id,user_id,storage_path,sort_order,is_primary,created_at")
+        .eq("id", parsedParams.data.photoId)
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (lookup.error) {
+        request.log.error({ err: lookup.error, userId: session.user.id }, "profile.photos.lookup_failed");
+        return sendAuthError(reply, 500, "PROFILE_PHOTO_LOOKUP_FAILED", "Unable to remove profile photo.");
+      }
+
+      if (!lookup.data) {
+        return sendAuthError(reply, 404, "PROFILE_PHOTO_NOT_FOUND", "Photo not found.");
+      }
+
+      await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([lookup.data.storage_path]);
+
+      const removeResult = await supabaseServiceClient
+        .from("profile_photos")
+        .delete()
+        .eq("id", parsedParams.data.photoId)
+        .eq("user_id", session.user.id);
+
+      if (removeResult.error) {
+        request.log.error({ err: removeResult.error, userId: session.user.id }, "profile.photos.delete_failed");
+        return sendAuthError(reply, 500, "PROFILE_PHOTO_DELETE_FAILED", "Unable to delete profile photo.");
+      }
+
+      await syncPhotosCount(session.user.id);
+      return sendAuthSuccess(reply, {
+        ok: true,
+        data: {
+          removed: true,
+        },
+      } satisfies AuthResponse);
+    });
 
     protectedRoutes.get("/profiles/me", async (request, reply) => {
       const session = request.userSession;

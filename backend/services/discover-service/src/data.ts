@@ -13,6 +13,7 @@ export type ProfileFlags = {
 export type FeedCandidate = {
   id: string;
   name: string;
+  gender: "men" | "women";
   age: number;
   city: string;
   distanceKm: number;
@@ -31,6 +32,7 @@ export const feedSeed: FeedCandidate[] = [
   {
     id: "u-1",
     name: "Elena",
+    gender: "women",
     age: 24,
     city: "Moscow",
     distanceKm: 2,
@@ -56,6 +58,7 @@ export const feedSeed: FeedCandidate[] = [
   {
     id: "u-2",
     name: "Marcus",
+    gender: "men",
     age: 27,
     city: "Saint Petersburg",
     distanceKm: 5,
@@ -80,6 +83,7 @@ export const feedSeed: FeedCandidate[] = [
   {
     id: "u-3",
     name: "Sofia",
+    gender: "women",
     age: 22,
     city: "Voronezh",
     distanceKm: 1,

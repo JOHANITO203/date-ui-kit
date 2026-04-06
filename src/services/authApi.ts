@@ -8,10 +8,13 @@ const request = async <T>(
 ): Promise<AuthResponse<T>> => {
   const response = await fetch(`${AUTH_BFF_URL}${path}`, {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers:
+      init?.body instanceof FormData
+        ? { ...(init?.headers ?? {}) }
+        : {
+            'Content-Type': 'application/json',
+            ...(init?.headers ?? {}),
+          },
     ...init,
   });
 
@@ -154,6 +157,70 @@ export const authApi = {
     }>('/profiles/me', {
       method: 'PATCH',
       body: JSON.stringify(payload),
+    });
+  },
+
+  getProfilePhotos() {
+    return request<{
+      photos: Array<{
+        id: string;
+        path: string;
+        url: string | null;
+        sort_order: number;
+        is_primary: boolean;
+        created_at: string;
+      }>;
+    }>('/profiles/photos', { method: 'GET' });
+  },
+
+  uploadProfilePhoto(file: File) {
+    return new Promise<AuthResponse<{
+      photo: {
+        id: string;
+        path: string;
+        url: string | null;
+        sort_order: number;
+        is_primary: boolean;
+        created_at: string;
+      };
+    }>>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+        const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] ?? '' : '';
+        const payload = await request<{
+          photo: {
+            id: string;
+            path: string;
+            url: string | null;
+            sort_order: number;
+            is_primary: boolean;
+            created_at: string;
+          };
+        }>('/profiles/photos', {
+          method: 'POST',
+          body: JSON.stringify({
+            mimeType: file.type || 'application/octet-stream',
+            base64Data,
+          }),
+        });
+        resolve(payload);
+      };
+      reader.onerror = () => {
+        resolve({
+          ok: false,
+          code: 'PHOTO_READ_FAILED',
+          message: 'Unable to read photo file.',
+          fallback: ['login_with_google'],
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  },
+
+  deleteProfilePhoto(photoId: string) {
+    return request<{ removed: boolean }>(`/profiles/photos/${photoId}`, {
+      method: 'DELETE',
     });
   },
 
