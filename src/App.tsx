@@ -6,6 +6,7 @@ import './App.css';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import LoginMethodsPage from './pages/LoginMethodsPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import OnboardingPage from './pages/OnboardingPage';
 import DiscoverPage from './pages/DiscoverPage';
 import LikesPage from './pages/LikesPage';
@@ -17,6 +18,7 @@ import EditProfilePage from './pages/EditProfilePage';
 import AccountSettingsPage from './pages/AccountSettingsPage';
 import AppShell from './pages/AppShell';
 import NotFound from './pages/NotFound';
+import { RequireAuth, RequireGuest } from './auth/RouteGuards';
 
 export default function App() {
   return (
@@ -28,30 +30,35 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/splash" element={<Navigate to="/" replace />} />
             <Route path="/entry" element={<Navigate to="/" replace />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/login/methods" element={<LoginMethodsPage />} />
+            <Route element={<RequireGuest />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/login/methods" element={<LoginMethodsPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            </Route>
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/onboarding/*" element={<OnboardingPage />} />
             <Route path="/setup" element={<Navigate to="/onboarding" replace />} />
             <Route path="/profile-setup" element={<Navigate to="/onboarding" replace />} />
 
-            {/* App Shell with Adaptive Navigation */}
-            <Route element={<AppShell />}>
-              <Route path="/discover" element={<DiscoverPage />} />
-              <Route path="/likes" element={<LikesPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/boost" element={<BoostPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              
-              {/* Settings within AppShell for Desktop Sidebar consistency */}
-              <Route path="/settings" element={<AccountSettingsPage />} />
-              <Route path="/settings/:category" element={<AccountSettingsPage />} />
-              <Route path="/settings/:category/:sub" element={<AccountSettingsPage />} />
-            </Route>
+            <Route element={<RequireAuth />}>
+              {/* App Shell with Adaptive Navigation */}
+              <Route element={<AppShell />}>
+                <Route path="/discover" element={<DiscoverPage />} />
+                <Route path="/likes" element={<LikesPage />} />
+                <Route path="/messages" element={<MessagesPage />} />
+                <Route path="/boost" element={<BoostPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                
+                {/* Settings within AppShell for Desktop Sidebar consistency */}
+                <Route path="/settings" element={<AccountSettingsPage />} />
+                <Route path="/settings/:category" element={<AccountSettingsPage />} />
+                <Route path="/settings/:category/:sub" element={<AccountSettingsPage />} />
+              </Route>
 
-            {/* Sub-screens / Full-screen views */}
-            <Route path="/chat/:userId" element={<ChatPage />} />
-            <Route path="/profile/edit" element={<EditProfilePage />} />
+              {/* Sub-screens / Full-screen views */}
+              <Route path="/chat/:userId" element={<ChatPage />} />
+              <Route path="/profile/edit" element={<EditProfilePage />} />
+            </Route>
 
             {/* Fallback */}
             <Route path="/404" element={<NotFound />} />

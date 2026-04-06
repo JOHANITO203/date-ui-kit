@@ -5,10 +5,11 @@ import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { appApi } from '../services';
-import type { SettingsEnvelope } from '../contracts';
+import type { SettingsEnvelope, BlockEntry } from '../contracts';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
+import { useAuth } from '../auth/AuthProvider';
 
 type SectionId = 'account' | 'privacy' | 'notifications' | 'preferences';
 type ItemType = 'text' | 'password' | 'toggle' | 'list' | 'slider' | 'range' | 'select';
@@ -33,41 +34,67 @@ type SettingSection = {
   path: string;
 };
 
+type ApiStatus = 'idle' | 'loading' | 'success' | 'error' | 'retry';
+
 const AccountSettingsScreen = () => {
   const navigate = useNavigate();
   const { category, sub } = useParams();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const { t, locale, setLocale } = useI18n();
+  const { logout, user } = useAuth();
   const isLarge = isDesktop || isTablet;
   const [settingsEnvelope, setSettingsEnvelope] = useState<SettingsEnvelope | null>(null);
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [settingsError, setSettingsError] = useState(false);
+  const [loadStatus, setLoadStatus] = useState<ApiStatus>('idle');
+  const [profileMe, setProfileMe] = useState<{
+    profile: {
+      first_name?: string | null;
+      last_name?: string | null;
+      locale?: string | null;
+      city?: string | null;
+    } | null;
+    settings: {
+      language?: 'en' | 'ru' | null;
+      distance_km?: number | null;
+      age_min?: number | null;
+      age_max?: number | null;
+      gender_preference?: 'everyone' | 'women' | 'men' | null;
+      notifications_enabled?: boolean | null;
+    } | null;
+  } | null>(null);
+  const [profilePatchStatus, setProfilePatchStatus] = useState<ApiStatus>('idle');
+  const [settingsPatchStatus, setSettingsPatchStatus] = useState<ApiStatus>('idle');
+  const [profileSettingsError, setProfileSettingsError] = useState('');
+  const [blockedUsers, setBlockedUsers] = useState<BlockEntry[]>([]);
+  const loadRequestIdRef = useRef(0);
+
+  const loadAll = useCallback(async (mode: 'load' | 'retry' = 'load') => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+    setLoadStatus(mode === 'retry' ? 'retry' : 'loading');
+    try {
+      const [settingsPayload, profilePayload, blocksPayload] = await Promise.all([
+        appApi.getSettings(),
+        appApi.getProfileMe(),
+        appApi.getBlockedUsers(),
+      ]);
+      if (loadRequestIdRef.current !== requestId) return;
+      setSettingsEnvelope(settingsPayload);
+      setProfileMe({
+        profile: profilePayload.profile,
+        settings: profilePayload.settings,
+      });
+      setBlockedUsers(blocksPayload.blocks);
+      setLoadStatus('success');
+    } catch {
+      if (loadRequestIdRef.current !== requestId) return;
+      setLoadStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
-    let isCancelled = false;
-    setIsLoadingSettings(true);
-    setSettingsError(false);
-    appApi
-      .getSettings()
-      .then((payload) => {
-        if (isCancelled) return;
-        setSettingsEnvelope(payload);
-      })
-      .catch(() => {
-        if (isCancelled) return;
-        setSettingsError(true);
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsLoadingSettings(false);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+    void loadAll('load');
+  }, [loadAll]);
 
   const settings = settingsEnvelope?.settings;
   const travelPassServerAccess = settingsEnvelope?.travelPassServerAccess;
@@ -77,23 +104,61 @@ const AccountSettingsScreen = () => {
     entitlementExpiresAtIso: settings?.preferences.shadowGhostEntitlementExpiresAtIso,
   });
 
+  const handleSignOut = async () => {
+    await logout();
+    navigate('/');
+  };
+
   const patchSettings = (patch: Parameters<typeof appApi.patchSettings>[0]['patch']) => {
-    void appApi.patchSettings({ patch }).then((payload) => {
-      setSettingsEnvelope(payload);
-      if (patch.preferences?.language) {
-        setLocale(patch.preferences.language);
+    const save = async () => {
+      setSettingsPatchStatus(settingsPatchStatus === 'error' ? 'retry' : 'loading');
+      setProfileSettingsError('');
+      try {
+        const payload = await appApi.patchSettings({ patch });
+        setSettingsEnvelope(payload);
+        if (patch.preferences?.language) {
+          setLocale(patch.preferences.language);
+        }
+        setSettingsPatchStatus('success');
+      } catch {
+        setSettingsPatchStatus('error');
+        setProfileSettingsError('Unable to save settings.');
       }
-    });
+    };
+
+    void save();
+  };
+
+  const patchProfileSettings = async (payload: Parameters<typeof appApi.patchProfileMe>[0]) => {
+    setProfilePatchStatus(profilePatchStatus === 'error' ? 'retry' : 'loading');
+    setProfileSettingsError('');
+    let failed = false;
+    try {
+      const response = await appApi.patchProfileMe(payload);
+      setProfileMe({
+        profile: response.profile,
+        settings: response.settings,
+      });
+      setProfilePatchStatus('success');
+    } catch {
+      failed = true;
+      setProfilePatchStatus('error');
+      setProfileSettingsError('Unable to save profile settings.');
+    } finally {
+      if (!failed) {
+        setProfilePatchStatus('idle');
+      }
+    }
   };
 
   const selectedGenderOption =
-    settings?.preferences.genderPreference === 'men'
+    (profileMe?.settings?.gender_preference ?? settings?.preferences.genderPreference) === 'men'
       ? 'settings.items.men'
-      : settings?.preferences.genderPreference === 'women'
+      : (profileMe?.settings?.gender_preference ?? settings?.preferences.genderPreference) === 'women'
         ? 'settings.items.women'
         : 'settings.items.everyone';
 
-  const selectedLanguageOption = `locale.${locale}`;
+  const selectedLanguageOption = `locale.${profileMe?.settings?.language ?? locale}`;
 
   const selectedTravelCityOption =
     settings?.preferences.travelPassCity === 'voronezh'
@@ -185,8 +250,8 @@ const AccountSettingsScreen = () => {
 
   const getSection = () => activeSection;
   const getSectionTitle = (section: SettingSection) => t(section.titleKey);
-  const currentDistanceValue = settings?.preferences.distanceKm ?? 25;
-  const currentAgeRangeValue = `${settings?.preferences.ageMin ?? 22} - ${settings?.preferences.ageMax ?? 35}`;
+  const currentDistanceValue = profileMe?.settings?.distance_km ?? settings?.preferences.distanceKm ?? 25;
+  const currentAgeRangeValue = `${profileMe?.settings?.age_min ?? settings?.preferences.ageMin ?? 22} - ${profileMe?.settings?.age_max ?? settings?.preferences.ageMax ?? 35}`;
   const travelPassSourceLabel = travelPassServerAccess
     ? t(`settings.travelPass.sources.${travelPassServerAccess.source}`)
     : t('settings.travelPass.sources.none');
@@ -290,9 +355,10 @@ const AccountSettingsScreen = () => {
   const handleSelectOption = (itemId: string, optionKey: string) => {
     if (itemId === 'language') {
       const nextLocale = optionKey === 'locale.ru' ? 'ru' : 'en';
-      patchSettings({
-        preferences: { language: nextLocale },
-        translation: { targetLocale: nextLocale },
+      setLocale(nextLocale);
+      void patchProfileSettings({
+        locale: nextLocale,
+        settings: { language: nextLocale },
       });
       return;
     }
@@ -304,8 +370,8 @@ const AccountSettingsScreen = () => {
           : optionKey === 'settings.items.women'
             ? 'women'
             : 'everyone';
-      patchSettings({
-        preferences: { genderPreference: nextGender },
+      void patchProfileSettings({
+        settings: { genderPreference: nextGender },
       });
       return;
     }
@@ -345,23 +411,33 @@ const AccountSettingsScreen = () => {
     const isEmbedded = isLarge;
     const section = getSection();
 
-    if (isLoadingSettings) {
+    if (loadStatus === 'idle' || loadStatus === 'loading' || loadStatus === 'retry') {
       return (
         <div className="p-6 md:p-8">
           <div className="glass rounded-[28px] border border-white/10 p-6 md:p-8 text-center space-y-4">
             <div className="w-8 h-8 mx-auto rounded-full border-2 border-white/20 border-t-white/75 animate-spin" />
-            <p className="text-sm text-secondary">{t('settings.loading')}</p>
+            <p className="text-sm text-secondary">
+              {loadStatus === 'retry' ? `${t('discover.retry')}...` : t('settings.loading')}
+            </p>
           </div>
         </div>
       );
     }
 
-    if (settingsError) {
+    if (loadStatus === 'error') {
       return (
         <div className="p-6 md:p-8">
           <div className="glass rounded-[28px] border border-red-400/30 bg-red-500/5 p-6 md:p-8 text-center space-y-4">
             <ICONS.Info size={20} className="mx-auto text-red-200" />
             <p className="text-sm text-white">{t('settings.error')}</p>
+            <GlassButton
+              onClick={() => {
+                void loadAll('retry');
+              }}
+              className="w-full md:w-auto px-6 py-3 rounded-2xl text-xs uppercase tracking-[0.18em]"
+            >
+              {t('discover.retry')}
+            </GlassButton>
           </div>
         </div>
       );
@@ -416,15 +492,35 @@ const AccountSettingsScreen = () => {
 
               {(item?.type === 'text' || item?.type === 'password') && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">{t('settings.newField', { label: itemLabel })}</label>
-                    <input
-                      type={item.type}
-                      placeholder={t('settings.enterField', { label: itemLabel })}
-                      className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl focus:border-pink-500 focus:bg-white/10 outline-none transition-all text-sm font-medium"
-                    />
-                  </div>
-                  <GlassButton className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em]">{t('settings.save')}</GlassButton>
+                  {item.id === 'email' ? (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">{itemLabel}</label>
+                      <input
+                        type="text"
+                        value={user?.email ?? ''}
+                        readOnly
+                        className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl outline-none text-sm font-medium text-white/80"
+                      />
+                    </div>
+                  ) : item.id === 'phone' ? (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">{itemLabel}</label>
+                      <div className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70">
+                        Phone not linked yet
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">{itemLabel}</label>
+                      <div className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70">
+                        Use secure reset flow from login methods.
+                      </div>
+                    </div>
+                  )}
+                  {profileSettingsError && <p className="text-xs text-red-300">{profileSettingsError}</p>}
+                  {(profilePatchStatus === 'loading' || settingsPatchStatus === 'loading') && (
+                    <p className="text-xs text-cyan-200">Saving...</p>
+                  )}
                 </div>
               )}
 
@@ -496,8 +592,40 @@ const AccountSettingsScreen = () => {
 
               {item?.type === 'list' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-secondary italic">{t('settings.emptyList')}</p>
-                  <GlassButton className="w-full py-4 rounded-2xl text-xs font-bold opacity-50 cursor-not-allowed">{t('settings.addItem')}</GlassButton>
+                  {blockedUsers.length === 0 ? (
+                    <>
+                      <p className="text-xs text-secondary italic">{t('settings.emptyList')}</p>
+                      <GlassButton className="w-full py-4 rounded-2xl text-xs font-bold opacity-50 cursor-not-allowed">{t('settings.addItem')}</GlassButton>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      {blockedUsers.map((entry) => (
+                        <div
+                          key={entry.blockedUserId}
+                          className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4"
+                        >
+                          <div>
+                            <p className="text-sm font-bold text-white">{entry.blockedUserId}</p>
+                            <p className="text-[10px] text-white/50 uppercase tracking-[0.16em]">
+                              {new Date(entry.createdAtIso).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              void appApi.unblockUser(entry.blockedUserId).then(() => {
+                                setBlockedUsers((prev) =>
+                                  prev.filter((item) => item.blockedUserId !== entry.blockedUserId),
+                                );
+                              });
+                            }}
+                            className="h-9 rounded-full border border-emerald-300/35 bg-emerald-500/10 px-3 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100"
+                          >
+                            {t('chat.unblock')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -561,7 +689,7 @@ const AccountSettingsScreen = () => {
 
           <div className="mt-auto pt-8">
             <button
-              onClick={() => navigate('/')}
+              onClick={handleSignOut}
               className="w-full p-4 glass rounded-2xl text-red-500 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors"
             >
               <ICONS.LogOut size={18} />
@@ -653,7 +781,7 @@ const AccountSettingsScreen = () => {
           </div>
         ))}
 
-        <button onClick={() => navigate('/')} className="w-full p-5 glass rounded-[24px] text-red-500 font-black text-xs uppercase tracking-widest">
+        <button onClick={handleSignOut} className="w-full p-5 glass rounded-[24px] text-red-500 font-black text-xs uppercase tracking-widest">
           {t('settings.signOut')}
         </button>
       </div>

@@ -29,6 +29,8 @@ const MessagesScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [conversationItems, setConversationItems] = useState<ConversationSummary[]>([]);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const [isApplyingSafetyAction, setIsApplyingSafetyAction] = useState(false);
   
   // For Master-Detail on large screens
   const [selectedUserId, setSelectedUserId] = useState<string | null>(urlUserId || null);
@@ -62,7 +64,7 @@ const MessagesScreen = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [conversationsRefreshKey, urlUserId]);
+  }, [conversationsRefreshKey, urlUserId, reloadNonce]);
 
   useEffect(() => {
     const matchesNode = matchesRef.current;
@@ -154,6 +156,52 @@ const MessagesScreen = () => {
   const hasConversations = conversationItems.length > 0;
   const showContent = !isLoading && !hasError;
 
+  const applyConversationRelationState = (conversationId: string, state: ConversationSummary['relationState']) => {
+    setConversationItems((prev) =>
+      prev.map((entry) =>
+        entry.id === conversationId
+          ? {
+              ...entry,
+              relationState: state,
+            }
+          : entry,
+      ),
+    );
+  };
+
+  const handleQuickBlockToggle = async (conversation: ConversationSummary) => {
+    const nextState =
+      conversation.relationState === 'blocked_by_me' ? 'active' : 'blocked_by_me';
+
+    setIsApplyingSafetyAction(true);
+    try {
+      if (nextState === 'blocked_by_me') {
+        await appApi.blockUser(conversation.peer.id);
+      } else {
+        await appApi.unblockUser(conversation.peer.id);
+      }
+      await appApi.setConversationRelationState({
+        conversationId: conversation.id,
+        state: nextState,
+      });
+      applyConversationRelationState(conversation.id, nextState);
+    } finally {
+      setIsApplyingSafetyAction(false);
+    }
+  };
+
+  const handleQuickReport = async (conversation: ConversationSummary) => {
+    setIsApplyingSafetyAction(true);
+    try {
+      await appApi.reportUser({
+        userId: conversation.peer.id,
+        reason: 'other',
+      });
+    } finally {
+      setIsApplyingSafetyAction(false);
+    }
+  };
+
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
@@ -175,6 +223,12 @@ const MessagesScreen = () => {
             <div className="glass rounded-2xl border border-red-400/35 bg-red-500/5 p-5 text-center">
               <p className="text-white font-black">{t('messages.errorTitle')}</p>
               <p className="text-xs text-white/60 mt-1">{t('messages.errorSubtitle')}</p>
+              <button
+                onClick={() => setReloadNonce((prev) => prev + 1)}
+                className="mt-3 h-9 px-4 rounded-lg border border-white/20 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black"
+              >
+                {t('discover.retry')}
+              </button>
             </div>
           ) : !hasMatches ? (
             <div className="glass rounded-2xl border border-white/10 p-5 text-center">
@@ -262,6 +316,12 @@ const MessagesScreen = () => {
             <div className="glass rounded-2xl border border-red-400/35 bg-red-500/5 p-5 text-center">
               <p className="text-white font-black">{t('messages.errorTitle')}</p>
               <p className="text-xs text-white/60 mt-1">{t('messages.errorSubtitle')}</p>
+              <button
+                onClick={() => setReloadNonce((prev) => prev + 1)}
+                className="mt-3 h-9 px-4 rounded-lg border border-white/20 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black"
+              >
+                {t('discover.retry')}
+              </button>
             </div>
           ) : !hasConversations ? (
             <div className="glass rounded-2xl border border-white/10 p-5 text-center">
@@ -341,6 +401,26 @@ const MessagesScreen = () => {
                             {t('messages.receivedSuperLike')}
                           </span>
                         )}
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleQuickBlockToggle(conversation);
+                          }}
+                          disabled={isApplyingSafetyAction}
+                          className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-orange-300/35 bg-orange-500/12 text-orange-100 disabled:opacity-50"
+                        >
+                          {conversation.relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
+                        </button>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleQuickReport(conversation);
+                          }}
+                          disabled={isApplyingSafetyAction}
+                          className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-red-300/35 bg-red-500/12 text-red-100 disabled:opacity-50"
+                        >
+                          {t('chat.report')}
+                        </button>
                       </div>
                     </div>
                     {conversation.unreadCount > 0 && (

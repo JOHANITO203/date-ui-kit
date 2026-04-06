@@ -5,3 +5,7 @@ export * from './likes.contract';
 export * from './chat.contract';
 export * from './boost.contract';
 export * from './settings.contract';
+export * from './auth.contract';
+export * from './payments.contract';
+export * from './profile.contract';
+export * from './safety.contract';

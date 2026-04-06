@@ -1,9 +1,10 @@
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
+import { authApi } from '../services';
 
 const GoogleMark = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
@@ -22,8 +23,12 @@ const AppleMark = () => (
 );
 
 const LoginScreen = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const params = new URLSearchParams(location.search);
+  const from = params.get('from');
+  const safeFrom = from && from.startsWith('/') && !from.startsWith('//') ? from : '/discover';
 
   const detectedAccount = {
     name: 'Johan',
@@ -56,7 +61,9 @@ const LoginScreen = () => {
           <GlassButton
             variant="premium"
             className="w-full py-5 flex items-center justify-center gap-3"
-            onClick={() => navigate('/discover')}
+            onClick={() => {
+              window.location.href = authApi.getGoogleStartUrl(safeFrom, `/login/methods?from=${encodeURIComponent(safeFrom)}`);
+            }}
           >
             <GoogleMark />
             <span className="font-bold">{t('login.continueGoogle')}</span>
@@ -66,7 +73,7 @@ const LoginScreen = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            onClick={() => navigate('/discover')}
+            onClick={() => navigate(`/login/methods?from=${encodeURIComponent(safeFrom)}`)}
             className="w-full py-3 flex items-center justify-center gap-2 text-white/40 hover:text-white/60 transition-colors text-sm"
           >
             <img
@@ -81,7 +88,7 @@ const LoginScreen = () => {
 
         <GlassButton
           className="w-full py-5 flex items-center justify-center gap-3 border border-white/10"
-          onClick={() => navigate('/discover')}
+          onClick={() => navigate(`/login/methods?from=${encodeURIComponent(safeFrom)}`)}
         >
           <AppleMark />
           <span className="font-bold">{t('login.continueApple')}</span>
@@ -89,7 +96,7 @@ const LoginScreen = () => {
 
         <div className="pt-4 flex flex-col items-center gap-4">
           <button
-            onClick={() => navigate('/login/methods')}
+            onClick={() => navigate(`/login/methods?from=${encodeURIComponent(safeFrom)}`)}
             className="text-white/40 text-sm font-medium hover:text-white/60 transition-colors underline underline-offset-4"
           >
             {t('login.otherMethods')}

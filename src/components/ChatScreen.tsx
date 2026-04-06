@@ -38,6 +38,10 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [showSafetyMenu, setShowSafetyMenu] = useState(false);
+  const [isApplyingSafetyAction, setIsApplyingSafetyAction] = useState(false);
+  const [safetyFeedback, setSafetyFeedback] = useState('');
+  const [reloadNonce, setReloadNonce] = useState(0);
   const userId = propUserId || routeUserId;
 
   const containerProps = embedded
@@ -98,7 +102,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     return () => {
       isCancelled = true;
     };
-  }, [userId, embedded, navigate]);
+  }, [userId, embedded, navigate, reloadNonce]);
 
   const activePeer = conversation?.peer;
   const relationState = conversation?.relationState ?? 'active';
@@ -138,12 +142,21 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const handleToggleBlock = () => {
     if (!conversationId || !conversation || !canToggleBlock) return;
     const nextState = conversation.relationState === 'blocked_by_me' ? 'active' : 'blocked_by_me';
-    void appApi
-      .setConversationRelationState({
-        conversationId,
-        state: nextState,
-      })
-      .then((response) => {
+    const syncBlockState = async () => {
+      setIsApplyingSafetyAction(true);
+      setSafetyFeedback('');
+      try {
+        if (nextState === 'blocked_by_me') {
+          await appApi.blockUser(conversation.peer.id);
+        } else {
+          await appApi.unblockUser(conversation.peer.id);
+        }
+
+        const response = await appApi.setConversationRelationState({
+          conversationId,
+          state: nextState,
+        });
+
         setConversation((prev) =>
           prev
             ? {
@@ -152,7 +165,38 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               }
             : prev,
         );
-      });
+      } catch {
+        setSafetyFeedback(t('chat.actionFailed'));
+      } finally {
+        setIsApplyingSafetyAction(false);
+        setShowSafetyMenu(false);
+      }
+    };
+
+    void syncBlockState();
+  };
+
+  const reportPeer = (reason: 'spam' | 'scam' | 'abuse' | 'fake_profile' | 'other') => {
+    if (!conversation) return;
+
+    const executeReport = async () => {
+      setIsApplyingSafetyAction(true);
+      setSafetyFeedback('');
+      try {
+        await appApi.reportUser({
+          userId: conversation.peer.id,
+          reason,
+        });
+        setSafetyFeedback(t('chat.reportSent'));
+      } catch {
+        setSafetyFeedback(t('chat.reportFailed'));
+      } finally {
+        setIsApplyingSafetyAction(false);
+        setShowSafetyMenu(false);
+      }
+    };
+
+    void executeReport();
   };
 
   if (!activePeer && isLoading) {
@@ -172,6 +216,12 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           <ICONS.Info size={24} className="text-red-300" />
           <p className="font-black text-white">{t('chat.errorTitle')}</p>
           <p className="text-sm text-white/60">{t('chat.errorSubtitle')}</p>
+          <button
+            onClick={() => setReloadNonce((prev) => prev + 1)}
+            className="h-10 px-4 rounded-xl border border-white/20 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black"
+          >
+            {t('discover.retry')}
+          </button>
           {!embedded && (
             <button
               onClick={() => navigate('/messages', { replace: true })}
@@ -245,15 +295,61 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           {canToggleBlock && (
             <button
               onClick={handleToggleBlock}
+              disabled={isApplyingSafetyAction}
               className={`h-10 px-3 rounded-full text-[9px] font-black uppercase tracking-[0.14em] transition-colors ${
                 relationState === 'blocked_by_me'
                   ? 'border border-emerald-300/35 bg-emerald-500/10 text-emerald-100'
                   : 'border border-orange-300/35 bg-orange-500/10 text-orange-100'
-              }`}
+              } ${isApplyingSafetyAction ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               {relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
             </button>
           )}
+          <div className="relative">
+            <button
+              onClick={() => setShowSafetyMenu((prev) => !prev)}
+              className="w-11 h-11 glass rounded-full text-secondary hover:text-white transition-all flex items-center justify-center"
+            >
+              <ICONS.Shield size={18} />
+            </button>
+            {showSafetyMenu && (
+              <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-white/15 bg-[#0c0f15]/95 p-2 shadow-2xl z-20">
+                <p className="px-2 py-1 text-[9px] uppercase tracking-[0.14em] font-black text-white/55">
+                  {t('chat.safetyActions')}
+                </p>
+                <button
+                  onClick={() => reportPeer('spam')}
+                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
+                >
+                  {t('chat.reportReasonSpam')}
+                </button>
+                <button
+                  onClick={() => reportPeer('scam')}
+                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
+                >
+                  {t('chat.reportReasonScam')}
+                </button>
+                <button
+                  onClick={() => reportPeer('abuse')}
+                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
+                >
+                  {t('chat.reportReasonAbuse')}
+                </button>
+                <button
+                  onClick={() => reportPeer('fake_profile')}
+                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
+                >
+                  {t('chat.reportReasonFakeProfile')}
+                </button>
+                <button
+                  onClick={() => reportPeer('other')}
+                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
+                >
+                  {t('chat.reportReasonOther')}
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleToggleTranslation}
             className={`w-11 h-11 rounded-full transition-all flex items-center justify-center ${
@@ -374,6 +470,11 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
         }`}
         style={!embedded && isTouch ? { bottom: `${keyboardInset}px` } : undefined}
       >
+        {safetyFeedback && (
+          <div className="mx-auto mb-2 max-w-[26rem] rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-center text-[10px] uppercase tracking-[0.12em] font-black text-white/80">
+            {safetyFeedback}
+          </div>
+        )}
         <div
           className={`${
             embedded ? '' : 'container-chat'

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
+import { useSearchParams } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
+import { useAuth } from '../auth/AuthProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 
@@ -25,6 +27,7 @@ type TierDef = {
   ctaButtonClass: string;
   titleGradientClass: string;
 };
+type ApiStatus = 'idle' | 'loading' | 'success' | 'error';
 
 const tiers: TierDef[] = [
   {
@@ -91,7 +94,7 @@ const tiers: TierDef[] = [
 const instantProducts = [
   {
     id: 'boost',
-    visualEmoji: '⚡',
+    visualEmoji: 'âš¡',
     labelKey: 'boost.instant.boost.label',
     descKey: 'boost.instant.boost.desc',
     detailKeys: ['boost.instant.boost.details.0', 'boost.instant.boost.details.1'],
@@ -101,7 +104,7 @@ const instantProducts = [
   },
   {
     id: 'premium',
-    visualEmoji: '🧊',
+    visualEmoji: 'ðŸ§Š',
     labelKey: 'boost.instant.premium.label',
     descKey: 'boost.instant.premium.desc',
     detailKeys: ['boost.instant.premium.details.0', 'boost.instant.premium.details.1'],
@@ -111,7 +114,7 @@ const instantProducts = [
   },
   {
     id: 'travel-pass',
-    visualEmoji: '🗺️',
+    visualEmoji: 'ðŸ—ºï¸',
     labelKey: 'boost.instant.travelPass.label',
     descKey: 'boost.instant.travelPass.desc',
     detailKeys: ['boost.instant.travelPass.details.0', 'boost.instant.travelPass.details.1'],
@@ -121,7 +124,7 @@ const instantProducts = [
   },
   {
     id: 'superlike',
-    visualEmoji: '⭐',
+    visualEmoji: 'â­',
     labelKey: 'boost.instant.superlike.label',
     descKey: 'boost.instant.superlike.desc',
     detailKeys: ['boost.instant.superlike.details.0', 'boost.instant.superlike.details.1'],
@@ -131,7 +134,7 @@ const instantProducts = [
   },
   {
     id: 'rewind',
-    visualEmoji: '↩️',
+    visualEmoji: 'â†©ï¸',
     labelKey: 'boost.instant.rewind.label',
     descKey: 'boost.instant.rewind.desc',
     detailKeys: ['boost.instant.rewind.details.0', 'boost.instant.rewind.details.1'],
@@ -141,7 +144,7 @@ const instantProducts = [
   },
   {
     id: 'shadowghost',
-    visualEmoji: '👻',
+    visualEmoji: 'ðŸ‘»',
     labelKey: 'boost.instant.shadowghost.label',
     descKey: 'boost.instant.shadowghost.desc',
     detailKeys: ['boost.instant.shadowghost.details.0', 'boost.instant.shadowghost.details.1'],
@@ -255,10 +258,41 @@ const bundleLabelById: Record<string, string> = {
   premiumplus: 'PREMIUM+',
 };
 
+const offerIdByTierId: Record<TierId, string> = {
+  essential: 'tier-essential-month',
+  gold: 'tier-gold-month',
+  platinum: 'tier-platinum-month',
+  elite: 'tier-elite-month',
+};
+
+const offerIdByInstantId: Record<string, string> = {
+  boost: 'instant-boost',
+  premium: 'instant-icebreaker',
+  'travel-pass': 'instant-travel-pass',
+  superlike: 'instant-superlike',
+  rewind: 'instant-rewind-x10',
+  shadowghost: 'instant-shadowghost',
+};
+
+const offerIdByPassId: Record<string, string> = {
+  day: 'pass-day',
+  week: 'pass-week',
+  month: 'pass-month',
+  'travel-pass-plus': 'pass-travel-pass-plus',
+};
+
+const offerIdByBundleId: Record<string, string> = {
+  starter: 'bundle-starter',
+  datingpro: 'bundle-dating-pro',
+  premiumplus: 'bundle-premium-plus',
+};
+
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
-  const normalizeCurrencySpacing = (value: string) => value.replace(/\s+(?=[₽€$£¥₹₩₺])/gu, '');
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const normalizeCurrencySpacing = (value: string) => value.replace(/\s+(?=[â‚½â‚¬$Â£Â¥â‚¹â‚©â‚º])/gu, '');
   const price = (key: string) => normalizeCurrencySpacing(t(key, { currency: t('boost.currency') }));
   const isLarge = isDesktop || isTablet;
   const showDesktopRail = isLarge && !isTouch;
@@ -273,8 +307,15 @@ const BoostScreen = () => {
   const [activeTier, setActiveTier] = useState<TierId>('gold');
   const [glowPulseTier, setGlowPulseTier] = useState<TierId | null>(null);
   const [boostClock, setBoostClock] = useState(() => Date.now());
+  const [paymentBusyOfferId, setPaymentBusyOfferId] = useState<string | null>(null);
+  const [paymentFeedback, setPaymentFeedback] = useState<string | null>(null);
+  const [checkoutStatus, setCheckoutStatus] = useState<ApiStatus>('idle');
+  const [pollingStatus, setPollingStatus] = useState<ApiStatus>('idle');
+  const [lastCheckoutOfferId, setLastCheckoutOfferId] = useState<string | null>(null);
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const boostsLeft = useRuntimeSelector((payload) => payload.balances.boostsLeft);
+  const pendingCheckoutRef = useRef<string | null>(null);
+  const pollingRef = useRef<number | null>(null);
 
   const selectedTier = tiers.find((tier) => tier.id === activeTier) ?? tiers[1];
   const glowShadow = (token: GlowToken, alpha = 0.28, blur = 34) => ({
@@ -342,6 +383,7 @@ const BoostScreen = () => {
   useEffect(() => {
     return () => {
       if (glowTimerRef.current) window.clearTimeout(glowTimerRef.current);
+      if (pollingRef.current) window.clearInterval(pollingRef.current);
     };
   }, []);
 
@@ -367,52 +409,150 @@ const BoostScreen = () => {
     });
   };
 
-  const activateTravelPassAccess = (source: 'travel_pass' | 'bundle_included', durationHours: number) => {
-    const expiresAtIso = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
-    void appApi.patchSettings({
-      patch: {
-        preferences: {
-          travelPassEntitlementSource: source,
-          travelPassEntitlementExpiresAtIso: expiresAtIso,
-        },
-      },
-    });
+  const startCheckoutPolling = (checkoutId: string, userId: string) => {
+    if (pollingRef.current) window.clearInterval(pollingRef.current);
+    pendingCheckoutRef.current = checkoutId;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('payments.pendingCheckoutId', checkoutId);
+    }
+    let attempts = 0;
+    setPollingStatus('loading');
+
+    const tick = () => {
+      attempts += 1;
+      void appApi
+        .getCheckoutStatus({
+          checkoutId,
+          userId,
+        })
+        .then((status) => {
+          if (status.status === 'paid' && status.entitlementSnapshot) {
+            void appApi.applyEntitlementSnapshot(status.entitlementSnapshot);
+            setPaymentFeedback('Payment confirmed. Entitlements applied.');
+            setCheckoutStatus('success');
+            setPollingStatus('success');
+            if (pollingRef.current) window.clearInterval(pollingRef.current);
+            pollingRef.current = null;
+            pendingCheckoutRef.current = null;
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem('payments.pendingCheckoutId');
+            }
+            if (searchParams.get('payment_return') === '1') {
+              const next = new URLSearchParams(searchParams);
+              next.delete('payment_return');
+              setSearchParams(next);
+            }
+          } else if (status.status === 'failed' || status.status === 'not_found' || attempts >= 40) {
+            setPaymentFeedback(
+              status.status === 'failed' ? 'Payment failed. Please retry.' : 'Payment status unavailable.',
+            );
+            setCheckoutStatus('error');
+            setPollingStatus('error');
+            if (pollingRef.current) window.clearInterval(pollingRef.current);
+            pollingRef.current = null;
+            pendingCheckoutRef.current = null;
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem('payments.pendingCheckoutId');
+            }
+          }
+        })
+        .catch(() => {
+          if (attempts >= 40) {
+            setPaymentFeedback('Payment check timed out. Please open Boost again.');
+            setCheckoutStatus('error');
+            setPollingStatus('error');
+            if (pollingRef.current) window.clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+        });
+    };
+
+    tick();
+    pollingRef.current = window.setInterval(tick, 3000);
   };
 
-  const activateShadowGhostAccess = (durationHours: number) => {
-    const expiresAtIso = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
-    void appApi.patchSettings({
-      patch: {
-        preferences: {
-          shadowGhostEntitlementSource: 'shadowghost_item',
-          shadowGhostEntitlementExpiresAtIso: expiresAtIso,
-        },
-        privacy: {
-          shadowGhost: true,
-        },
-      },
-    });
+  useEffect(() => {
+    const userId = user?.id ?? 'me';
+    const fromReturn = searchParams.get('payment_return') === '1';
+    const storedCheckoutId =
+      typeof window !== 'undefined' ? window.localStorage.getItem('payments.pendingCheckoutId') : null;
+    const checkoutId = pendingCheckoutRef.current ?? storedCheckoutId;
+    if (!checkoutId) return;
+    if (!fromReturn && pendingCheckoutRef.current) return;
+    startCheckoutPolling(checkoutId, userId);
+  }, [searchParams, user?.id]);
+
+  const beginCheckout = async (offerId: string) => {
+    const userId = user?.id ?? 'me';
+    setPaymentBusyOfferId(offerId);
+    setPaymentFeedback(null);
+    setCheckoutStatus('loading');
+    setPollingStatus('idle');
+    setLastCheckoutOfferId(offerId);
+    try {
+      const successUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/boost?payment_return=1`
+          : undefined;
+      const response = await appApi.createCheckout({
+        offerId,
+        userId,
+        locale: 'en',
+        successUrl,
+        failUrl: successUrl,
+      });
+
+      if (!response.checkoutId) {
+        setPaymentFeedback('Checkout initialization failed.');
+        setCheckoutStatus('error');
+        return;
+      }
+
+      if (response.mode === 'yookassa' && response.formUrl) {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('payments.pendingCheckoutId', response.checkoutId);
+          window.location.href = response.formUrl;
+        }
+        setCheckoutStatus('loading');
+        return;
+      }
+
+      startCheckoutPolling(response.checkoutId, userId);
+    } catch {
+      setPaymentFeedback('Checkout failed. Verify PSP config and retry.');
+      setCheckoutStatus('error');
+    } finally {
+      setPaymentBusyOfferId(null);
+    }
+  };
+
+  const retryLastCheckout = () => {
+    if (!lastCheckoutOfferId) return;
+    void beginCheckout(lastCheckoutOfferId);
+  };
+
+  const handleBuyTier = (tierId: TierId) => {
+    const offerId = offerIdByTierId[tierId];
+    if (!offerId) return;
+    void beginCheckout(offerId);
   };
 
   const handleBuyInstant = (id: string) => {
-    if (id === 'travel-pass') {
-      activateTravelPassAccess('travel_pass', 24);
-    }
-    if (id === 'shadowghost') {
-      activateShadowGhostAccess(24);
-    }
+    const offerId = offerIdByInstantId[id];
+    if (!offerId) return;
+    void beginCheckout(offerId);
   };
 
   const handleBuyPass = (id: string) => {
-    if (id === 'travel-pass-plus') {
-      activateTravelPassAccess('travel_pass', 24 * 7);
-    }
+    const offerId = offerIdByPassId[id];
+    if (!offerId) return;
+    void beginCheckout(offerId);
   };
 
   const handleBuyBundle = (id: string) => {
-    if (id === 'datingpro' || id === 'premiumplus') {
-      activateTravelPassAccess('bundle_included', 24 * 30);
-    }
+    const offerId = offerIdByBundleId[id];
+    if (!offerId) return;
+    void beginCheckout(offerId);
   };
 
   const handleSelectTier = (tierId: TierId) => {
@@ -581,6 +721,8 @@ const BoostScreen = () => {
 
           <div className="relative pt-2">
             <button
+              onClick={() => handleBuyTier(activeTier)}
+              disabled={paymentBusyOfferId !== null}
               className="w-full h-[var(--boost-tier-cta-h)] rounded-[24px] border border-white/15 bg-black/65 text-[length:var(--boost-tier-cta-size)] font-black uppercase"
               style={{ letterSpacing: 'var(--boost-tier-cta-track)' }}
             >
@@ -598,6 +740,24 @@ const BoostScreen = () => {
             <p className="mt-7 text-center text-[length:var(--boost-tier-disclaimer-size)] font-black uppercase tracking-[0.22em] text-white/35">
               {t('boost.secureHint')}
             </p>
+            {paymentFeedback && (
+              <p className="mt-2 text-center text-xs font-bold text-cyan-200">{paymentFeedback}</p>
+            )}
+            {(checkoutStatus === 'loading' || pollingStatus === 'loading') && (
+              <p className="mt-2 text-center text-xs font-bold text-white/65 uppercase tracking-[0.14em]">
+                Processing payment...
+              </p>
+            )}
+            {checkoutStatus === 'error' && (
+              <div className="mt-2 flex justify-center">
+                <button
+                  onClick={retryLastCheckout}
+                  className="h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black text-white/75"
+                >
+                  Retry checkout
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -741,9 +901,10 @@ const BoostScreen = () => {
                     <span className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">{t(item.metaKey)}</span>
                     <button
                       onClick={() => handleBuyInstant(item.id)}
+                      disabled={paymentBusyOfferId !== null}
                       className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}
                     >
-                      {t('boost.buy.buy')}
+                      {paymentBusyOfferId ? '...' : t('boost.buy.buy')}
                     </button>
                   </div>
                 </motion.div>
@@ -773,8 +934,12 @@ const BoostScreen = () => {
                     </ul>
                     <div className="mt-4 flex items-center justify-between">
                       <p className="font-mono text-2xl font-black whitespace-nowrap">{price(item.priceKey)}</p>
-                      <button onClick={() => handleBuyPass(item.id)} className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}>
-                        {t('boost.buy.choose')}
+                      <button
+                        onClick={() => handleBuyPass(item.id)}
+                        disabled={paymentBusyOfferId !== null}
+                        className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}
+                      >
+                        {paymentBusyOfferId ? '...' : t('boost.buy.choose')}
                       </button>
                     </div>
                   </motion.div>
@@ -819,9 +984,10 @@ const BoostScreen = () => {
                     <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{price(item.priceKey)}</p>
                     <button
                       onClick={() => handleBuyBundle(item.id)}
+                      disabled={paymentBusyOfferId !== null}
                       className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}
                     >
-                      {t('boost.buy.bundle')}
+                      {paymentBusyOfferId ? '...' : t('boost.buy.bundle')}
                     </button>
                   </div>
                 </motion.div>
@@ -865,3 +1031,4 @@ const BoostScreen = () => {
 };
 
 export default BoostScreen;
+

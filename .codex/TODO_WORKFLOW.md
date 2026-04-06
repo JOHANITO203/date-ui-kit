@@ -2,6 +2,26 @@
 
 Use this for every future task in this repository.
 
+## API Status Matrix (Production UX Baseline)
+- All network-driven screens must expose: `idle`, `loading`, `success`, `error`, `retry`.
+- Meaning:
+  - `idle`: no request started yet.
+  - `loading`: first request in progress.
+  - `success`: last request completed successfully.
+  - `error`: last request failed, user-visible recovery action required.
+  - `retry`: retry attempt in progress after a previous `error`.
+- Required behavior:
+  - every `error` state shows a retry action.
+  - retry action transitions to `retry` (not directly hidden without feedback).
+  - primary CTA disabled during `loading`/`retry`.
+  - user-facing error message is explicit and non-technical.
+- Screens already aligned:
+  - `OnboardingScreen` (`profileHydrationStatus`, `authActionStatus`, `submitStatus`)
+  - `AccountSettingsScreen` (`loadStatus`, `profilePatchStatus`, `settingsPatchStatus`)
+  - `LoginMethodsScreen` (password/magic/session statuses)
+  - `BoostScreen` (checkout/polling statuses)
+  - `AuthCallbackScreen` (callback verification statuses)
+
 ## Step 1: Impact scan
 - Identify target screen/feature and touched files.
 - Read related route wrapper + screen + contracts + domain helper.
@@ -28,6 +48,7 @@ Use this for every future task in this repository.
   - `npm run lint`
   - `npm run test:runtime` when state/business logic changed
   - `npm run quality:translations` when copy/i18n changed
+  - `node node_modules/typescript/bin/tsc --noEmit` for status-machine and contract changes
 - Manually smoke key flows for affected screens.
 
 ## Step 6: Handoff

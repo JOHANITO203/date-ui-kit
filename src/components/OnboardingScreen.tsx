@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarDays, Check, ChevronsUpDown, Search } from 'lucide-react';
 import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
@@ -9,10 +9,14 @@ import { useI18n } from '../i18n/I18nProvider';
 import { onboardingCopy } from '../i18n/onboardingCopy';
 import GlassButton from './ui/GlassButton';
 import Logo from './ui/Logo';
+import { useAuth } from '../auth/AuthProvider';
+import { authApi } from '../services';
+import type { AuthErrorResponse, AuthResponse } from '../contracts';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 type AuthMethod = 'phone' | 'email';
 type Distance = 25 | 50 | 100;
+type ApiStatus = 'idle' | 'loading' | 'success' | 'error' | 'retry';
 
 type FormState = {
   consentAge: boolean;
@@ -237,6 +241,9 @@ type OnboardingDraftPayload = {
   updatedAtIso: string;
 };
 
+const isAuthError = (payload: AuthResponse<unknown>): payload is AuthErrorResponse =>
+  payload.ok === false;
+
 const createInitialForm = (locale: 'en' | 'ru'): FormState => ({
   consentAge: false,
   consentTerms: false,
@@ -321,8 +328,10 @@ const clearOnboardingDraft = () => {
 };
 
 const OnboardingScreen = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { locale } = useI18n();
+  const { isAuthenticated, refreshSession } = useAuth();
   const copy = onboardingCopy[locale];
   const { isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
@@ -336,10 +345,76 @@ const OnboardingScreen = () => {
   const [isNationalitySelectorOpen, setIsNationalitySelectorOpen] = useState(false);
   const [dateDraft, setDateDraft] = useState(() => parseIsoDate(''));
   const [form, setForm] = useState<FormState>(initialDraft.form);
+  const [authActionPending, setAuthActionPending] = useState(false);
+  const [authActionMessage, setAuthActionMessage] = useState('');
+  const [submitErrorMessage, setSubmitErrorMessage] = useState('');
+  const [profileHydrationStatus, setProfileHydrationStatus] = useState<ApiStatus>('idle');
+  const [authActionStatus, setAuthActionStatus] = useState<ApiStatus>('idle');
+  const [submitStatus, setSubmitStatus] = useState<ApiStatus>('idle');
+  const hydrationRequestIdRef = useRef(0);
 
   useEffect(() => {
     persistOnboardingDraft(step, form);
   }, [step, form]);
+
+  useEffect(() => {
+    if (!location.search) return;
+    void refreshSession();
+  }, [location.search, refreshSession]);
+
+  const hydrateProfile = useCallback(
+    async (mode: 'load' | 'retry' = 'load') => {
+      if (!isAuthenticated) return;
+      const requestId = hydrationRequestIdRef.current + 1;
+      hydrationRequestIdRef.current = requestId;
+      setProfileHydrationStatus(mode === 'retry' ? 'retry' : 'loading');
+      try {
+        const payload = await authApi.getProfileMe();
+        if (hydrationRequestIdRef.current !== requestId) return;
+        if (!payload.ok || !payload.data) {
+          setProfileHydrationStatus('error');
+          return;
+        }
+        const profile = payload.data.profile;
+        const settings = payload.data.settings;
+        setForm((prev) => ({
+          ...prev,
+          firstName: prev.firstName || profile?.first_name || '',
+          birthDate: prev.birthDate || profile?.birth_date || '',
+          gender: (prev.gender || profile?.gender || '') as '' | 'homme' | 'femme' | 'autre',
+          city: prev.city || profile?.city || '',
+          originCountry: prev.originCountry || profile?.origin_country || '',
+          languages: prev.languages.length > 0 ? prev.languages : profile?.languages ?? prev.languages,
+          intent: (prev.intent || profile?.intent || '') as '' | 'serieuse' | 'connexion' | 'decouverte' | 'verrai',
+          interests: prev.interests.length > 0 ? prev.interests : profile?.interests ?? prev.interests,
+          photos: prev.photos > 0 ? prev.photos : profile?.photos_count ?? prev.photos,
+          verifyNow: prev.verifyNow || Boolean(profile?.verified_opt_in),
+          interfaceLang: prev.interfaceLang || (settings?.language ?? locale),
+          targetLang: prev.targetLang || (settings?.target_lang ?? prev.targetLang),
+          autoTranslate: settings?.auto_translate ?? prev.autoTranslate,
+          autoDetectLanguage: settings?.auto_detect_language ?? prev.autoDetectLanguage,
+          notifications: settings?.notifications_enabled ?? prev.notifications,
+          preciseLocation: settings?.precise_location_enabled ?? prev.preciseLocation,
+          distance: ((settings?.distance_km as Distance | null) ?? prev.distance) as Distance,
+          ageMin: settings?.age_min ?? prev.ageMin,
+          ageMax: settings?.age_max ?? prev.ageMax,
+        }));
+        setProfileHydrationStatus('success');
+      } catch {
+        if (hydrationRequestIdRef.current !== requestId) return;
+        setProfileHydrationStatus('error');
+      }
+    },
+    [isAuthenticated, locale, hydrationRequestIdRef],
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void hydrateProfile('load');
+    return () => {
+      hydrationRequestIdRef.current += 1;
+    };
+  }, [hydrateProfile, isAuthenticated, hydrationRequestIdRef]);
 
   const age = useMemo(() => ageFromDob(form.birthDate), [form.birthDate]);
   const zodiac = useMemo(() => zodiacFromDob(form.birthDate), [form.birthDate]);
@@ -366,7 +441,7 @@ const OnboardingScreen = () => {
 
   const canContinue = useMemo(() => {
     if (step === 2) return form.consentAge && form.consentTerms;
-    if (step === 3) return form.authMethod === 'phone' ? isRussianPhoneValid(form.phone) && form.otp.length >= 4 : /\S+@\S+\.\S+/.test(form.email) && form.otp.length >= 4;
+    if (step === 3) return isAuthenticated;
     if (step === 4) return Boolean(form.firstName && form.birthDate && age >= 18 && form.gender && form.city && form.originCountry && form.languages.length);
     if (step === 5) return form.photos >= 1;
     if (step === 6) return form.ageMin < form.ageMax;
@@ -418,14 +493,75 @@ const OnboardingScreen = () => {
     closeDateSelector();
   };
 
-  const next = () => {
+  const next = async () => {
     if (!canContinue) return;
+    setSubmitErrorMessage('');
     if (step < TOTAL_STEPS) {
       setStep((s) => (s + 1) as Step);
       return;
     }
+    if (!isAuthenticated) {
+      setSubmitErrorMessage('Authenticate first to complete onboarding.');
+      setSubmitStatus('error');
+      return;
+    }
+    setSubmitStatus(submitStatus === 'error' ? 'retry' : 'loading');
+    const response = await authApi.completeOnboarding({
+      version: 'v1',
+      firstName: form.firstName,
+      locale: locale,
+      birthDate: form.birthDate,
+      gender: form.gender || 'autre',
+      city: form.city,
+      originCountry: form.originCountry,
+      languages: form.languages,
+      intent: (form.intent || 'verrai') as 'serieuse' | 'connexion' | 'decouverte' | 'verrai',
+      interests: form.interests,
+      photosCount: form.photos,
+      verifyNow: form.verifyNow,
+      lookingFor: form.lookingFor,
+      ageMin: form.ageMin,
+      ageMax: form.ageMax,
+      distanceKm: form.distance,
+      targetLang: form.targetLang,
+      autoTranslate: form.autoTranslate,
+      autoDetectLanguage: form.autoDetectLanguage,
+      notifications: form.notifications,
+      preciseLocation: form.preciseLocation,
+    });
+    if (isAuthError(response)) {
+      setSubmitErrorMessage(response.message ?? 'Unable to save onboarding now. Please retry.');
+      setSubmitStatus('error');
+      return;
+    }
+    setSubmitStatus('success');
     clearOnboardingDraft();
     navigate('/discover');
+  };
+
+  const sendMagicLink = async () => {
+    if (!/\S+@\S+\.\S+/.test(form.email)) {
+      setAuthActionMessage('Enter a valid email first.');
+      return;
+    }
+    setAuthActionPending(true);
+    setAuthActionStatus(authActionStatus === 'error' ? 'retry' : 'loading');
+    setAuthActionMessage('');
+    try {
+      const response = await authApi.sendMagicLink(form.email.trim(), '/onboarding');
+      if (isAuthError(response)) {
+        setAuthActionMessage(response.message ?? 'Unable to send magic link.');
+        setAuthActionStatus('error');
+        return;
+      }
+      setAuthActionMessage('Magic link sent. Open your email then return here.');
+      setAuthActionStatus('success');
+    } catch {
+      setAuthActionStatus('error');
+      setAuthActionMessage('Unable to send magic link.');
+    } finally {
+      setAuthActionPending(false);
+    }
   };
 
   const back = () => {
@@ -743,58 +879,83 @@ const OnboardingScreen = () => {
               {step === 3 && (
                 <div className="space-y-4">
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.auth.title}</h2>
-                  <div className="grid grid-cols-2 gap-2 p-1 rounded-[16px] border border-white/10 bg-white/5">
-                    <button onClick={() => setField('authMethod', 'phone')} className={tileClass(form.authMethod === 'phone')}>
-                      {copy.auth.phone}
-                    </button>
-                    <button onClick={() => setField('authMethod', 'email')} className={tileClass(form.authMethod === 'email')}>
-                      {copy.auth.email}
-                    </button>
-                  </div>
-
-                  {form.authMethod === 'phone' ? (
-                    <>
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35 ml-2">{copy.auth.phoneLabel}</p>
-                        <input
-                          className={fieldClass}
-                          value={form.phone}
-                          onChange={(e) => setField('phone', formatRussianPhoneInput(e.target.value))}
-                          placeholder={copy.auth.phonePlaceholder}
-                          inputMode="tel"
-                          autoComplete="tel-national"
-                        />
-                        <p className={`text-xs ml-1 ${isRussianPhoneValid(form.phone) ? 'text-green-400' : 'text-white/45'}`}>
-                          {isRussianPhoneValid(form.phone) ? copy.auth.phoneValid : copy.auth.phoneInvalid}
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <input
-                          className={fieldClass}
-                          value={form.otp}
-                          onChange={(e) => setField('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder={copy.auth.otpPlaceholder}
-                          inputMode="numeric"
-                        />
-                        <button type="button" onClick={() => setField('otp', '0000')} className="h-10 px-4 rounded-full border border-pink-500/35 bg-pink-500/10 text-[11px] font-black uppercase tracking-[0.14em] text-pink-300">
-                          {copy.auth.otpTest}
+                  {isAuthenticated ? (
+                    <div className="rounded-[18px] border border-emerald-400/30 bg-emerald-500/10 p-4">
+                      <p className="text-sm font-black uppercase tracking-[0.12em] text-emerald-100">Authenticated</p>
+                      <p className="mt-2 text-xs text-white/75">Session is active. Continue onboarding.</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-white/55">
+                        {profileHydrationStatus === 'loading'
+                          ? 'Profile sync: loading'
+                          : profileHydrationStatus === 'retry'
+                            ? 'Profile sync: retry'
+                          : profileHydrationStatus === 'success'
+                            ? 'Profile sync: success'
+                            : profileHydrationStatus === 'error'
+                              ? 'Profile sync: error'
+                              : 'Profile sync: idle'}
+                      </p>
+                      {profileHydrationStatus === 'error' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void hydrateProfile('retry');
+                          }}
+                          className="mt-2 h-9 px-3 rounded-full border border-white/15 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black"
+                        >
+                          Retry sync
                         </button>
-                      </div>
-                    </>
+                      )}
+                    </div>
                   ) : (
                     <>
-                      <input className={fieldClass} value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder={copy.auth.emailPlaceholder} />
+                      <p className="text-white/60 text-sm">Connect your account with a real auth endpoint before continuing.</p>
                       <input
                         className={fieldClass}
-                        value={form.otp}
-                        onChange={(e) => setField('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder={copy.auth.otpPlaceholder}
-                        inputMode="numeric"
+                        value={form.email}
+                        onChange={(e) => setField('email', e.target.value)}
+                        placeholder={copy.auth.emailPlaceholder}
+                        type="email"
                       />
-                    </>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={sendMagicLink}
+                          disabled={authActionPending}
+                          className={`h-11 rounded-[14px] border text-[11px] font-black uppercase tracking-[0.16em] transition-all ${
+                            authActionPending ? 'bg-white/20 text-white/45 border-white/20 cursor-not-allowed' : 'gradient-premium text-white border-transparent'
+                          }`}
+                        >
+                          {authActionPending ? 'Please wait...' : 'Send Magic Link'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            window.location.href = authApi.getGoogleStartUrl('/onboarding', '/onboarding');
+                          }}
+                          className="h-11 rounded-[14px] border border-white/10 bg-white/5 text-[11px] font-black uppercase tracking-[0.16em] hover:border-pink-500/35 transition-all"
+                        >
+                          Continue with Google
+                        </button>
+                      </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login/methods?from=/onboarding')}
+                    className="h-10 px-4 rounded-full border border-white/15 bg-white/5 text-[11px] font-black uppercase tracking-[0.14em] text-white/75"
+                  >
+                    Open full login methods
+                  </button>
+                  {authActionMessage && <p className="text-xs text-cyan-200">{authActionMessage}</p>}
+                  {authActionStatus === 'error' && (
+                    <p className="text-xs text-red-300">Status: error</p>
                   )}
-                </div>
+                  {authActionStatus === 'retry' && (
+                    <p className="text-xs text-cyan-200">Status: retry</p>
+                  )}
+                  {submitErrorMessage && <p className="text-xs text-red-300">{submitErrorMessage}</p>}
+                </>
               )}
+            </div>
+          )}
 
               {step === 4 && (
                 <div className="space-y-4">
@@ -1117,7 +1278,7 @@ const OnboardingScreen = () => {
                     variant="premium"
                     onClick={() => {
                       clearOnboardingDraft();
-                      navigate('/discover');
+                      navigate(isAuthenticated ? '/discover' : '/login/methods');
                     }}
                     className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]"
                   >
@@ -1129,6 +1290,15 @@ const OnboardingScreen = () => {
                   >
                     {copy.ready.improveProfile}
                   </button>
+                  {submitErrorMessage && <p className="text-xs text-red-300">{submitErrorMessage}</p>}
+                  {submitStatus === 'error' && (
+                    <button
+                      onClick={next}
+                      className="h-9 px-4 rounded-full border border-white/20 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black"
+                    >
+                      Retry submit
+                    </button>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -1139,12 +1309,14 @@ const OnboardingScreen = () => {
           <div className="pb-safe shrink-0">
             <button
               onClick={next}
-              disabled={!canContinue}
+              disabled={!canContinue || submitStatus === 'loading' || submitStatus === 'retry'}
               className={`w-full h-[var(--cta-height)] rounded-[24px] font-black uppercase tracking-[0.16em] transition-all ${
-                canContinue ? 'gradient-premium text-white shadow-[0_14px_30px_rgba(236,72,153,0.28)]' : 'bg-white/20 text-white/45 cursor-not-allowed'
+                canContinue && submitStatus !== 'loading' && submitStatus !== 'retry'
+                  ? 'gradient-premium text-white shadow-[0_14px_30px_rgba(236,72,153,0.28)]'
+                  : 'bg-white/20 text-white/45 cursor-not-allowed'
               }`}
             >
-              {copy.common.continue}
+              {submitStatus === 'loading' || submitStatus === 'retry' ? 'Please wait...' : copy.common.continue}
             </button>
           </div>
         )}

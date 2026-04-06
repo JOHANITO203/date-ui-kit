@@ -24,6 +24,7 @@ import type {
   UpdateConversationRelationStateRequest,
   UpdateConversationRelationStateResponse,
   UserSettings,
+  EntitlementSnapshot,
 } from '../contracts';
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
 import { conversationsSeed, messagesSeed, profileCards, receivedLikesSeed } from './runtimeData';
@@ -725,6 +726,47 @@ export const runtimeApi = {
       nextSettings.privacy.shadowGhost = false;
     }
     setState((prev) => ({ ...prev, settings: nextSettings }));
+    return this.getSettingsEnvelope();
+  },
+
+  applyEntitlementSnapshot(snapshot: EntitlementSnapshot) {
+    setState((prev) => {
+      const nextPlanTier = snapshot.planTier ?? prev.planTier;
+      const nextBalances = {
+        superlikesLeft:
+          prev.balances.superlikesLeft + (snapshot.balancesDelta?.superlikesLeft ?? 0),
+        boostsLeft: prev.balances.boostsLeft + (snapshot.balancesDelta?.boostsLeft ?? 0),
+        rewindsLeft: prev.balances.rewindsLeft + (snapshot.balancesDelta?.rewindsLeft ?? 0),
+      };
+
+      const nextSettings = {
+        ...prev.settings,
+        preferences: {
+          ...prev.settings.preferences,
+          travelPassEntitlementSource:
+            snapshot.travelPass?.source ?? prev.settings.preferences.travelPassEntitlementSource,
+          travelPassEntitlementExpiresAtIso:
+            snapshot.travelPass?.expiresAtIso ?? prev.settings.preferences.travelPassEntitlementExpiresAtIso,
+          shadowGhostEntitlementSource:
+            snapshot.shadowGhost?.source ?? prev.settings.preferences.shadowGhostEntitlementSource,
+          shadowGhostEntitlementExpiresAtIso:
+            snapshot.shadowGhost?.expiresAtIso ?? prev.settings.preferences.shadowGhostEntitlementExpiresAtIso,
+        },
+        privacy: {
+          ...prev.settings.privacy,
+          shadowGhost:
+            snapshot.shadowGhost?.enablePrivacy === true ? true : prev.settings.privacy.shadowGhost,
+        },
+      };
+
+      return {
+        ...prev,
+        planTier: nextPlanTier,
+        balances: nextBalances,
+        settings: nextSettings,
+      };
+    });
+
     return this.getSettingsEnvelope();
   },
 
