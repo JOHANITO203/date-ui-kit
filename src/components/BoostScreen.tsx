@@ -5,6 +5,7 @@ import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
+import { translations } from '../i18n/translations';
 import { useAuth } from '../auth/AuthProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
@@ -237,6 +238,19 @@ const glowColor = (token: GlowToken, alpha = 1) => {
   const [r, g, b] = glowRgbMap[token];
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+const MOJIBAKE_RE = /(?:Ð.|Ñ.|Ã.|Â.)|�/;
+const resolveI18nPath = (obj: Record<string, unknown>, path: string): string | undefined => {
+  return path.split('.').reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === 'object') {
+      return (acc as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, obj) as string | undefined;
+};
+const interpolateTemplate = (template: string, params?: Record<string, string | number>) => {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => `${params[key] ?? `{${key}}`}`);
+};
 
 const stripVibePrefix = (name: string) => name.replace(/^vibe\s+/i, '').trim();
 const instantLabelById: Record<string, string> = {
@@ -257,6 +271,11 @@ const bundleLabelById: Record<string, string> = {
   starter: 'STARTER',
   datingpro: 'DATING PRO',
   premiumplus: 'PREMIUM+',
+};
+const ruOfferLabelOverrides: Record<string, string> = {
+  'instant-shadowghost': 'ТЕНЕВОЙ РЕЖИМ',
+  'instant-travel-pass': 'ТРЕВЕЛ ПАСС',
+  'pass-travel-pass-plus': 'ТРЕВЕЛ ПАСС+',
 };
 
 const offerIdByTierId: Record<TierId, string> = {
@@ -290,7 +309,14 @@ const offerIdByBundleId: Record<string, string> = {
 
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
-  const { t, locale } = useI18n();
+  const { t: rawT, locale } = useI18n();
+  const t = (key: string, params?: Record<string, string | number>) => {
+    const localized = rawT(key, params);
+    if (!MOJIBAKE_RE.test(localized)) return localized;
+    const englishTemplate = resolveI18nPath(translations.en as unknown as Record<string, unknown>, key);
+    if (typeof englishTemplate !== 'string') return localized;
+    return interpolateTemplate(englishTemplate, params);
+  };
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const normalizeCurrencySpacing = (value: string) => value.replace(/\s+(?=[₽€$£¥₹₩₺])/gu, '');
@@ -338,9 +364,23 @@ const BoostScreen = () => {
     return formatCatalogPrice(offer);
   };
   const resolveLabelByOfferId = (offerId: string, fallbackLabel: string) => {
+    if (locale === 'ru' && ruOfferLabelOverrides[offerId]) {
+      return ruOfferLabelOverrides[offerId];
+    }
+    if (locale === 'ru') return fallbackLabel;
     const offer = catalogById[offerId];
     if (!offer?.label) return fallbackLabel;
     return offer.label.toUpperCase();
+  };
+  const resolveDescriptionByOfferId = (offerId: string, fallbackDescription: string) => {
+    if (locale === 'ru') return fallbackDescription;
+    const offer = catalogById[offerId];
+    return offer?.description ?? fallbackDescription;
+  };
+  const resolveTagByOfferId = (offerId: string, fallbackTag: string) => {
+    if (locale === 'ru') return fallbackTag;
+    const offer = catalogById[offerId];
+    return offer?.tag ?? fallbackTag;
   };
   const isOfferPurchasable = (offerId: string) => {
     if (catalogStatus !== 'success') return true;
@@ -482,7 +522,7 @@ const BoostScreen = () => {
         .then((status) => {
           if (status.status === 'paid' && status.entitlementSnapshot) {
             void appApi.applyEntitlementSnapshot(status.entitlementSnapshot);
-            setPaymentFeedback('Payment confirmed. Entitlements applied.');
+            setPaymentFeedback(t('boost.checkout.paid'));
             setCheckoutStatus('success');
             setPollingStatus('success');
             if (pollingRef.current) window.clearInterval(pollingRef.current);
@@ -498,7 +538,9 @@ const BoostScreen = () => {
             }
           } else if (status.status === 'failed' || status.status === 'not_found' || attempts >= 40) {
             setPaymentFeedback(
-              status.status === 'failed' ? 'Payment failed. Please retry.' : 'Payment status unavailable.',
+              status.status === 'failed'
+                ? t('boost.checkout.failed')
+                : t('boost.checkout.statusUnavailable'),
             );
             setCheckoutStatus('error');
             setPollingStatus('error');
@@ -512,7 +554,7 @@ const BoostScreen = () => {
         })
         .catch(() => {
           if (attempts >= 40) {
-            setPaymentFeedback('Payment check timed out. Please open Boost again.');
+            setPaymentFeedback(t('boost.checkout.timeout'));
             setCheckoutStatus('error');
             setPollingStatus('error');
             if (pollingRef.current) window.clearInterval(pollingRef.current);
@@ -538,7 +580,7 @@ const BoostScreen = () => {
 
   const beginCheckout = async (offerId: string) => {
     if (catalogStatus === 'success' && !catalogById[offerId]) {
-      setPaymentFeedback('Offer not available from PSP catalog.');
+      setPaymentFeedback(t('boost.checkout.offerUnavailable'));
       setCheckoutStatus('error');
       return;
     }
@@ -562,7 +604,7 @@ const BoostScreen = () => {
       });
 
       if (!response.checkoutId) {
-        setPaymentFeedback('Checkout initialization failed.');
+        setPaymentFeedback(t('boost.checkout.initFailed'));
         setCheckoutStatus('error');
         return;
       }
@@ -578,7 +620,7 @@ const BoostScreen = () => {
 
       startCheckoutPolling(response.checkoutId, userId);
     } catch {
-      setPaymentFeedback('Checkout failed. Verify PSP config and retry.');
+      setPaymentFeedback(t('boost.checkout.checkoutFailed'));
       setCheckoutStatus('error');
     } finally {
       setPaymentBusyOfferId(null);
@@ -781,11 +823,13 @@ const BoostScreen = () => {
           <div className="relative pt-2">
             <button
               onClick={() => handleBuyTier(activeTier)}
-              disabled={paymentBusyOfferId !== null}
+              disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByTierId[activeTier])}
               className="w-full h-[var(--boost-tier-cta-h)] rounded-[24px] border border-white/15 bg-black/65 text-[length:var(--boost-tier-cta-size)] font-black uppercase"
               style={{ letterSpacing: 'var(--boost-tier-cta-track)' }}
             >
-              {`${t('boost.subscribePrefix')}${t(`boost.tiers.${activeTier}.ctaName`)}`}
+              {isOfferPurchasable(offerIdByTierId[activeTier])
+                ? `${t('boost.subscribePrefix')}${t(`boost.tiers.${activeTier}.ctaName`)}`
+                : t('boost.buy.unavailable')}
             </button>
             <div
               className="pointer-events-none absolute left-10 right-10"
@@ -801,7 +845,7 @@ const BoostScreen = () => {
             </p>
             {catalogStatus === 'success' && (
               <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
-                PSP: {pspMode === 'yookassa' ? 'YOOKASSA' : 'MOCK'}
+                {t('boost.pspLabel')}: {pspMode === 'yookassa' ? 'YOOKASSA' : 'MOCK'}
               </p>
             )}
             {paymentFeedback && (
@@ -809,7 +853,7 @@ const BoostScreen = () => {
             )}
             {(checkoutStatus === 'loading' || pollingStatus === 'loading') && (
               <p className="mt-2 text-center text-xs font-bold text-white/65 uppercase tracking-[0.14em]">
-                Processing payment...
+                {t('boost.checkout.processing')}
               </p>
             )}
             {checkoutStatus === 'error' && (
@@ -818,7 +862,7 @@ const BoostScreen = () => {
                   onClick={retryLastCheckout}
                   className="h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black text-white/75"
                 >
-                  Retry checkout
+                  {t('boost.checkout.retry')}
                 </button>
               </div>
             )}
@@ -883,7 +927,7 @@ const BoostScreen = () => {
           </div>
           <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-fuchsia-400/25 bg-fuchsia-500/5">
             <p className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-200 font-black">
-              {t('boost.badges.premiumTitle')}
+              {locale === 'ru' ? 'СТАТУСНЫЕ БЕЙДЖИ' : t('boost.badges.premiumTitle')}
             </p>
             <h3 className="mt-2 text-lg font-black">{t('boost.badges.premiumBadge')}</h3>
             <p className="mt-2 text-sm text-white/70">{t('boost.badges.premiumDesc')}</p>
@@ -952,7 +996,9 @@ const BoostScreen = () => {
                           )}
                         </p>
                       </div>
-                      <p className="text-sm text-secondary mt-1">{t(item.descKey)}</p>
+                      <p className="text-sm text-secondary mt-1">
+                        {resolveDescriptionByOfferId(offerIdByInstantId[item.id], t(item.descKey))}
+                      </p>
                       <ul className="mt-2 space-y-1.5">
                         {item.detailKeys.map((detailKey, detailIdx) => (
                           <li key={detailKey} className="flex items-center gap-2 text-[0.86rem] text-white/76">
@@ -973,11 +1019,11 @@ const BoostScreen = () => {
                       disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByInstantId[item.id])}
                       className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}
                     >
-                      {paymentBusyOfferId
-                        ? '...'
-                        : isOfferPurchasable(offerIdByInstantId[item.id])
-                          ? t('boost.buy.buy')
-                          : 'Unavailable'}
+                        {paymentBusyOfferId
+                          ? '...'
+                          : isOfferPurchasable(offerIdByInstantId[item.id])
+                            ? t('boost.buy.buy')
+                            : t('boost.buy.unavailable')}
                     </button>
                   </div>
                 </motion.div>
@@ -997,9 +1043,13 @@ const BoostScreen = () => {
                           passLabelById[item.id] ?? t(item.labelKey).toUpperCase(),
                         )}
                       </p>
-                      <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{t(item.tagKey)}</span>
+                      <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">
+                        {resolveTagByOfferId(offerIdByPassId[item.id], t(item.tagKey))}
+                      </span>
                     </div>
-                    <p className="text-sm text-secondary mt-2">{t(item.descKey)}</p>
+                    <p className="text-sm text-secondary mt-2">
+                      {resolveDescriptionByOfferId(offerIdByPassId[item.id], t(item.descKey))}
+                    </p>
                     <ul className="mt-2 space-y-1.5">
                       {item.detailKeys.map((detailKey, detailIdx) => (
                         <li key={detailKey} className="flex items-center gap-2 text-[0.86rem] text-white/76">
@@ -1021,7 +1071,7 @@ const BoostScreen = () => {
                           ? '...'
                           : isOfferPurchasable(offerIdByPassId[item.id])
                             ? t('boost.buy.choose')
-                            : 'Unavailable'}
+                            : t('boost.buy.unavailable')}
                       </button>
                     </div>
                   </motion.div>
@@ -1051,11 +1101,11 @@ const BoostScreen = () => {
                       )}
                     </p>
                     <span className={`text-[10px] uppercase tracking-[0.16em] px-2 py-1 rounded-full ${item.id === 'datingpro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
-                      {t(item.tagKey)}
+                      {resolveTagByOfferId(offerIdByBundleId[item.id], t(item.tagKey))}
                     </span>
                   </div>
                   <div className="text-secondary text-sm mt-2">
-                    <p>{t(item.descKey)}</p>
+                    <p>{resolveDescriptionByOfferId(offerIdByBundleId[item.id], t(item.descKey))}</p>
                     <ul className="mt-2 space-y-1.5">
                       {item.detailKeys.map((detailKey, detailIdx) => (
                         <li key={detailKey} className="flex items-center gap-2 text-[0.86rem] text-white/76">
@@ -1078,7 +1128,7 @@ const BoostScreen = () => {
                         ? '...'
                         : isOfferPurchasable(offerIdByBundleId[item.id])
                           ? t('boost.buy.bundle')
-                          : 'Unavailable'}
+                          : t('boost.buy.unavailable')}
                     </button>
                   </div>
                 </motion.div>

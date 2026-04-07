@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
 import { z } from "zod";
 import { env } from "./config.js";
-import { offersCatalog, resolveOffer } from "./catalog.js";
+import { offerSchema, offersCatalog, resolveOffer, type Offer } from "./catalog.js";
 import {
   mergeEntitlementSnapshots,
   resolveEntitlementSnapshot,
@@ -28,6 +28,13 @@ type CheckoutRow = {
   entitlement_snapshot: EntitlementSnapshot | null;
   provider_raw: Record<string, unknown> | null;
 };
+
+type CatalogCache = {
+  fetchedAt: number;
+  offers: Offer[];
+};
+
+const CATALOG_CACHE_TTL_MS = 60_000;
 
 const checkoutSchema = z.object({
   offerId: z.string().min(1),
@@ -125,6 +132,7 @@ export const buildServer = () => {
   const yookassa = env.hasYooKassaCredentials ? new YooKassaClient(env.YOOKASSA_BASE_URL) : null;
   const checkoutsMemory = new Map<string, CheckoutRow>();
   const entitlementsMemory = new Map<string, EntitlementSnapshot>();
+  let catalogCache: CatalogCache | null = null;
 
   const isRateLimited = (
     key: string,
@@ -269,9 +277,57 @@ export const buildServer = () => {
     );
   };
 
+  const getCatalog = async (): Promise<Offer[]> => {
+    const now = Date.now();
+    if (catalogCache && now - catalogCache.fetchedAt < CATALOG_CACHE_TTL_MS) {
+      return catalogCache.offers;
+    }
+
+    if (!supabaseServiceClient) {
+      catalogCache = { fetchedAt: now, offers: offersCatalog };
+      return offersCatalog;
+    }
+
+    const { data, error } = await supabaseServiceClient
+      .from("in_app_offers")
+      .select("id,label,description,tag,amount_minor,currency_numeric,type,duration_hours,is_active,sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+
+    if (error || !data) {
+      catalogCache = { fetchedAt: now, offers: offersCatalog };
+      return offersCatalog;
+    }
+
+    const parsedOffers = (data as Record<string, unknown>[])
+      .map((row) =>
+        offerSchema.safeParse({
+          id: row.id,
+          label: row.label,
+          description: row.description,
+          tag: row.tag,
+          amountMinor: row.amount_minor,
+          currencyNumeric: row.currency_numeric,
+          type: row.type,
+          durationHours: row.duration_hours,
+        }),
+      )
+      .filter((entry): entry is { success: true; data: Offer } => entry.success)
+      .map((entry) => entry.data);
+
+    const finalOffers = parsedOffers.length > 0 ? parsedOffers : offersCatalog;
+    catalogCache = { fetchedAt: now, offers: finalOffers };
+    return finalOffers;
+  };
+
+  const getOfferById = async (offerId: string): Promise<Offer | undefined> => {
+    const catalog = await getCatalog();
+    return catalog.find((offer) => offer.id === offerId) ?? resolveOffer(offerId);
+  };
+
   const attributeCheckout = async (checkout: CheckoutRow): Promise<CheckoutRow> => {
     if (checkout.attributed || checkout.status !== "paid") return checkout;
-    const offer = resolveOffer(checkout.offer_id);
+    const offer = await getOfferById(checkout.offer_id);
     if (!offer) return checkout;
 
     const snapshot = sanitizeEntitlementSnapshot(resolveEntitlementSnapshot(offer));
@@ -301,10 +357,13 @@ export const buildServer = () => {
     timestamp: new Date().toISOString(),
   }));
 
-  app.get("/payments/catalog", async () => ({
-    offers: offersCatalog,
-    pspMode: yookassa ? "yookassa" : "mock",
-  }));
+  app.get("/payments/catalog", async () => {
+    const offers = await getCatalog();
+    return {
+      offers,
+      pspMode: yookassa ? "yookassa" : "mock",
+    };
+  });
 
   app.get("/entitlements/me", async (request, reply) => {
     const query = request.query as { userId?: string };
@@ -341,7 +400,7 @@ export const buildServer = () => {
     }
 
     const payload = parsed.data;
-    const offer = resolveOffer(payload.offerId);
+    const offer = await getOfferById(payload.offerId);
     if (!offer) {
       reply.status(404);
       return { code: "OFFER_NOT_FOUND", message: "Offer not found." };

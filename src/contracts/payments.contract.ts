@@ -3,6 +3,8 @@ export type OfferType = 'tier' | 'instant' | 'time_pack' | 'bundle';
 export interface OfferItem {
   id: string;
   label: string;
+  description?: string;
+  tag?: string;
   amountMinor: number;
   currencyNumeric: number;
   type: OfferType;

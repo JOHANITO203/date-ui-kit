@@ -18,6 +18,9 @@ Runtime:
 - `PORT` default `4025`
 - CORS allows app URL from `.env` (`APP_URL`)
 - persistence in Supabase tables (`payments_checkouts`, `user_entitlements`) when Supabase creds are set
+- catalog source:
+  - reads `public.in_app_offers` when available
+  - falls back to in-code catalog if DB is unavailable or empty
 - automatic memory fallback when Supabase creds are not set
 - works in two modes:
   - `mock` when YooKassa credentials are not set
