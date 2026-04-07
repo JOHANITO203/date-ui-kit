@@ -2,6 +2,13 @@ import * as oidc from "openid-client";
 import { env } from "../config/env";
 
 const { Issuer, generators } = oidc;
+const custom = (oidc as any).custom;
+
+if (custom?.setHttpOptionsDefaults) {
+  custom.setHttpOptionsDefaults({
+    timeout: 15000,
+  });
+}
 
 let googleIssuer: Awaited<ReturnType<typeof Issuer.discover>> | null = null;
 

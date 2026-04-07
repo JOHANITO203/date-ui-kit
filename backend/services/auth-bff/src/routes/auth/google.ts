@@ -36,6 +36,8 @@ const stateStore = new Map<string, OAuthStateEntry>();
 
 const CALLBACK_EXPIRATION = 1000 * 60 * 10; // 10 minutes
 const INTENT_EXPIRATION = 1000 * 60 * 5; // 5 minutes
+const OAUTH_CALLBACK_MAX_ATTEMPTS = 3;
+const OAUTH_CALLBACK_RETRY_DELAYS_MS = [250, 700];
 
 const intentStore = new Map<string, OnboardingIntent>();
 
@@ -89,6 +91,112 @@ const parseOAuthStateCookie = (
   } catch {
     return null;
   }
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientOAuthNetworkError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: string }).code;
+  const message = (error as { message?: string }).message ?? "";
+
+  if (
+    code === "EAI_AGAIN" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ENOTFOUND"
+  ) {
+    return true;
+  }
+
+  return typeof message === "string" && message.toLowerCase().includes("timed out");
+};
+
+const isOauth2GoogleapisDnsError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: string }).code;
+  const hostname = (error as { hostname?: string }).hostname;
+  return (
+    (code === "EAI_AGAIN" || code === "ENOTFOUND") &&
+    hostname === "oauth2.googleapis.com"
+  );
+};
+
+const exchangeGoogleCodeViaAccountsEndpoint = async (input: {
+  code: string;
+  codeVerifier: string;
+}) => {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: input.code,
+    redirect_uri: env.GOOGLE_REDIRECT_URI,
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    code_verifier: input.codeVerifier,
+  });
+
+  const response = await fetch("https://accounts.google.com/o/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(`accounts_token_exchange_failed_${response.status}:${payload}`);
+  }
+
+  const payload = (await response.json()) as {
+    access_token?: string;
+    id_token?: string;
+  };
+
+  return {
+    access_token: payload.access_token,
+    id_token: payload.id_token,
+  };
+};
+
+const exchangeGoogleCallbackWithRetry = async (input: {
+  code: string;
+  state: string;
+  iss?: string;
+  codeVerifier: string;
+}) => {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= OAUTH_CALLBACK_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const client = await getGoogleClient();
+      const tokenSet = await client.callback(
+        env.GOOGLE_REDIRECT_URI,
+        { code: input.code, state: input.state, iss: input.iss },
+        {
+          code_verifier: input.codeVerifier,
+          state: input.state,
+        }
+      );
+      return tokenSet;
+    } catch (error) {
+      if (isOauth2GoogleapisDnsError(error)) {
+        return exchangeGoogleCodeViaAccountsEndpoint({
+          code: input.code,
+          codeVerifier: input.codeVerifier,
+        });
+      }
+
+      lastError = error;
+      if (!isTransientOAuthNetworkError(error) || attempt >= OAUTH_CALLBACK_MAX_ATTEMPTS) {
+        break;
+      }
+      const retryDelay = OAUTH_CALLBACK_RETRY_DELAYS_MS[attempt - 1] ?? 1000;
+      await sleep(retryDelay);
+    }
+  }
+
+  throw lastError;
 };
 
 export async function registerGoogleAuthRoutes(app: FastifyInstance) {
@@ -193,15 +301,12 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
     }
 
     try {
-      const client = await getGoogleClient();
-      const tokenSet = await client.callback(
-        env.GOOGLE_REDIRECT_URI,
-        { code, state, iss },
-        {
-          code_verifier: entry.codeVerifier,
-          state,
-        }
-      );
+      const tokenSet = await exchangeGoogleCallbackWithRetry({
+        code,
+        state,
+        iss,
+        codeVerifier: entry.codeVerifier,
+      });
 
       const idToken = tokenSet.id_token;
       const accessToken = tokenSet.access_token;
