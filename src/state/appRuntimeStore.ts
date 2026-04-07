@@ -656,11 +656,9 @@ export const runtimeApi = {
                   ? 'You blocked this conversation.'
                   : nextState === 'blocked_me'
                     ? 'You were blocked by this user.'
-                    : nextState === 'unmatched'
-                      ? 'Conversation no longer available.'
-                      : entry.relationState !== 'active'
-                        ? 'Conversation reopened.'
-                        : entry.lastMessagePreview,
+                    : entry.relationState !== 'active'
+                      ? 'Conversation reopened.'
+                      : entry.lastMessagePreview,
             }
           : entry,
       ),

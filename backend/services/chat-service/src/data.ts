@@ -128,10 +128,10 @@ const conversationsSeed: ConversationSummary[] = [
     id: "conv-u-3",
     peer: profileById.get("u-3")!,
     unreadCount: 0,
-    lastMessagePreview: "Conversation no longer available.",
+    lastMessagePreview: "You were blocked by this user.",
     lastMessageAtIso: isoFromOffsetMinutes(36),
     online: false,
-    relationState: "unmatched",
+    relationState: "blocked_me",
     relationStateUpdatedAtIso: isoFromOffsetMinutes(35),
   },
   {
@@ -271,7 +271,6 @@ export const ensureConversationForProfile = (
 export const updateRelationPreview = (state: ConversationRelationState, previous: string) => {
   if (state === "blocked_by_me") return "You blocked this conversation.";
   if (state === "blocked_me") return "You were blocked by this user.";
-  if (state === "unmatched") return "Conversation no longer available.";
   return previous === "You blocked this conversation." || previous === "Conversation no longer available."
     ? "Conversation reopened."
     : previous;

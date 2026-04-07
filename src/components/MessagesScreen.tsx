@@ -24,7 +24,8 @@ const MessagesScreen = () => {
   const [conversationItems, setConversationItems] = useState<ConversationSummary[]>([]);
   const [likesCount, setLikesCount] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
-  const [isApplyingSafetyAction, setIsApplyingSafetyAction] = useState(false);
+  const [actionConversationId, setActionConversationId] = useState<string | null>(null);
+  const [safetyFeedback, setSafetyFeedback] = useState<string>('');
   
   // For Master-Detail on large screens
   const [selectedUserId, setSelectedUserId] = useState<string | null>(urlUserId || null);
@@ -60,11 +61,20 @@ const MessagesScreen = () => {
       });
   }, [urlUserId, reloadNonce]);
 
+  const newMatchItems = conversationItems.filter(
+    (conversation) =>
+      conversation.relationState === 'active' &&
+      (conversation.unreadCount > 0 || Boolean(conversation.receivedSuperLikeTraceAtIso)),
+  );
+
   useEffect(() => {
     let isCancelled = false;
     let inFlight = false;
+    let failureCount = 0;
+    let timerId: number | null = null;
 
     const refreshLive = async () => {
+      if (isCancelled) return;
       if (inFlight) return;
       inFlight = true;
       try {
@@ -75,20 +85,28 @@ const MessagesScreen = () => {
         if (isCancelled) return;
         setConversationItems(items);
         setLikesCount(likesResponse.inventory.visibleLikes.length + likesResponse.inventory.hiddenCount);
+        failureCount = 0;
       } catch {
         // Ignore transient live errors; manual retry keeps explicit recovery path.
+        failureCount += 1;
       } finally {
         inFlight = false;
+        const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+        const baseDelay = hidden ? 15000 : 3000;
+        const nextDelay = Math.min(30000, baseDelay * Math.pow(2, Math.min(failureCount, 3)));
+        timerId = window.setTimeout(() => {
+          void refreshLive();
+        }, nextDelay);
       }
     };
 
-    const timer = window.setInterval(() => {
+    timerId = window.setTimeout(() => {
       void refreshLive();
     }, 3000);
 
     return () => {
       isCancelled = true;
-      window.clearInterval(timer);
+      if (timerId) window.clearTimeout(timerId);
     };
   }, []);
 
@@ -178,7 +196,7 @@ const MessagesScreen = () => {
     if (target) handleUserSelect(target.peer.id);
   };
 
-  const hasMatches = conversationItems.length > 0;
+  const hasMatches = newMatchItems.length > 0;
   const hasConversations = conversationItems.length > 0;
   const showContent = !isLoading && !hasError;
 
@@ -196,10 +214,14 @@ const MessagesScreen = () => {
   };
 
   const handleQuickBlockToggle = async (conversation: ConversationSummary) => {
+    const canToggleQuickBlock =
+      conversation.relationState === 'active' || conversation.relationState === 'blocked_by_me';
+    if (!canToggleQuickBlock) return;
     const nextState =
       conversation.relationState === 'blocked_by_me' ? 'active' : 'blocked_by_me';
 
-    setIsApplyingSafetyAction(true);
+    setActionConversationId(conversation.id);
+    setSafetyFeedback('');
     try {
       if (nextState === 'blocked_by_me') {
         await appApi.blockUser(conversation.peer.id);
@@ -211,20 +233,26 @@ const MessagesScreen = () => {
         state: nextState,
       });
       applyConversationRelationState(conversation.id, nextState);
+    } catch {
+      setSafetyFeedback(t('chat.actionFailed'));
     } finally {
-      setIsApplyingSafetyAction(false);
+      setActionConversationId(null);
     }
   };
 
   const handleQuickReport = async (conversation: ConversationSummary) => {
-    setIsApplyingSafetyAction(true);
+    setActionConversationId(conversation.id);
+    setSafetyFeedback('');
     try {
       await appApi.reportUser({
         userId: conversation.peer.id,
         reason: 'other',
       });
+      setSafetyFeedback(t('chat.reportSent'));
+    } catch {
+      setSafetyFeedback(t('chat.reportFailed'));
     } finally {
-      setIsApplyingSafetyAction(false);
+      setActionConversationId(null);
     }
   };
 
@@ -236,6 +264,11 @@ const MessagesScreen = () => {
           <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>{t('messages.title')}</h2>
           <button onClick={() => navigate('/settings')} className={`glass rounded-full hover-effect flex items-center justify-center ${isLarge ? 'w-12 h-12' : 'w-11 h-11'}`}><ICONS.Settings size={isLarge ? 20 : 18} /></button>
         </div>
+        {safetyFeedback && (
+          <div className="mb-3 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-center text-[10px] uppercase tracking-[0.12em] font-black text-white/80">
+            {safetyFeedback}
+          </div>
+        )}
 
         {/* New Matches */}
         <div className={`${isLarge ? 'mb-10' : 'mb-[var(--messages-matches-section-gap)]'} group relative`}>
@@ -277,7 +310,7 @@ const MessagesScreen = () => {
                 {t('messages.likesCounter', { count: likesCount })}
               </span>
             </div>
-            {conversationItems.map((conversation) => (
+            {newMatchItems.map((conversation) => (
               <div 
                 key={conversation.id}
                 className={`flex flex-col items-center ${isLarge ? (isTablet ? 'gap-2' : 'gap-3') : 'gap-3'} cursor-pointer group`} 
@@ -432,7 +465,10 @@ const MessagesScreen = () => {
                             event.stopPropagation();
                             void handleQuickBlockToggle(conversation);
                           }}
-                          disabled={isApplyingSafetyAction}
+                          disabled={
+                            actionConversationId === conversation.id ||
+                            !(conversation.relationState === 'active' || conversation.relationState === 'blocked_by_me')
+                          }
                           className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-orange-300/35 bg-orange-500/12 text-orange-100 disabled:opacity-50"
                         >
                           {conversation.relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
@@ -442,7 +478,7 @@ const MessagesScreen = () => {
                             event.stopPropagation();
                             void handleQuickReport(conversation);
                           }}
-                          disabled={isApplyingSafetyAction}
+                          disabled={actionConversationId === conversation.id}
                           className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-red-300/35 bg-red-500/12 text-red-100 disabled:opacity-50"
                         >
                           {t('chat.report')}

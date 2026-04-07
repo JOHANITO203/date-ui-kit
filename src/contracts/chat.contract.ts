@@ -1,7 +1,7 @@
 import type { ProfileCard } from './common.contract';
 
 export type ChatMessageDirection = 'incoming' | 'outgoing';
-export type ConversationRelationState = 'active' | 'blocked_by_me' | 'blocked_me' | 'unmatched';
+export type ConversationRelationState = 'active' | 'blocked_by_me' | 'blocked_me';
 
 export interface ChatMessage {
   id: string;
@@ -43,7 +43,7 @@ export interface SendMessageRequest {
 }
 
 export interface SendMessageResponse {
-  status: 'sent' | 'blocked_by_me' | 'blocked_me' | 'unmatched' | 'invalid';
+  status: 'sent' | 'blocked_by_me' | 'blocked_me' | 'invalid';
   message?: ChatMessage;
 }
 

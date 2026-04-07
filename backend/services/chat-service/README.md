@@ -4,7 +4,7 @@ Domain ownership:
 - conversations
 - messages
 - unread counters
-- relation state propagation (active/blocked/unmatched)
+- relation state propagation (active/blocked_by_me/blocked_me)
 
 Implemented endpoints:
 - `GET /chat/conversations`

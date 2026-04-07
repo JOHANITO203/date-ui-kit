@@ -22,7 +22,7 @@ export interface ProfileCard {
   };
 }
 
-export type ConversationRelationState = "active" | "blocked_by_me" | "blocked_me" | "unmatched";
+export type ConversationRelationState = "active" | "blocked_by_me" | "blocked_me";
 
 export interface ConversationSummary {
   id: string;

@@ -123,6 +123,9 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
         const history = await appApi.getMessages(selectedConversation.id);
         if (isCancelled) return;
         setMessages(history);
+        if (selectedConversation.unreadCount > 0) {
+          void appApi.markConversationRead(selectedConversation.id);
+        }
       } catch {
         if (!isCancelled) {
           setHasError(true);
@@ -145,8 +148,11 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     if (!conversationId) return;
     let isCancelled = false;
     let inFlight = false;
+    let failureCount = 0;
+    let timerId: number | null = null;
 
     const refreshLive = async () => {
+      if (isCancelled) return;
       if (inFlight) return;
       inFlight = true;
       try {
@@ -161,21 +167,32 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           list.find((entry) => entry.peer.id === userId);
         if (nextConversation) {
           setConversation(nextConversation);
+          if (nextConversation.unreadCount > 0) {
+            void appApi.markConversationRead(nextConversation.id);
+          }
         }
+        failureCount = 0;
       } catch {
         // Keep UI stable; live refresh silently retries on next tick.
+        failureCount += 1;
       } finally {
         inFlight = false;
+        const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+        const baseDelay = hidden ? 12000 : 2500;
+        const nextDelay = Math.min(30000, baseDelay * Math.pow(2, Math.min(failureCount, 3)));
+        timerId = window.setTimeout(() => {
+          void refreshLive();
+        }, nextDelay);
       }
     };
 
-    const timer = window.setInterval(() => {
+    timerId = window.setTimeout(() => {
       void refreshLive();
     }, 2500);
 
     return () => {
       isCancelled = true;
-      window.clearInterval(timer);
+      if (timerId) window.clearTimeout(timerId);
     };
   }, [conversationId, userId]);
 

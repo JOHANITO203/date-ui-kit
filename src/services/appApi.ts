@@ -67,6 +67,9 @@ let cachedFeedSignalsFetchedAt = 0;
 const FEED_SIGNALS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PRECISE_GEO_CACHE_TTL_MS = 2 * 60 * 1000;
 let cachedGeoPosition: { lat: number; lng: number; fetchedAt: number } | null = null;
+let cachedChatUserId: { value: string; fetchedAt: number } | null = null;
+let pendingChatUserIdPromise: Promise<string> | null = null;
+const CHAT_USER_CACHE_TTL_MS = 60 * 1000;
 
 const getFeedSignals = async (): Promise<FeedSignals> => {
   const now = Date.now();
@@ -177,10 +180,41 @@ const discoverRequest = async <T>(path: string, init?: RequestInit): Promise<T> 
 };
 
 const chatRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${CHAT_API_URL}${path}`, {
+  const resolveChatUserId = async () => {
+    const now = Date.now();
+    if (cachedChatUserId && now - cachedChatUserId.fetchedAt < CHAT_USER_CACHE_TTL_MS) {
+      return cachedChatUserId.value;
+    }
+    if (pendingChatUserIdPromise) return pendingChatUserIdPromise;
+
+    pendingChatUserIdPromise = authApi
+      .getSession()
+      .then((session) => {
+        const userId =
+          session.ok && session.data?.authenticated && session.data.user?.id
+            ? session.data.user.id
+            : 'me';
+        cachedChatUserId = { value: userId, fetchedAt: Date.now() };
+        return userId;
+      })
+      .catch(() => 'me')
+      .finally(() => {
+        pendingChatUserIdPromise = null;
+      });
+
+    return pendingChatUserIdPromise;
+  };
+
+  const chatUserId = await resolveChatUserId();
+  const url = new URL(`${CHAT_API_URL}${path}`);
+  if (!url.searchParams.get('userId')) {
+    url.searchParams.set('userId', chatUserId);
+  }
+  const response = await fetch(url.toString(), {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      'x-exotic-user-id': chatUserId,
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -502,6 +536,23 @@ export const appApi = {
         );
     }
     return withLatency(runtimeApi.getConversationMessages(conversationId), 80);
+  },
+
+  markConversationRead(conversationId: string): Promise<{ conversationId: string; markedRead: boolean }> {
+    if (CHAT_API_URL) {
+      return chatRequest<{ conversationId: string; markedRead: boolean }>(
+        `/chat/conversations/${conversationId}/read`,
+        {
+          method: 'POST',
+        },
+      ).catch((error) =>
+        shouldFallbackToRuntime(error)
+          ? withLatency({ conversationId, markedRead: true }, 40)
+          : Promise.reject(error),
+      );
+    }
+
+    return withLatency({ conversationId, markedRead: true }, 40);
   },
 
   sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {

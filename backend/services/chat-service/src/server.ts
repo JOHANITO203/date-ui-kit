@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import { z } from "zod";
 import { env } from "./config";
@@ -24,12 +24,23 @@ const sendMessageSchema = z.object({
 
 const relationStateSchema = z.object({
   conversationId: z.string().min(1),
-  state: z.enum(["active", "blocked_by_me", "blocked_me", "unmatched"]),
+  state: z.enum(["active", "blocked_by_me", "blocked_me"]),
 });
 
-const resolveUserId = (query: Record<string, unknown>) => {
-  const candidate = query.userId;
-  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : "me";
+const resolveUserId = (request: FastifyRequest) => {
+  const query = (request.query as Record<string, unknown>) ?? {};
+  const headerCandidate = request.headers["x-exotic-user-id"];
+  if (typeof headerCandidate === "string" && headerCandidate.trim()) return headerCandidate.trim();
+  const queryCandidate = query.userId;
+  if (typeof queryCandidate === "string" && queryCandidate.trim()) return queryCandidate.trim();
+  const fallbackIp = request.ip?.trim() || "unknown";
+  return `anon:${fallbackIp}`;
+};
+
+const normalizeRelationState = (value: unknown): "active" | "blocked_by_me" | "blocked_me" => {
+  if (value === "blocked_by_me") return "blocked_by_me";
+  if (value === "blocked_me" || value === "unmatched") return "blocked_me";
+  return "active";
 };
 
 const resolveConversationId = (userId: string, profileId: string) =>
@@ -130,7 +141,7 @@ export const buildServer = () => {
 
   app.get("/chat/conversations", async (request, reply) => {
     if (supabaseServiceClient) {
-      const userId = resolveUserId((request.query as Record<string, unknown>) ?? {});
+      const userId = resolveUserId(request);
       const conversationsResult = await supabaseServiceClient
         .from("chat_conversations")
         .select("*")
@@ -153,7 +164,7 @@ export const buildServer = () => {
             lastMessagePreview: row.last_message_preview ?? "",
             lastMessageAtIso: row.last_message_at ?? new Date().toISOString(),
             online: peer.online,
-            relationState: row.relation_state,
+            relationState: normalizeRelationState(row.relation_state),
             relationStateUpdatedAtIso: toOptionalString(row.relation_state_updated_at),
             receivedSuperLikeTraceAtIso: toOptionalString(row.received_superlike_trace_at),
           };
@@ -178,7 +189,7 @@ export const buildServer = () => {
     }
 
     if (supabaseServiceClient) {
-      const userId = resolveUserId((request.query as Record<string, unknown>) ?? {});
+      const userId = resolveUserId(request);
       const peer = getProfileById(parsed.data.profileId);
       if (!peer) {
         reply.status(404);
@@ -272,7 +283,7 @@ export const buildServer = () => {
     }
 
     if (supabaseServiceClient) {
-      const userId = resolveUserId((request.query as Record<string, unknown>) ?? {});
+      const userId = resolveUserId(request);
 
       const conversationResult = await supabaseServiceClient
         .from("chat_conversations")
@@ -332,6 +343,78 @@ export const buildServer = () => {
     };
   });
 
+  app.post("/chat/conversations/:conversationId/read", async (request, reply) => {
+    const params = request.params as { conversationId?: string };
+    const conversationId = params.conversationId;
+    if (!conversationId) {
+      reply.status(400);
+      return { code: "INVALID_PARAMS", message: "conversationId is required." };
+    }
+
+    const userId = resolveUserId(request);
+
+    if (supabaseServiceClient) {
+      const conversationResult = await supabaseServiceClient
+        .from("chat_conversations")
+        .select("conversation_id")
+        .eq("user_id", userId)
+        .eq("conversation_id", conversationId)
+        .maybeSingle();
+
+      if (conversationResult.error || !conversationResult.data) {
+        reply.status(404);
+        return { code: "NOT_FOUND", message: "Conversation not found." };
+      }
+
+      const nowIso = new Date().toISOString();
+      const [conversationUpdate, messagesUpdate] = await Promise.all([
+        supabaseServiceClient
+          .from("chat_conversations")
+          .update({ unread_count: 0 })
+          .eq("user_id", userId)
+          .eq("conversation_id", conversationId),
+        supabaseServiceClient
+          .from("chat_messages")
+          .update({ read_at: nowIso })
+          .eq("user_id", userId)
+          .eq("conversation_id", conversationId)
+          .eq("direction", "incoming")
+          .is("read_at", null),
+      ]);
+
+      if (conversationUpdate.error || messagesUpdate.error) {
+        reply.status(500);
+        return { code: "CHAT_MARK_READ_FAILED" };
+      }
+
+      return { conversationId, markedRead: true };
+    }
+
+    const exists = store.conversations.some((entry) => entry.id === conversationId);
+    if (!exists) {
+      reply.status(404);
+      return { code: "NOT_FOUND", message: "Conversation not found." };
+    }
+
+    const nowIso = new Date().toISOString();
+    store.conversations = store.conversations.map((entry) =>
+      entry.id === conversationId
+        ? {
+            ...entry,
+            unreadCount: 0,
+          }
+        : entry,
+    );
+    store.messagesByConversation[conversationId] = (store.messagesByConversation[conversationId] ?? []).map(
+      (message) =>
+        message.direction === "incoming" && !message.readAtIso
+          ? { ...message, readAtIso: nowIso }
+          : message,
+    );
+
+    return { conversationId, markedRead: true };
+  });
+
   app.post("/chat/messages", async (request, reply) => {
     const parsed = sendMessageSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -339,7 +422,7 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid send message payload." };
     }
 
-    const userId = resolveUserId((request.query as Record<string, unknown>) ?? {});
+    const userId = resolveUserId(request);
     const { conversationId } = parsed.data;
     const trimmed = parsed.data.text.trim();
 
@@ -360,8 +443,9 @@ export const buildServer = () => {
         return { status: "invalid" as const };
       }
 
-      if (conversationResult.data.relation_state !== "active") {
-        return { status: conversationResult.data.relation_state };
+      const relationState = normalizeRelationState(conversationResult.data.relation_state);
+      if (relationState !== "active") {
+        return { status: relationState };
       }
 
       const message: ChatMessage = {
@@ -472,7 +556,7 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid relation state payload." };
     }
 
-    const userId = resolveUserId((request.query as Record<string, unknown>) ?? {});
+    const userId = resolveUserId(request);
     const { conversationId, state } = parsed.data;
     const updatedAtIso = new Date().toISOString();
 
