@@ -454,6 +454,7 @@ export const appApi = {
           first_name: payload.first_name,
           last_name: payload.last_name,
           locale: payload.locale,
+          bio: payload.bio,
           city: payload.city,
           settings: payload.settings
             ? {

@@ -83,6 +83,7 @@ export const authApi = {
         first_name?: string | null;
         last_name?: string | null;
         locale?: string | null;
+        bio?: string | null;
         birth_date?: string | null;
         gender?: string | null;
         city?: string | null;
@@ -113,6 +114,8 @@ export const authApi = {
     first_name?: string;
     last_name?: string;
     locale?: string;
+    bio?: string;
+    city?: string;
     settings?: {
       language?: 'en' | 'ru';
       targetLang?: 'en' | 'ru' | 'fr';
@@ -131,6 +134,7 @@ export const authApi = {
         first_name?: string | null;
         last_name?: string | null;
         locale?: string | null;
+        bio?: string | null;
         birth_date?: string | null;
         gender?: string | null;
         city?: string | null;

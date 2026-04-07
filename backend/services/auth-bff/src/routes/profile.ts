@@ -26,6 +26,7 @@ const profileUpdateSchema = z.object({
   first_name: z.string().min(1).max(100).optional(),
   last_name: z.string().min(1).max(100).optional(),
   locale: z.string().min(2).max(16).optional(),
+  bio: z.string().max(1000).optional(),
   birth_date: z.string().optional(),
   gender: z.string().optional(),
   city: z.string().optional(),
@@ -133,7 +134,7 @@ const sanitizeProfilePayload = (input: unknown): Record<string, unknown> => {
     return trimmed.length > 0 ? trimmed : undefined;
   };
 
-  (["first_name", "last_name", "locale", "birth_date", "gender", "city", "origin_country", "intent", "onboarding_version"] as const).forEach((key) => {
+  (["first_name", "last_name", "locale", "bio", "birth_date", "gender", "city", "origin_country", "intent", "onboarding_version"] as const).forEach((key) => {
     const normalized = normalizeString(source[key]);
     if (normalized !== undefined) {
       result[key] = normalized;
@@ -418,7 +419,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       const [profileResult, settingsResult] = await Promise.all([
         supabaseServiceClient
           .from("profiles")
-          .select("first_name,last_name,locale,birth_date,gender,city,origin_country,languages,intent,interests,photos_count,verified_opt_in,onboarding_version")
+          .select("first_name,last_name,locale,bio,birth_date,gender,city,origin_country,languages,intent,interests,photos_count,verified_opt_in,onboarding_version")
           .eq("user_id", session.user.id)
           .maybeSingle(),
         supabaseServiceClient
@@ -494,7 +495,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       const [profileResult, settingsResult] = await Promise.all([
         supabaseServiceClient
           .from("profiles")
-          .select("first_name,last_name,locale,birth_date,gender,city,origin_country,languages,intent,interests,photos_count,verified_opt_in,onboarding_version")
+          .select("first_name,last_name,locale,bio,birth_date,gender,city,origin_country,languages,intent,interests,photos_count,verified_opt_in,onboarding_version")
           .eq("user_id", session.user.id)
           .maybeSingle(),
         supabaseServiceClient

@@ -8,6 +8,7 @@ const patchSchema = z.object({
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   locale: z.string().optional(),
+  bio: z.string().max(1000).optional(),
   city: z.string().optional(),
   settings: z
     .object({
@@ -24,6 +25,7 @@ type MemoryProfile = {
   first_name?: string | null;
   last_name?: string | null;
   locale?: string | null;
+  bio?: string | null;
   city?: string | null;
 };
 
@@ -103,6 +105,7 @@ export const buildServer = () => {
         first_name: payload.first_name ?? currentProfile.first_name,
         last_name: payload.last_name ?? currentProfile.last_name,
         locale: payload.locale ?? currentProfile.locale,
+        bio: payload.bio ?? currentProfile.bio,
         city: payload.city ?? currentProfile.city,
       });
 
@@ -125,6 +128,7 @@ export const buildServer = () => {
       first_name: payload.first_name,
       last_name: payload.last_name,
       locale: payload.locale,
+      bio: payload.bio,
       city: payload.city,
     };
 

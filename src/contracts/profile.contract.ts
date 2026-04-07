@@ -3,6 +3,7 @@ export interface ProfileMeData {
     first_name?: string | null;
     last_name?: string | null;
     locale?: string | null;
+    bio?: string | null;
     city?: string | null;
     verified_opt_in?: boolean | null;
   } | null;
@@ -20,6 +21,7 @@ export interface PatchProfileMeRequest {
   first_name?: string;
   last_name?: string;
   locale?: string;
+  bio?: string;
   city?: string;
   settings?: {
     language?: 'en' | 'ru';

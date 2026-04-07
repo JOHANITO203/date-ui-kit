@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
@@ -6,10 +6,11 @@ import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
-import { appApi, authApi } from '../services';
+import { appApi, authApi, getTrackedEvents } from '../services';
 import { useRuntimeSelector } from '../state';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
+import { useAuth } from '../auth/AuthProvider';
 
 const calculateAge = (birthDateIso: string | null | undefined) => {
   if (!birthDateIso) return undefined;
@@ -24,12 +25,80 @@ const calculateAge = (birthDateIso: string | null | undefined) => {
   return age >= 18 ? age : undefined;
 };
 
+const CITY_COORDINATES: Record<'moscow' | 'voronezh' | 'saint-petersburg' | 'sochi', { lat: number; lng: number }> = {
+  moscow: { lat: 55.7558, lng: 37.6173 },
+  voronezh: { lat: 51.6608, lng: 39.2003 },
+  'saint-petersburg': { lat: 59.9311, lng: 30.3609 },
+  sochi: { lat: 43.5855, lng: 39.7231 },
+};
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(b.lat - a.lat);
+  const dLng = toRadians(b.lng - a.lng);
+  const aa =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(a.lat)) *
+      Math.cos(toRadians(b.lat)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+  return earthRadiusKm * c;
+};
+
+type VisibilityScoreInput = {
+  photosCount: number;
+  hasVideo: boolean;
+  hasFirstName: boolean;
+  hasCity: boolean;
+  hasBio: boolean;
+  verifiedIdentity: boolean;
+  planTier: 'free' | 'essential' | 'gold' | 'platinum' | 'elite';
+  boostActive: boolean;
+  boostTokens: number;
+  superlikesTokens: number;
+  rewindTokens: number;
+  travelPassSource: 'none' | 'travel_pass' | 'bundle_included' | 'plan_included';
+  shadowGhostActive: boolean;
+};
+
+const computeVisibilityScore = (input: VisibilityScoreInput) => {
+  let score = 15;
+
+  score += Math.min(22, input.photosCount * 5);
+  if (input.hasVideo) score += 6;
+  if (input.hasFirstName) score += 8;
+  if (input.hasCity) score += 8;
+  if (input.hasBio) score += 10;
+  if (input.verifiedIdentity) score += 14;
+
+  if (input.planTier === 'essential') score += 3;
+  if (input.planTier === 'gold') score += 5;
+  if (input.planTier === 'platinum') score += 7;
+  if (input.planTier === 'elite') score += 9;
+
+  if (input.boostActive) score += 8;
+  if (input.boostTokens > 0) score += 2;
+  if (input.superlikesTokens > 0) score += 2;
+  if (input.rewindTokens > 0) score += 1;
+  if (input.travelPassSource === 'travel_pass') score += 4;
+  if (input.travelPassSource === 'bundle_included') score += 3;
+  if (input.travelPassSource === 'plan_included') score += 2;
+  if (input.shadowGhostActive) score += 4;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
+  const { user } = useAuth();
   const isLarge = isDesktop || isTablet;
   const previewPlan = useRuntimeSelector((payload) => payload.planTier);
+  const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const balances = useRuntimeSelector((payload) => ({
     superlikes: payload.balances.superlikesLeft,
     boosts: payload.balances.boostsLeft,
@@ -38,10 +107,15 @@ const ProfileScreen = () => {
   const settings = useRuntimeSelector((payload) => payload.settings);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [verifiedIdentity, setVerifiedIdentity] = useState(false);
-  const [profileName, setProfileName] = useState('User');
+  const [profileName, setProfileName] = useState('');
   const [profileAge, setProfileAge] = useState<number | undefined>(undefined);
   const [profileCity, setProfileCity] = useState<string | null>(null);
+  const [profileBio, setProfileBio] = useState('');
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [profilePhotosCount, setProfilePhotosCount] = useState(0);
+  const [profileVideosCount] = useState(0);
+  const [profileViewsCount, setProfileViewsCount] = useState(0);
+  const [matchesCount, setMatchesCount] = useState(0);
   const shadowGhostAccess = resolveShadowGhostAccess({
     planTier: previewPlan,
     entitlementSource: settings.preferences.shadowGhostEntitlementSource,
@@ -102,6 +176,45 @@ const ProfileScreen = () => {
           ? t('settings.cities.sochi')
           : t('settings.cities.moscow');
   const travelPassSourceLabel = t(`settings.travelPass.sources.${travelPassServerAccess.source}`);
+  const boostActive = useMemo(() => {
+    if (!boostActiveUntilIso) return false;
+    const activeUntilMs = new Date(boostActiveUntilIso).getTime();
+    return Number.isFinite(activeUntilMs) && activeUntilMs > Date.now();
+  }, [boostActiveUntilIso]);
+  const visibilityScore = useMemo(
+    () =>
+      computeVisibilityScore({
+        photosCount: profilePhotosCount,
+        hasVideo: profileVideosCount > 0,
+        hasFirstName: profileName.trim().length > 0,
+        hasCity: Boolean(profileCity?.trim()),
+        hasBio: profileBio.trim().length > 0,
+        verifiedIdentity,
+        planTier: previewPlan,
+        boostActive,
+        boostTokens: balances.boosts,
+        superlikesTokens: balances.superlikes,
+        rewindTokens: balances.rewinds,
+        travelPassSource: travelPassServerAccess.source,
+        shadowGhostActive: !shadowGhostLocked && settings.privacy.shadowGhost,
+      }),
+    [
+      balances.boosts,
+      balances.rewinds,
+      balances.superlikes,
+      boostActive,
+      previewPlan,
+      profileBio,
+      profileCity,
+      profileName,
+      profilePhotosCount,
+      profileVideosCount,
+      settings.privacy.shadowGhost,
+      shadowGhostLocked,
+      travelPassServerAccess.source,
+      verifiedIdentity,
+    ],
+  );
   const openServerSettings = () => {
     if (travelPassServerAccess.canChangeServer) {
       navigate('/settings/privacy/travel-pass-city');
@@ -113,30 +226,101 @@ const ProfileScreen = () => {
   useEffect(() => {
     let isCancelled = false;
 
+    const fallbackNameFromSession = (() => {
+      const profile = user?.profile as Record<string, unknown> | null | undefined;
+      if (!profile || typeof profile !== 'object') return '';
+      const directName = [profile.first_name, profile.given_name, profile.name].find(
+        (value): value is string => typeof value === 'string' && value.trim().length > 0,
+      );
+      if (directName) return directName.trim();
+      if (typeof user?.email === 'string' && user.email.includes('@')) {
+        return user.email.split('@')[0]?.trim() ?? '';
+      }
+      return '';
+    })();
+
     const hydrateProfileState = async () => {
       try {
-        const [profilePayload, photosPayload] = await Promise.all([
+        const [profilePayload, photosPayload, likesPayload] = await Promise.all([
           authApi.getProfileMe(),
           authApi.getProfilePhotos(),
+          appApi.getLikes(),
         ]);
 
         if (isCancelled) return;
 
+        const trackedEvents = getTrackedEvents();
+        const ownDiscoverViews = trackedEvents.filter((event) => event.name === 'profile_impression').length;
+        const matches = trackedEvents.filter((event) => event.name === 'match_created').length;
+        const viewedByOthers =
+          likesPayload.inventory.visibleLikes.length + likesPayload.inventory.hiddenCount;
+        const computedViews = Math.round((ownDiscoverViews + viewedByOthers) * 1.35);
+
+        setProfileViewsCount(computedViews);
+        setMatchesCount(matches);
+
         if (profilePayload.ok && profilePayload.data?.profile) {
           const profile = profilePayload.data.profile;
           setVerifiedIdentity(Boolean(profile.verified_opt_in));
-          setProfileName(profile.first_name?.trim() || 'User');
+          setProfileName(profile.first_name?.trim() || fallbackNameFromSession || 'User');
+          setProfileBio(typeof profile.bio === 'string' ? profile.bio.trim() : '');
           setProfileAge(calculateAge(profile.birth_date));
-          setProfileCity(profile.city?.trim() || null);
+          const persistedCity = profile.city?.trim();
+          if (persistedCity) {
+            setProfileCity(persistedCity);
+          } else if (settings.preferences.travelPassCity) {
+            const cityId = settings.preferences.travelPassCity;
+            const cityLabel =
+              cityId === 'voronezh'
+                ? t('settings.cities.voronezh')
+                : cityId === 'saint-petersburg'
+                  ? t('settings.cities.saintPetersburg')
+                  : cityId === 'sochi'
+                    ? t('settings.cities.sochi')
+                    : t('settings.cities.moscow');
+            setProfileCity(cityLabel);
+          } else if (settings.privacy.preciseLocation && typeof window !== 'undefined' && 'geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+                const nearest = (Object.entries(CITY_COORDINATES) as Array<
+                  ['moscow' | 'voronezh' | 'saint-petersburg' | 'sochi', { lat: number; lng: number }]
+                >).sort((a, b) => haversineKm(point, a[1]) - haversineKm(point, b[1]))[0]?.[0];
+                const cityLabel =
+                  nearest === 'voronezh'
+                    ? t('settings.cities.voronezh')
+                    : nearest === 'saint-petersburg'
+                      ? t('settings.cities.saintPetersburg')
+                      : nearest === 'sochi'
+                        ? t('settings.cities.sochi')
+                        : t('settings.cities.moscow');
+                setProfileCity(cityLabel);
+              },
+              () => {
+                setProfileCity(t('settings.cities.moscow'));
+              },
+              { enableHighAccuracy: true, timeout: 3000, maximumAge: 10 * 60 * 1000 },
+            );
+          } else {
+            setProfileCity(t('settings.cities.moscow'));
+          }
+        } else {
+          setProfileName(fallbackNameFromSession || 'User');
         }
 
         if (photosPayload.ok) {
-          const firstPhotoUrl = (photosPayload.data?.photos ?? []).find((photo) => Boolean(photo.url))?.url ?? null;
+          const photos = photosPayload.data?.photos ?? [];
+          const firstPhotoUrl = photos.find((photo) => Boolean(photo.url))?.url ?? null;
+          setProfilePhotosCount(photos.length);
           setProfilePhotoUrl(firstPhotoUrl);
         }
       } catch {
         if (!isCancelled) {
           setVerifiedIdentity(false);
+          setProfileName(fallbackNameFromSession || 'User');
+          setProfileCity(t('settings.cities.moscow'));
+          setProfileBio('');
+          setProfilePhotosCount(0);
         }
       }
     };
@@ -146,7 +330,7 @@ const ProfileScreen = () => {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [settings.preferences.travelPassCity, settings.privacy.preciseLocation, t, user?.email, user?.id, user?.profile]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -251,7 +435,7 @@ const ProfileScreen = () => {
                       />
                     </div>
                     <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
-                      <ICONS.MapPin size={12} className="text-pink-500" /> {profileCity || t('profile.city')}
+                      <ICONS.MapPin size={12} className="text-pink-500" /> {profileCity || t('settings.cities.moscow')}
                     </div>
                   </div>
                   <button 
@@ -333,10 +517,10 @@ const ProfileScreen = () => {
                 <div className="p-3 rounded-2xl bg-blue-500/12 text-blue-300 group-hover:scale-110 transition-transform">
                   <ICONS.Eye size={24} />
                 </div>
-                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">+12%</span>
+                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">+35%</span>
               </div>
               <div>
-                <span className="text-4xl font-black tracking-tighter block">1,284</span>
+                <span className="text-4xl font-black tracking-tighter block">{profileViewsCount.toLocaleString()}</span>
                 <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">{t('profile.profileViews')}</span>
               </div>
             </div>
@@ -349,10 +533,10 @@ const ProfileScreen = () => {
                 <div className="p-3 rounded-2xl bg-pink-500/12 text-pink-300 group-hover:scale-110 transition-transform">
                   <ICONS.Heart size={24} />
                 </div>
-                <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">+5</span>
+                <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">Exact</span>
               </div>
               <div>
-                <span className="text-4xl font-black tracking-tighter block">48</span>
+                <span className="text-4xl font-black tracking-tighter block">{matchesCount.toLocaleString()}</span>
                 <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">{t('profile.newMatches')}</span>
               </div>
             </div>
@@ -372,13 +556,13 @@ const ProfileScreen = () => {
                 <p className="text-secondary text-sm">{t('profile.visibilitySubtitle')}</p>
               </div>
               <div className="text-right">
-                <span className="text-5xl font-black tracking-tighter text-pink-500">85%</span>
+                <span className="text-5xl font-black tracking-tighter text-pink-500">{visibilityScore}%</span>
               </div>
             </div>
             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden relative z-10">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: '85%' }}
+                animate={{ width: `${visibilityScore}%` }}
                 transition={{ duration: 1.5, ease: "circOut" }}
                 className="h-full bg-gradient-to-r from-pink-500 to-violet-500 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.3)]" 
               />
