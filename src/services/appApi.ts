@@ -262,6 +262,102 @@ const shouldFallbackToRuntime = (error: unknown) => {
   return statusCode >= 500;
 };
 
+const syncRuntimeSettingsFromAuthProfile = (
+  payload: Awaited<ReturnType<typeof authApi.getProfileMe>>['data'] | undefined,
+) => {
+  if (!payload) return;
+
+  const nextPatch: PatchSettingsRequest['patch'] = {};
+  const preferencesPatch: PatchSettingsRequest['patch']['preferences'] = {};
+
+  if (payload.settings?.language) preferencesPatch.language = payload.settings.language;
+  if (typeof payload.settings?.distance_km === 'number') preferencesPatch.distanceKm = payload.settings.distance_km;
+  if (typeof payload.settings?.age_min === 'number') preferencesPatch.ageMin = payload.settings.age_min;
+  if (typeof payload.settings?.age_max === 'number') preferencesPatch.ageMax = payload.settings.age_max;
+  if (payload.settings?.gender_preference) preferencesPatch.genderPreference = payload.settings.gender_preference;
+
+  if (Object.keys(preferencesPatch).length > 0) {
+    nextPatch.preferences = preferencesPatch;
+  }
+
+  if (typeof payload.settings?.notifications_enabled === 'boolean') {
+    nextPatch.notifications = {
+      matches: payload.settings.notifications_enabled,
+      messages: payload.settings.notifications_enabled,
+      likes: payload.settings.notifications_enabled,
+      offers: payload.settings.notifications_enabled,
+    };
+  }
+
+  if (typeof payload.settings?.auto_detect_language === 'boolean' || payload.settings?.target_lang) {
+    nextPatch.translation = {
+      autoDetectEnabled:
+        typeof payload.settings?.auto_detect_language === 'boolean'
+          ? payload.settings.auto_detect_language
+          : runtimeApi.getSettingsEnvelope().settings.translation.autoDetectEnabled,
+      targetLocale:
+        payload.settings?.target_lang === 'ru'
+          ? 'ru'
+          : 'en',
+    };
+  }
+
+  if (payload.settings?.visibility) {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      visibility: payload.settings.visibility,
+    };
+  }
+  if (typeof payload.settings?.hide_age === 'boolean') {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      hideAge: payload.settings.hide_age,
+    };
+  }
+  if (typeof payload.settings?.hide_distance === 'boolean') {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      hideDistance: payload.settings.hide_distance,
+    };
+  }
+  if (typeof payload.settings?.incognito === 'boolean') {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      incognito: payload.settings.incognito,
+    };
+  }
+  if (typeof payload.settings?.read_receipts === 'boolean') {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      readReceipts: payload.settings.read_receipts,
+    };
+  }
+  if (typeof payload.settings?.shadow_ghost === 'boolean') {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      shadowGhost: payload.settings.shadow_ghost,
+    };
+  }
+  if (payload.settings && Object.prototype.hasOwnProperty.call(payload.settings, 'travel_pass_city')) {
+    nextPatch.preferences = {
+      ...(nextPatch.preferences ?? {}),
+      travelPassCity: payload.settings.travel_pass_city ?? undefined,
+    };
+  }
+  if (payload.settings?.phone_country_code || payload.settings?.phone_national_number) {
+    const code = payload.settings.phone_country_code ?? '';
+    const national = payload.settings.phone_national_number ?? '';
+    nextPatch.account = {
+      ...(nextPatch.account ?? {}),
+      phone: `${code}${national}`.trim(),
+    };
+  }
+
+  if (Object.keys(nextPatch).length > 0) {
+    runtimeApi.patchSettings({ patch: nextPatch });
+  }
+};
+
 export const appApi = {
   async getFeed(quickFilters: FeedQuickFilter[]): Promise<GetFeedResponse> {
     if (DISCOVER_API_URL) {
@@ -447,11 +543,94 @@ export const appApi = {
   },
 
   getSettings(): Promise<SettingsEnvelope> {
-    return withLatency(runtimeApi.getSettingsEnvelope(), 80);
+    return authApi
+      .getProfileMe()
+      .then((response) => {
+        if (response.ok) {
+          syncRuntimeSettingsFromAuthProfile(response.data);
+        }
+        return runtimeApi.getSettingsEnvelope();
+      })
+      .catch(() => runtimeApi.getSettingsEnvelope())
+      .then((payload) => withLatency(payload, 80));
   },
 
   patchSettings(request: PatchSettingsRequest): Promise<SettingsEnvelope> {
-    return withLatency(runtimeApi.patchSettings(request), 100);
+    const localEnvelope = runtimeApi.patchSettings(request);
+
+    const settingsPatch: {
+      language?: 'en' | 'ru';
+      targetLang?: 'en' | 'ru' | 'fr';
+      autoTranslate?: boolean;
+      autoDetectLanguage?: boolean;
+      notificationsEnabled?: boolean;
+      visibility?: 'public' | 'limited' | 'hidden';
+      hideAge?: boolean;
+      hideDistance?: boolean;
+      incognito?: boolean;
+      readReceipts?: boolean;
+      shadowGhost?: boolean;
+      travelPassCity?: 'voronezh' | 'moscow' | 'saint-petersburg' | 'sochi';
+      phoneCountryCode?: string;
+      phoneNationalNumber?: string;
+      distanceKm?: number;
+      ageMin?: number;
+      ageMax?: number;
+      genderPreference?: 'everyone' | 'women' | 'men';
+    } = {};
+
+    if (request.patch.preferences?.language) settingsPatch.language = request.patch.preferences.language;
+    if (typeof request.patch.preferences?.distanceKm === 'number') settingsPatch.distanceKm = request.patch.preferences.distanceKm;
+    if (typeof request.patch.preferences?.ageMin === 'number') settingsPatch.ageMin = request.patch.preferences.ageMin;
+    if (typeof request.patch.preferences?.ageMax === 'number') settingsPatch.ageMax = request.patch.preferences.ageMax;
+    if (request.patch.preferences?.genderPreference) settingsPatch.genderPreference = request.patch.preferences.genderPreference;
+    if (typeof request.patch.translation?.autoDetectEnabled === 'boolean') {
+      settingsPatch.autoDetectLanguage = request.patch.translation.autoDetectEnabled;
+    }
+    if (request.patch.translation?.targetLocale) {
+      settingsPatch.targetLang = request.patch.translation.targetLocale;
+    }
+    if (typeof request.patch.notifications === 'object') {
+      const merged = {
+        ...runtimeApi.getSettingsEnvelope().settings.notifications,
+        ...request.patch.notifications,
+      };
+      settingsPatch.notificationsEnabled =
+        merged.matches || merged.messages || merged.likes || merged.offers;
+    }
+    if (request.patch.privacy?.visibility) settingsPatch.visibility = request.patch.privacy.visibility;
+    if (typeof request.patch.privacy?.hideAge === 'boolean') settingsPatch.hideAge = request.patch.privacy.hideAge;
+    if (typeof request.patch.privacy?.hideDistance === 'boolean') settingsPatch.hideDistance = request.patch.privacy.hideDistance;
+    if (typeof request.patch.privacy?.incognito === 'boolean') settingsPatch.incognito = request.patch.privacy.incognito;
+    if (typeof request.patch.privacy?.readReceipts === 'boolean') settingsPatch.readReceipts = request.patch.privacy.readReceipts;
+    if (typeof request.patch.privacy?.shadowGhost === 'boolean') settingsPatch.shadowGhost = request.patch.privacy.shadowGhost;
+    if (request.patch.preferences?.travelPassCity) settingsPatch.travelPassCity = request.patch.preferences.travelPassCity;
+
+    const shouldCallServer = Object.keys(settingsPatch).length > 0;
+    if (!shouldCallServer) {
+      return withLatency(localEnvelope, 100);
+    }
+
+    return authApi
+      .patchProfileMe({ settings: settingsPatch })
+      .then((response) => {
+        if (response.ok) {
+          syncRuntimeSettingsFromAuthProfile(response.data);
+        }
+        return runtimeApi.getSettingsEnvelope();
+      })
+      .catch(async () => {
+        try {
+          const latest = await authApi.getProfileMe();
+          if (latest.ok) {
+            syncRuntimeSettingsFromAuthProfile(latest.data);
+          }
+        } catch {
+          // Keep last known runtime state if refresh fails.
+        }
+        return runtimeApi.getSettingsEnvelope();
+      })
+      .then((payload) => withLatency(payload, 100));
   },
 
   getProfileMe(): Promise<ProfileMeData> {
@@ -481,15 +660,58 @@ export const appApi = {
         });
     }
 
-    return withLatency({
-      profile: {
-        first_name: null,
-        last_name: null,
-        locale: runtimeApi.getSettingsEnvelope().settings.preferences.language,
-        city: null,
-      },
-      settings: null,
-    });
+    return authApi
+      .getProfileMe()
+      .then((response) => {
+        if (response.ok) {
+          syncRuntimeSettingsFromAuthProfile(response.data);
+          return {
+            profile: response.data?.profile
+              ? {
+                  first_name: response.data.profile.first_name ?? null,
+                  last_name: response.data.profile.last_name ?? null,
+                  locale: response.data.profile.locale ?? null,
+                  bio: response.data.profile.bio ?? null,
+                  city: response.data.profile.city ?? null,
+                  verified_opt_in: response.data.profile.verified_opt_in ?? null,
+                }
+              : null,
+            settings: response.data?.settings
+              ? {
+                  language: response.data.settings.language ?? null,
+                  target_lang: response.data.settings.target_lang ?? null,
+                  auto_translate: response.data.settings.auto_translate ?? null,
+                  auto_detect_language: response.data.settings.auto_detect_language ?? null,
+                  precise_location_enabled: response.data.settings.precise_location_enabled ?? null,
+                  visibility: response.data.settings.visibility ?? null,
+                  hide_age: response.data.settings.hide_age ?? null,
+                  hide_distance: response.data.settings.hide_distance ?? null,
+                  incognito: response.data.settings.incognito ?? null,
+                  read_receipts: response.data.settings.read_receipts ?? null,
+                  shadow_ghost: response.data.settings.shadow_ghost ?? null,
+                  travel_pass_city: response.data.settings.travel_pass_city ?? null,
+                  phone_country_code: response.data.settings.phone_country_code ?? null,
+                  phone_national_number: response.data.settings.phone_national_number ?? null,
+                  distance_km: response.data.settings.distance_km ?? null,
+                  age_min: response.data.settings.age_min ?? null,
+                  age_max: response.data.settings.age_max ?? null,
+                  gender_preference: response.data.settings.gender_preference ?? null,
+                  notifications_enabled: response.data.settings.notifications_enabled ?? null,
+                }
+              : null,
+          };
+        }
+
+        return {
+          profile: null,
+          settings: null,
+        };
+      })
+      .catch(() => ({
+        profile: null,
+        settings: null,
+      }))
+      .then((payload) => withLatency(payload));
   },
 
   patchProfileMe(payload: PatchProfileMeRequest): Promise<ProfileMeData> {
@@ -509,6 +731,19 @@ export const appApi = {
           settings: payload.settings
             ? {
                 language: payload.settings.language,
+                target_lang: payload.settings.targetLang,
+                auto_translate: payload.settings.autoTranslate,
+                auto_detect_language: payload.settings.autoDetectLanguage,
+                precise_location_enabled: payload.settings.preciseLocationEnabled,
+                visibility: payload.settings.visibility,
+                hide_age: payload.settings.hideAge,
+                hide_distance: payload.settings.hideDistance,
+                incognito: payload.settings.incognito,
+                read_receipts: payload.settings.readReceipts,
+                shadow_ghost: payload.settings.shadowGhost,
+                travel_pass_city: payload.settings.travelPassCity,
+                phone_country_code: payload.settings.phoneCountryCode,
+                phone_national_number: payload.settings.phoneNationalNumber,
                 distance_km: payload.settings.distanceKm,
                 age_min: payload.settings.ageMin,
                 age_max: payload.settings.ageMax,
@@ -521,8 +756,15 @@ export const appApi = {
         .then((response) => {
           runtimeApi.patchSettings({
             patch: {
+              account: {
+                phone:
+                  response.settings?.phone_country_code || response.settings?.phone_national_number
+                    ? `${response.settings?.phone_country_code ?? ''}${response.settings?.phone_national_number ?? ''}`
+                    : undefined,
+              },
               preferences: {
                 language: response.settings?.language ?? undefined,
+                travelPassCity: response.settings?.travel_pass_city ?? undefined,
                 distanceKm: response.settings?.distance_km ?? undefined,
                 ageMin: response.settings?.age_min ?? undefined,
                 ageMax: response.settings?.age_max ?? undefined,
@@ -561,10 +803,87 @@ export const appApi = {
       });
     }
 
-    return withLatency({
-      profile: null,
-      settings: null,
-    });
+    return authApi
+      .patchProfileMe({
+        first_name: payload.first_name,
+        last_name: payload.last_name,
+        locale: payload.locale,
+        bio: payload.bio,
+        city: payload.city,
+        settings: payload.settings
+          ? {
+              language: payload.settings.language,
+              targetLang: payload.settings.targetLang,
+              autoTranslate: payload.settings.autoTranslate,
+              autoDetectLanguage: payload.settings.autoDetectLanguage,
+              preciseLocationEnabled: payload.settings.preciseLocationEnabled,
+              visibility: payload.settings.visibility,
+              hideAge: payload.settings.hideAge,
+              hideDistance: payload.settings.hideDistance,
+              incognito: payload.settings.incognito,
+              readReceipts: payload.settings.readReceipts,
+              shadowGhost: payload.settings.shadowGhost,
+              travelPassCity: payload.settings.travelPassCity,
+              phoneCountryCode: payload.settings.phoneCountryCode,
+              phoneNationalNumber: payload.settings.phoneNationalNumber,
+              distanceKm: payload.settings.distanceKm,
+              ageMin: payload.settings.ageMin,
+              ageMax: payload.settings.ageMax,
+              genderPreference: payload.settings.genderPreference,
+              notificationsEnabled: payload.settings.notificationsEnabled,
+            }
+          : undefined,
+      })
+      .then((response) => {
+        if (!response.ok) {
+          return {
+            profile: null,
+            settings: null,
+          };
+        }
+
+        syncRuntimeSettingsFromAuthProfile(response.data);
+        return {
+          profile: response.data?.profile
+            ? {
+                first_name: response.data.profile.first_name ?? null,
+                last_name: response.data.profile.last_name ?? null,
+                locale: response.data.profile.locale ?? null,
+                bio: response.data.profile.bio ?? null,
+                city: response.data.profile.city ?? null,
+                verified_opt_in: response.data.profile.verified_opt_in ?? null,
+              }
+            : null,
+          settings: response.data?.settings
+            ? {
+                language: response.data.settings.language ?? null,
+                target_lang: response.data.settings.target_lang ?? null,
+                auto_translate: response.data.settings.auto_translate ?? null,
+                auto_detect_language: response.data.settings.auto_detect_language ?? null,
+                precise_location_enabled: response.data.settings.precise_location_enabled ?? null,
+                visibility: response.data.settings.visibility ?? null,
+                hide_age: response.data.settings.hide_age ?? null,
+                hide_distance: response.data.settings.hide_distance ?? null,
+                incognito: response.data.settings.incognito ?? null,
+                read_receipts: response.data.settings.read_receipts ?? null,
+                shadow_ghost: response.data.settings.shadow_ghost ?? null,
+                travel_pass_city: response.data.settings.travel_pass_city ?? null,
+                phone_country_code: response.data.settings.phone_country_code ?? null,
+                phone_national_number: response.data.settings.phone_national_number ?? null,
+                distance_km: response.data.settings.distance_km ?? null,
+                age_min: response.data.settings.age_min ?? null,
+                age_max: response.data.settings.age_max ?? null,
+                gender_preference: response.data.settings.gender_preference ?? null,
+                notifications_enabled: response.data.settings.notifications_enabled ?? null,
+              }
+            : null,
+        };
+      })
+      .catch(() => ({
+        profile: null,
+        settings: null,
+      }))
+      .then((result) => withLatency(result));
   },
 
   getBlockedUsers(): Promise<GetBlocksResponse> {

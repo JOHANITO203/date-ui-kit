@@ -8,6 +8,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { useAuth } from '../auth/AuthProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
+import type { OfferItem } from '../contracts';
 
 type CatalogView = 'instant' | 'passes' | 'bundles';
 type TierId = 'essential' | 'gold' | 'platinum' | 'elite';
@@ -94,7 +95,7 @@ const tiers: TierDef[] = [
 const instantProducts = [
   {
     id: 'boost',
-    visualEmoji: 'âš¡',
+    visualEmoji: '⚡',
     labelKey: 'boost.instant.boost.label',
     descKey: 'boost.instant.boost.desc',
     detailKeys: ['boost.instant.boost.details.0', 'boost.instant.boost.details.1'],
@@ -103,8 +104,8 @@ const instantProducts = [
     glowToken: '--glow-orange' as GlowToken,
   },
   {
-    id: 'premium',
-    visualEmoji: 'ðŸ§Š',
+    id: 'icebreaker',
+    visualEmoji: '🧊',
     labelKey: 'boost.instant.premium.label',
     descKey: 'boost.instant.premium.desc',
     detailKeys: ['boost.instant.premium.details.0', 'boost.instant.premium.details.1'],
@@ -114,7 +115,7 @@ const instantProducts = [
   },
   {
     id: 'travel-pass',
-    visualEmoji: 'ðŸ—ºï¸',
+    visualEmoji: '🗺️',
     labelKey: 'boost.instant.travelPass.label',
     descKey: 'boost.instant.travelPass.desc',
     detailKeys: ['boost.instant.travelPass.details.0', 'boost.instant.travelPass.details.1'],
@@ -124,7 +125,7 @@ const instantProducts = [
   },
   {
     id: 'superlike',
-    visualEmoji: 'â­',
+    visualEmoji: '⭐',
     labelKey: 'boost.instant.superlike.label',
     descKey: 'boost.instant.superlike.desc',
     detailKeys: ['boost.instant.superlike.details.0', 'boost.instant.superlike.details.1'],
@@ -134,7 +135,7 @@ const instantProducts = [
   },
   {
     id: 'rewind',
-    visualEmoji: 'â†©ï¸',
+    visualEmoji: '↩️',
     labelKey: 'boost.instant.rewind.label',
     descKey: 'boost.instant.rewind.desc',
     detailKeys: ['boost.instant.rewind.details.0', 'boost.instant.rewind.details.1'],
@@ -144,7 +145,7 @@ const instantProducts = [
   },
   {
     id: 'shadowghost',
-    visualEmoji: 'ðŸ‘»',
+    visualEmoji: '👻',
     labelKey: 'boost.instant.shadowghost.label',
     descKey: 'boost.instant.shadowghost.desc',
     detailKeys: ['boost.instant.shadowghost.details.0', 'boost.instant.shadowghost.details.1'],
@@ -240,7 +241,7 @@ const glowColor = (token: GlowToken, alpha = 1) => {
 const stripVibePrefix = (name: string) => name.replace(/^vibe\s+/i, '').trim();
 const instantLabelById: Record<string, string> = {
   boost: 'BOOST',
-  premium: 'ICEBREAKER',
+  icebreaker: 'ICEBREAKER',
   'travel-pass': 'TRAVEL PASS',
   superlike: 'SUPERLIKE',
   rewind: 'REWIND (X10)',
@@ -267,7 +268,7 @@ const offerIdByTierId: Record<TierId, string> = {
 
 const offerIdByInstantId: Record<string, string> = {
   boost: 'instant-boost',
-  premium: 'instant-icebreaker',
+  icebreaker: 'instant-icebreaker',
   'travel-pass': 'instant-travel-pass',
   superlike: 'instant-superlike',
   rewind: 'instant-rewind-x10',
@@ -289,10 +290,10 @@ const offerIdByBundleId: Record<string, string> = {
 
 const BoostScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const normalizeCurrencySpacing = (value: string) => value.replace(/\s+(?=[â‚½â‚¬$Â£Â¥â‚¹â‚©â‚º])/gu, '');
+  const normalizeCurrencySpacing = (value: string) => value.replace(/\s+(?=[₽€$£¥₹₩₺])/gu, '');
   const price = (key: string) => normalizeCurrencySpacing(t(key, { currency: t('boost.currency') }));
   const isLarge = isDesktop || isTablet;
   const showDesktopRail = isLarge && !isTouch;
@@ -312,12 +313,40 @@ const BoostScreen = () => {
   const [checkoutStatus, setCheckoutStatus] = useState<ApiStatus>('idle');
   const [pollingStatus, setPollingStatus] = useState<ApiStatus>('idle');
   const [lastCheckoutOfferId, setLastCheckoutOfferId] = useState<string | null>(null);
+  const [catalogStatus, setCatalogStatus] = useState<ApiStatus>('idle');
+  const [catalogById, setCatalogById] = useState<Record<string, OfferItem>>({});
+  const [pspMode, setPspMode] = useState<'yookassa' | 'mock'>('mock');
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const boostsLeft = useRuntimeSelector((payload) => payload.balances.boostsLeft);
   const pendingCheckoutRef = useRef<string | null>(null);
   const pollingRef = useRef<number | null>(null);
 
   const selectedTier = tiers.find((tier) => tier.id === activeTier) ?? tiers[1];
+  const formatCatalogPrice = (offer: OfferItem) => {
+    const amount = offer.amountMinor / 100;
+    const locale = (typeof navigator !== 'undefined' && navigator.language) || 'ru-RU';
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'RUB',
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+  const resolvePriceByOfferId = (offerId: string, fallbackKey: string) => {
+    const offer = catalogById[offerId];
+    if (!offer) return price(fallbackKey);
+    return formatCatalogPrice(offer);
+  };
+  const resolveLabelByOfferId = (offerId: string, fallbackLabel: string) => {
+    const offer = catalogById[offerId];
+    if (!offer?.label) return fallbackLabel;
+    return offer.label.toUpperCase();
+  };
+  const isOfferPurchasable = (offerId: string) => {
+    if (catalogStatus !== 'success') return true;
+    if (Object.keys(catalogById).length === 0) return true;
+    return Boolean(catalogById[offerId]);
+  };
   const glowShadow = (token: GlowToken, alpha = 0.28, blur = 34) => ({
     boxShadow: `0 0 ${blur}px ${glowColor(token, alpha)}`,
   });
@@ -343,6 +372,31 @@ const BoostScreen = () => {
   });
   const buyBtnBase =
     'h-10 px-5 rounded-[24px] text-[11px] font-black uppercase tracking-[0.26em] transition-all';
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCatalog = async () => {
+      setCatalogStatus('loading');
+      try {
+        const payload = await appApi.getPaymentsCatalog();
+        if (cancelled) return;
+        const nextById = payload.offers.reduce<Record<string, OfferItem>>((acc, offer) => {
+          acc[offer.id] = offer;
+          return acc;
+        }, {});
+        setCatalogById(nextById);
+        setPspMode(payload.pspMode);
+        setCatalogStatus('success');
+      } catch {
+        if (cancelled) return;
+        setCatalogStatus('error');
+      }
+    };
+    void loadCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!boostActiveUntilIso) return;
@@ -483,6 +537,11 @@ const BoostScreen = () => {
   }, [searchParams, user?.id]);
 
   const beginCheckout = async (offerId: string) => {
+    if (catalogStatus === 'success' && !catalogById[offerId]) {
+      setPaymentFeedback('Offer not available from PSP catalog.');
+      setCheckoutStatus('error');
+      return;
+    }
     const userId = user?.id ?? 'me';
     setPaymentBusyOfferId(offerId);
     setPaymentFeedback(null);
@@ -497,7 +556,7 @@ const BoostScreen = () => {
       const response = await appApi.createCheckout({
         offerId,
         userId,
-        locale: 'en',
+        locale,
         successUrl,
         failUrl: successUrl,
       });
@@ -699,7 +758,7 @@ const BoostScreen = () => {
                           isActive ? 'text-white' : 'text-white/78'
                         }`}
                       >
-                        {price(tier.priceKey)}
+                        {resolvePriceByOfferId(offerIdByTierId[tier.id], tier.priceKey)}
                       </p>
                       <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.1em] text-white/45 leading-none self-end pb-[0.15em]">
                         {t(tier.periodKey)}
@@ -737,9 +796,14 @@ const BoostScreen = () => {
                 background: `linear-gradient(90deg, transparent 0%, rgb(var(${selectedTier.glowToken}) / 0.34) 48%, transparent 100%)`,
               }}
             />
-            <p className="mt-7 text-center text-[length:var(--boost-tier-disclaimer-size)] font-black uppercase tracking-[0.22em] text-white/35">
+              <p className="mt-7 text-center text-[length:var(--boost-tier-disclaimer-size)] font-black uppercase tracking-[0.22em] text-white/35">
               {t('boost.secureHint')}
             </p>
+            {catalogStatus === 'success' && (
+              <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
+                PSP: {pspMode === 'yookassa' ? 'YOOKASSA' : 'MOCK'}
+              </p>
+            )}
             {paymentFeedback && (
               <p className="mt-2 text-center text-xs font-bold text-cyan-200">{paymentFeedback}</p>
             )}
@@ -882,7 +946,10 @@ const BoostScreen = () => {
                           {item.visualEmoji}
                         </span>
                         <p className="font-black text-[0.72rem] uppercase tracking-[0.16em] leading-none">
-                          {instantLabelById[item.id] ?? t(item.labelKey).toUpperCase()}
+                          {resolveLabelByOfferId(
+                            offerIdByInstantId[item.id],
+                            instantLabelById[item.id] ?? t(item.labelKey).toUpperCase(),
+                          )}
                         </p>
                       </div>
                       <p className="text-sm text-secondary mt-1">{t(item.descKey)}</p>
@@ -895,16 +962,22 @@ const BoostScreen = () => {
                         ))}
                       </ul>
                     </div>
-                    <p className="font-mono text-xl font-black whitespace-nowrap">{price(item.priceKey)}</p>
+                    <p className="font-mono text-xl font-black whitespace-nowrap">
+                      {resolvePriceByOfferId(offerIdByInstantId[item.id], item.priceKey)}
+                    </p>
                   </div>
                   <div className="mt-4 flex items-center justify-between gap-3">
                     <span className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black">{t(item.metaKey)}</span>
                     <button
                       onClick={() => handleBuyInstant(item.id)}
-                      disabled={paymentBusyOfferId !== null}
+                      disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByInstantId[item.id])}
                       className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}
                     >
-                      {paymentBusyOfferId ? '...' : t('boost.buy.buy')}
+                      {paymentBusyOfferId
+                        ? '...'
+                        : isOfferPurchasable(offerIdByInstantId[item.id])
+                          ? t('boost.buy.buy')
+                          : 'Unavailable'}
                     </button>
                   </div>
                 </motion.div>
@@ -919,7 +992,10 @@ const BoostScreen = () => {
                   <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-black text-lg tracking-tight uppercase">
-                        {passLabelById[item.id] ?? t(item.labelKey).toUpperCase()}
+                        {resolveLabelByOfferId(
+                          offerIdByPassId[item.id],
+                          passLabelById[item.id] ?? t(item.labelKey).toUpperCase(),
+                        )}
                       </p>
                       <span className="text-[10px] uppercase tracking-[0.18em] rounded-full px-2 py-1 border border-white/15 text-secondary">{t(item.tagKey)}</span>
                     </div>
@@ -933,13 +1009,19 @@ const BoostScreen = () => {
                       ))}
                     </ul>
                     <div className="mt-4 flex items-center justify-between">
-                      <p className="font-mono text-2xl font-black whitespace-nowrap">{price(item.priceKey)}</p>
+                      <p className="font-mono text-2xl font-black whitespace-nowrap">
+                        {resolvePriceByOfferId(offerIdByPassId[item.id], item.priceKey)}
+                      </p>
                       <button
                         onClick={() => handleBuyPass(item.id)}
-                        disabled={paymentBusyOfferId !== null}
+                        disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByPassId[item.id])}
                         className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}
                       >
-                        {paymentBusyOfferId ? '...' : t('boost.buy.choose')}
+                        {paymentBusyOfferId
+                          ? '...'
+                          : isOfferPurchasable(offerIdByPassId[item.id])
+                            ? t('boost.buy.choose')
+                            : 'Unavailable'}
                       </button>
                     </div>
                   </motion.div>
@@ -963,7 +1045,10 @@ const BoostScreen = () => {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-xl tracking-tight uppercase">
-                      {bundleLabelById[item.id] ?? t(item.labelKey).toUpperCase()}
+                      {resolveLabelByOfferId(
+                        offerIdByBundleId[item.id],
+                        bundleLabelById[item.id] ?? t(item.labelKey).toUpperCase(),
+                      )}
                     </p>
                     <span className={`text-[10px] uppercase tracking-[0.16em] px-2 py-1 rounded-full ${item.id === 'datingpro' ? 'bg-pink-500/20 text-pink-200 border border-pink-300/30' : 'bg-white/5 border border-white/15 text-secondary'}`}>
                       {t(item.tagKey)}
@@ -981,13 +1066,19 @@ const BoostScreen = () => {
                     </ul>
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
-                    <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">{price(item.priceKey)}</p>
+                    <p className="font-mono text-[clamp(1.9rem,2vw,2.25rem)] leading-none font-black whitespace-nowrap">
+                      {resolvePriceByOfferId(offerIdByBundleId[item.id], item.priceKey)}
+                    </p>
                     <button
                       onClick={() => handleBuyBundle(item.id)}
-                      disabled={paymentBusyOfferId !== null}
+                      disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByBundleId[item.id])}
                       className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}
                     >
-                      {paymentBusyOfferId ? '...' : t('boost.buy.bundle')}
+                      {paymentBusyOfferId
+                        ? '...'
+                        : isOfferPurchasable(offerIdByBundleId[item.id])
+                          ? t('boost.buy.bundle')
+                          : 'Unavailable'}
                     </button>
                   </div>
                 </motion.div>

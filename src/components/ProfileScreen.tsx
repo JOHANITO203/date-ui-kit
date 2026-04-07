@@ -177,14 +177,17 @@ const ProfileScreen = () => {
     entitlementSource: settings.preferences.travelPassEntitlementSource,
     entitlementExpiresAtIso: settings.preferences.travelPassEntitlementExpiresAtIso,
   });
-  const currentServerCityLabel =
+  const travelPassCityLabel =
     settings.preferences.travelPassCity === 'voronezh'
       ? t('settings.cities.voronezh')
       : settings.preferences.travelPassCity === 'saint-petersburg'
         ? t('settings.cities.saintPetersburg')
         : settings.preferences.travelPassCity === 'sochi'
           ? t('settings.cities.sochi')
-          : t('settings.cities.moscow');
+          : settings.preferences.travelPassCity === 'moscow'
+            ? t('settings.cities.moscow')
+            : null;
+  const currentServerCityLabel = travelPassCityLabel ?? profileCity ?? t('settings.cities.moscow');
   const travelPassSourceLabel = t(`settings.travelPass.sources.${travelPassServerAccess.source}`);
   const boostActive = useMemo(() => {
     if (!boostActiveUntilIso) return false;
@@ -300,7 +303,7 @@ const ProfileScreen = () => {
           const persistedCity = seed.city;
           if (persistedCity) {
             setProfileCity(normalizeCityLabel(persistedCity, t));
-          } else if (settings.preferences.travelPassCity) {
+          } else if (travelPassCityLabel) {
             const cityId = settings.preferences.travelPassCity;
             const cityLabel =
               cityId === 'voronezh'
@@ -309,7 +312,9 @@ const ProfileScreen = () => {
                   ? t('settings.cities.saintPetersburg')
                   : cityId === 'sochi'
                     ? t('settings.cities.sochi')
-                    : t('settings.cities.moscow');
+                    : cityId === 'moscow'
+                      ? t('settings.cities.moscow')
+                      : null;
             setProfileCity(cityLabel);
           } else if (settings.privacy.preciseLocation && typeof window !== 'undefined' && 'geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
@@ -359,7 +364,7 @@ const ProfileScreen = () => {
     return () => {
       isCancelled = true;
     };
-  }, [settings.preferences.travelPassCity, settings.privacy.preciseLocation, t, user?.email, user?.id, user?.profile]);
+  }, [settings.preferences.travelPassCity, settings.privacy.preciseLocation, t, travelPassCityLabel, user?.email, user?.id, user?.profile]);
 
   useEffect(() => {
     const node = scrollRef.current;

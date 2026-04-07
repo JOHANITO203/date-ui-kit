@@ -90,7 +90,7 @@ const defaultSettings: UserSettings = {
     ageMax: 35,
     genderPreference: 'everyone',
     language: 'en',
-    travelPassCity: 'moscow',
+    travelPassCity: undefined,
     travelPassEntitlementSource: 'none',
     shadowGhostEntitlementSource: 'none',
   },

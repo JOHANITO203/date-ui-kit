@@ -13,10 +13,24 @@ const patchSchema = z.object({
   settings: z
     .object({
       language: z.enum(["en", "ru"]).optional(),
+      target_lang: z.enum(["en", "ru", "fr"]).optional(),
+      auto_translate: z.boolean().optional(),
+      auto_detect_language: z.boolean().optional(),
+      precise_location_enabled: z.boolean().optional(),
+      visibility: z.enum(["public", "limited", "hidden"]).optional(),
+      hide_age: z.boolean().optional(),
+      hide_distance: z.boolean().optional(),
+      incognito: z.boolean().optional(),
+      read_receipts: z.boolean().optional(),
+      shadow_ghost: z.boolean().optional(),
+      travel_pass_city: z.enum(["voronezh", "moscow", "saint-petersburg", "sochi"]).optional(),
+      phone_country_code: z.string().optional(),
+      phone_national_number: z.string().optional(),
       distance_km: z.number().int().optional(),
       age_min: z.number().int().optional(),
       age_max: z.number().int().optional(),
       gender_preference: z.enum(["everyone", "women", "men"]).optional(),
+      notifications_enabled: z.boolean().optional(),
     })
     .optional(),
 });
@@ -31,10 +45,24 @@ type MemoryProfile = {
 
 type MemorySettings = {
   language?: "en" | "ru" | null;
+  target_lang?: "en" | "ru" | "fr" | null;
+  auto_translate?: boolean | null;
+  auto_detect_language?: boolean | null;
+  precise_location_enabled?: boolean | null;
+  visibility?: "public" | "limited" | "hidden" | null;
+  hide_age?: boolean | null;
+  hide_distance?: boolean | null;
+  incognito?: boolean | null;
+  read_receipts?: boolean | null;
+  shadow_ghost?: boolean | null;
+  travel_pass_city?: "voronezh" | "moscow" | "saint-petersburg" | "sochi" | null;
+  phone_country_code?: string | null;
+  phone_national_number?: string | null;
   distance_km?: number | null;
   age_min?: number | null;
   age_max?: number | null;
   gender_preference?: "everyone" | "women" | "men" | null;
+  notifications_enabled?: boolean | null;
 };
 
 const memoryProfiles = new Map<string, MemoryProfile>();
@@ -46,6 +74,8 @@ export const buildServer = () => {
   app.register(cors, {
     origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
     credentials: true,
+    methods: ["GET", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   app.get("/health", async () => ({

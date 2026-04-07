@@ -15,6 +15,15 @@ const settingsSchema = z
     autoDetectLanguage: z.boolean().optional(),
     notificationsEnabled: z.boolean().optional(),
     preciseLocationEnabled: z.boolean().optional(),
+    visibility: z.enum(["public", "limited", "hidden"]).optional(),
+    hideAge: z.boolean().optional(),
+    hideDistance: z.boolean().optional(),
+    incognito: z.boolean().optional(),
+    readReceipts: z.boolean().optional(),
+    shadowGhost: z.boolean().optional(),
+    travelPassCity: z.enum(["voronezh", "moscow", "saint-petersburg", "sochi"]).optional(),
+    phoneCountryCode: z.string().trim().regex(/^\+[0-9]{1,5}$/).optional(),
+    phoneNationalNumber: z.string().trim().regex(/^[0-9]{4,15}$/).optional(),
     distanceKm: z.number().int().min(1).max(500).optional(),
     ageMin: z.number().int().min(18).max(100).optional(),
     ageMax: z.number().int().min(18).max(100).optional(),
@@ -183,6 +192,63 @@ const sanitizeProfilePayload = (input: unknown): Record<string, unknown> => {
   }
 
   return result;
+};
+
+type EntitlementSnapshot = {
+  planTier?: "free" | "essential" | "gold" | "platinum" | "elite";
+  planExpiresAtIso?: string;
+  travelPass?: {
+    source?: "travel_pass" | "bundle_included";
+    expiresAtIso?: string;
+  };
+  shadowGhost?: {
+    source?: "shadowghost_item";
+    expiresAtIso?: string;
+  };
+};
+
+const isIsoActive = (value?: string): boolean => {
+  if (!value) return true;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return false;
+  return timestamp > Date.now();
+};
+
+const canUsePlanIncludedBenefits = (snapshot: EntitlementSnapshot | null) => {
+  if (!snapshot?.planTier) return false;
+  if (snapshot.planTier !== "platinum" && snapshot.planTier !== "elite") return false;
+  return isIsoActive(snapshot.planExpiresAtIso);
+};
+
+const canUseShadowGhost = (snapshot: EntitlementSnapshot | null) => {
+  if (canUsePlanIncludedBenefits(snapshot)) return true;
+  if (snapshot?.shadowGhost?.source !== "shadowghost_item") return false;
+  return isIsoActive(snapshot.shadowGhost.expiresAtIso);
+};
+
+const canChangeServer = (snapshot: EntitlementSnapshot | null) => {
+  if (canUsePlanIncludedBenefits(snapshot)) return true;
+  if (!snapshot?.travelPass) return false;
+  if (snapshot.travelPass.source !== "travel_pass" && snapshot.travelPass.source !== "bundle_included") {
+    return false;
+  }
+  return isIsoActive(snapshot.travelPass.expiresAtIso);
+};
+
+const getUserEntitlementSnapshot = async (userId: string): Promise<EntitlementSnapshot | null> => {
+  const { data, error } = await supabaseServiceClient
+    .from("user_entitlements")
+    .select("entitlement_snapshot")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return null;
+  }
+
+  const raw = (data?.entitlement_snapshot ?? null) as unknown;
+  if (!raw || typeof raw !== "object") return null;
+  return raw as EntitlementSnapshot;
 };
 
 export async function registerProfileRoutes(app: FastifyInstance) {
@@ -450,7 +516,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           .maybeSingle(),
         supabaseServiceClient
           .from("settings")
-          .select("language,target_lang,auto_translate,auto_detect_language,notifications_enabled,precise_location_enabled,distance_km,age_min,age_max,gender_preference")
+          .select("language,target_lang,auto_translate,auto_detect_language,notifications_enabled,precise_location_enabled,visibility,hide_age,hide_distance,incognito,read_receipts,shadow_ghost,travel_pass_city,phone_country_code,phone_national_number,distance_km,age_min,age_max,gender_preference")
           .eq("user_id", session.user.id)
           .maybeSingle(),
       ]);
@@ -462,11 +528,20 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         request.log.error({ err: settingsResult.error, userId: session.user.id }, "settings.fetch_failed");
       }
 
+      let effectiveSettings =
+        settingsResult.error || !settingsResult.data ? null : { ...(settingsResult.data as Record<string, unknown>) };
+      if (effectiveSettings && effectiveSettings.shadow_ghost === true) {
+        const entitlementSnapshot = await getUserEntitlementSnapshot(session.user.id);
+        if (!canUseShadowGhost(entitlementSnapshot)) {
+          effectiveSettings.shadow_ghost = false;
+        }
+      }
+
       return sendAuthSuccess(reply, {
         ok: true,
         data: {
           profile: profileResult.error ? null : (profileResult.data ?? null),
-          settings: settingsResult.error ? null : (settingsResult.data ?? null),
+          settings: effectiveSettings,
         },
       } satisfies AuthResponse);
     });
@@ -497,6 +572,24 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       }
 
       if (settings && Object.keys(settings).length > 0) {
+        const entitlementSnapshot = await getUserEntitlementSnapshot(session.user.id);
+        if (settings.shadowGhost === true && !canUseShadowGhost(entitlementSnapshot)) {
+          return sendAuthError(
+            reply,
+            403,
+            "SHADOWGHOST_LOCKED",
+            "ShadowGhost requires an active entitlement."
+          );
+        }
+        if (settings.travelPassCity && !canChangeServer(entitlementSnapshot)) {
+          return sendAuthError(
+            reply,
+            403,
+            "TRAVEL_PASS_LOCKED",
+            "Travel Pass is required to change server city."
+          );
+        }
+
         const payload = {
           user_id: session.user.id,
           language: settings.language,
@@ -505,6 +598,15 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           auto_detect_language: settings.autoDetectLanguage,
           notifications_enabled: settings.notificationsEnabled,
           precise_location_enabled: settings.preciseLocationEnabled,
+          visibility: settings.visibility,
+          hide_age: settings.hideAge,
+          hide_distance: settings.hideDistance,
+          incognito: settings.incognito,
+          read_receipts: settings.readReceipts,
+          shadow_ghost: settings.shadowGhost,
+          travel_pass_city: settings.travelPassCity,
+          phone_country_code: settings.phoneCountryCode,
+          phone_national_number: settings.phoneNationalNumber,
           distance_km: settings.distanceKm,
           age_min: settings.ageMin,
           age_max: settings.ageMax,
@@ -526,7 +628,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           .maybeSingle(),
         supabaseServiceClient
           .from("settings")
-          .select("language,target_lang,auto_translate,auto_detect_language,notifications_enabled,precise_location_enabled,distance_km,age_min,age_max,gender_preference")
+          .select("language,target_lang,auto_translate,auto_detect_language,notifications_enabled,precise_location_enabled,visibility,hide_age,hide_distance,incognito,read_receipts,shadow_ghost,travel_pass_city,phone_country_code,phone_national_number,distance_km,age_min,age_max,gender_preference")
           .eq("user_id", session.user.id)
           .maybeSingle(),
       ]);

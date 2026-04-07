@@ -36,6 +36,14 @@ type SettingSection = {
 
 type ApiStatus = 'idle' | 'loading' | 'success' | 'error' | 'retry';
 
+const PHONE_COUNTRY_CODES = [
+  { value: '+7', label: '+7 (RU)' },
+  { value: '+1', label: '+1 (US/CA)' },
+  { value: '+33', label: '+33 (FR)' },
+  { value: '+44', label: '+44 (UK)' },
+  { value: '+49', label: '+49 (DE)' },
+];
+
 const AccountSettingsScreen = () => {
   const navigate = useNavigate();
   const { category, sub } = useParams();
@@ -55,6 +63,8 @@ const AccountSettingsScreen = () => {
     } | null;
     settings: {
       language?: 'en' | 'ru' | null;
+      phone_country_code?: string | null;
+      phone_national_number?: string | null;
       distance_km?: number | null;
       age_min?: number | null;
       age_max?: number | null;
@@ -66,6 +76,11 @@ const AccountSettingsScreen = () => {
   const [settingsPatchStatus, setSettingsPatchStatus] = useState<ApiStatus>('idle');
   const [profileSettingsError, setProfileSettingsError] = useState('');
   const [blockedUsers, setBlockedUsers] = useState<BlockEntry[]>([]);
+  const [distanceDraft, setDistanceDraft] = useState(25);
+  const [ageMinDraft, setAgeMinDraft] = useState(22);
+  const [ageMaxDraft, setAgeMaxDraft] = useState(35);
+  const [phoneCountryCodeDraft, setPhoneCountryCodeDraft] = useState('+7');
+  const [phoneNationalNumberDraft, setPhoneNationalNumberDraft] = useState('');
   const loadRequestIdRef = useRef(0);
 
   const loadAll = useCallback(async (mode: 'load' | 'retry' = 'load') => {
@@ -251,7 +266,6 @@ const AccountSettingsScreen = () => {
   const getSection = () => activeSection;
   const getSectionTitle = (section: SettingSection) => t(section.titleKey);
   const currentDistanceValue = profileMe?.settings?.distance_km ?? settings?.preferences.distanceKm ?? 25;
-  const currentAgeRangeValue = `${profileMe?.settings?.age_min ?? settings?.preferences.ageMin ?? 22} - ${profileMe?.settings?.age_max ?? settings?.preferences.ageMax ?? 35}`;
   const travelPassSourceLabel = travelPassServerAccess
     ? t(`settings.travelPass.sources.${travelPassServerAccess.source}`)
     : t('settings.travelPass.sources.none');
@@ -281,6 +295,68 @@ const AccountSettingsScreen = () => {
       default:
         return false;
     }
+  };
+
+  useEffect(() => {
+    setDistanceDraft(currentDistanceValue);
+  }, [currentDistanceValue]);
+
+  useEffect(() => {
+    setAgeMinDraft(profileMe?.settings?.age_min ?? settings?.preferences.ageMin ?? 22);
+    setAgeMaxDraft(profileMe?.settings?.age_max ?? settings?.preferences.ageMax ?? 35);
+  }, [
+    profileMe?.settings?.age_max,
+    profileMe?.settings?.age_min,
+    settings?.preferences.ageMax,
+    settings?.preferences.ageMin,
+  ]);
+
+  const persistDistance = () => {
+    if (distanceDraft === currentDistanceValue) return;
+    void patchProfileSettings({
+      settings: { distanceKm: distanceDraft },
+    });
+  };
+
+  const persistAgeRange = () => {
+    const persistedAgeMin = profileMe?.settings?.age_min ?? settings?.preferences.ageMin ?? 22;
+    const persistedAgeMax = profileMe?.settings?.age_max ?? settings?.preferences.ageMax ?? 35;
+    if (ageMinDraft === persistedAgeMin && ageMaxDraft === persistedAgeMax) return;
+    void patchProfileSettings({
+      settings: {
+        ageMin: ageMinDraft,
+        ageMax: ageMaxDraft,
+      },
+    });
+  };
+
+  useEffect(() => {
+    const storedCode = profileMe?.settings?.phone_country_code;
+    const storedNumber = profileMe?.settings?.phone_national_number;
+    if (typeof storedCode === 'string' && storedCode.trim().length > 0) {
+      setPhoneCountryCodeDraft(storedCode);
+    }
+    setPhoneNationalNumberDraft(
+      typeof storedNumber === 'string' ? storedNumber.replace(/\D/g, '') : '',
+    );
+  }, [profileMe?.settings?.phone_country_code, profileMe?.settings?.phone_national_number]);
+
+  const persistPhone = async () => {
+    const normalizedCode = phoneCountryCodeDraft.trim();
+    const normalizedNumber = phoneNationalNumberDraft.replace(/\D/g, '');
+    const codeLooksValid = /^\+[0-9]{1,5}$/.test(normalizedCode);
+    const numberLooksValid = /^[0-9]{4,15}$/.test(normalizedNumber);
+    if (!codeLooksValid || !numberLooksValid) {
+      setProfilePatchStatus('error');
+      setProfileSettingsError('Invalid phone format. Use country code + digits only.');
+      return;
+    }
+    await patchProfileSettings({
+      settings: {
+        phoneCountryCode: normalizedCode,
+        phoneNationalNumber: normalizedNumber,
+      },
+    });
   };
 
   const toggleSetting = (id: string) => {
@@ -505,9 +581,36 @@ const AccountSettingsScreen = () => {
                   ) : item.id === 'phone' ? (
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">{itemLabel}</label>
-                      <div className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70">
-                        Phone not linked yet
+                      <div className="grid grid-cols-[130px_1fr] gap-3">
+                        <select
+                          value={phoneCountryCodeDraft}
+                          onChange={(event) => setPhoneCountryCodeDraft(event.target.value)}
+                          className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-sm font-bold text-white"
+                        >
+                          {PHONE_COUNTRY_CODES.map((entry) => (
+                            <option key={entry.value} value={entry.value}>
+                              {entry.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          value={phoneNationalNumberDraft}
+                          onChange={(event) =>
+                            setPhoneNationalNumberDraft(event.target.value.replace(/\D/g, '').slice(0, 15))
+                          }
+                          placeholder="9012345678"
+                          className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-sm font-medium text-white"
+                        />
                       </div>
+                      <GlassButton
+                        onClick={() => {
+                          void persistPhone();
+                        }}
+                        className="w-full py-3 rounded-2xl text-xs uppercase tracking-[0.16em] font-black"
+                      >
+                        {t('settings.save')}
+                      </GlassButton>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -529,14 +632,62 @@ const AccountSettingsScreen = () => {
                   <div className="flex justify-between items-end">
                     <span className="text-sm font-bold text-secondary">{t('settings.currentValue')}</span>
                     <span className="text-2xl font-black text-pink-500">
-                      {item.type === 'range' ? currentAgeRangeValue : `${currentDistanceValue} ${item.unit ?? ''}`}
+                      {item.type === 'range' ? `${ageMinDraft} - ${ageMaxDraft}` : `${distanceDraft} ${item.unit ?? ''}`}
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-white/10 rounded-full relative">
-                    <div className="absolute left-1/4 top-0 h-full w-1/2 bg-gradient-to-r from-pink-500 to-violet-500 rounded-full" />
-                    <div className="absolute left-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-xl border-4 border-black cursor-pointer" />
-                    {item.type === 'range' && <div className="absolute left-3/4 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-xl border-4 border-black cursor-pointer" />}
-                  </div>
+                  {item.type === 'slider' ? (
+                    <div className="space-y-4">
+                      <input
+                        type="range"
+                        min={item.min ?? 2}
+                        max={item.max ?? 160}
+                        value={distanceDraft}
+                        onChange={(event) => setDistanceDraft(Number(event.target.value))}
+                        onMouseUp={persistDistance}
+                        onTouchEnd={persistDistance}
+                        className="w-full accent-pink-500"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-white/70">
+                          <span>{t('settings.items.age')} min</span>
+                          <span className="font-black text-pink-300">{ageMinDraft}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={item.min ?? 18}
+                          max={Math.max((item.max ?? 100) - 1, ageMaxDraft - 1)}
+                          value={ageMinDraft}
+                          onChange={(event) =>
+                            setAgeMinDraft(Math.min(Number(event.target.value), ageMaxDraft - 1))
+                          }
+                          onMouseUp={persistAgeRange}
+                          onTouchEnd={persistAgeRange}
+                          className="w-full accent-pink-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-white/70">
+                          <span>{t('settings.items.age')} max</span>
+                          <span className="font-black text-sky-300">{ageMaxDraft}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={Math.min(ageMinDraft + 1, item.max ?? 100)}
+                          max={item.max ?? 100}
+                          value={ageMaxDraft}
+                          onChange={(event) =>
+                            setAgeMaxDraft(Math.max(Number(event.target.value), ageMinDraft + 1))
+                          }
+                          onMouseUp={persistAgeRange}
+                          onTouchEnd={persistAgeRange}
+                          className="w-full accent-sky-400"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between text-[10px] font-black text-white/20 uppercase tracking-widest">
                     <span>
                       {item.min} {item.unit ?? ''}
