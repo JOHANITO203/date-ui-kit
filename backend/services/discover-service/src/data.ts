@@ -16,6 +16,7 @@ export type FeedCandidate = {
   gender: "men" | "women";
   age: number;
   city: string;
+  originCountry: string;
   distanceKm: number;
   languages: string[];
   bio: string;
@@ -35,6 +36,7 @@ export const feedSeed: FeedCandidate[] = [
     gender: "women",
     age: 24,
     city: "Moscow",
+    originCountry: "russian",
     distanceKm: 2,
     languages: ["English", "Russian"],
     bio: "Art lover and world traveler.",
@@ -61,6 +63,7 @@ export const feedSeed: FeedCandidate[] = [
     gender: "men",
     age: 27,
     city: "Saint Petersburg",
+    originCountry: "french",
     distanceKm: 5,
     languages: ["English", "French"],
     bio: "Tech enthusiast and coffee addict.",
@@ -86,6 +89,7 @@ export const feedSeed: FeedCandidate[] = [
     gender: "women",
     age: 22,
     city: "Voronezh",
+    originCountry: "italian",
     distanceKm: 1,
     languages: ["Italian", "English"],
     bio: "Architecture student and city explorer.",

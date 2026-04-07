@@ -20,6 +20,9 @@ type FeedPreferences = {
   genderPreference: "men" | "women" | "everyone";
   intent: "serieuse" | "connexion" | "decouverte" | "verrai" | null;
   interests: string[];
+  launchCity: string | null;
+  originCountry: string | null;
+  userLanguages: string[];
 };
 
 type GeoPoint = {
@@ -34,6 +37,9 @@ const DEFAULT_PREFERENCES: FeedPreferences = {
   genderPreference: "everyone",
   intent: null,
   interests: [],
+  launchCity: null,
+  originCountry: null,
+  userLanguages: [],
 };
 
 const CITY_COORDINATES: Record<string, GeoPoint> = {
@@ -90,6 +96,9 @@ const normalizeTag = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[_-]+/g, " ")
     .trim();
+
+const normalizeKey = (value: string) =>
+  normalizeTag(value).replace(/\s+/g, "_");
 
 const USER_INTEREST_CANONICAL_MAP: Record<string, string> = {
   musique: "music",
@@ -148,6 +157,14 @@ const parseFeedPreferences = (query: Record<string, string | undefined>): FeedPr
         .map((value) => value.trim())
         .filter((value) => value.length > 0)
     : [];
+  const launchCity = query.launchCity ? query.launchCity.trim() : null;
+  const originCountry = query.originCountry ? normalizeKey(query.originCountry) : null;
+  const userLanguages = query.userLanguages
+    ? query.userLanguages
+        .split(",")
+        .map((value) => normalizeTag(value))
+        .filter((value) => value.length > 0)
+    : [];
 
   return {
     ageMin: Math.min(ageMin, ageMax - 1),
@@ -156,6 +173,9 @@ const parseFeedPreferences = (query: Record<string, string | undefined>): FeedPr
     genderPreference,
     intent,
     interests,
+    launchCity: launchCity && launchCity.length > 0 ? launchCity : null,
+    originCountry,
+    userLanguages,
   };
 };
 
@@ -219,6 +239,74 @@ const getInterestsScoreDelta = (
   return 4;
 };
 
+const getLaunchCityScoreDelta = (
+  candidate: (typeof feedSeed)[number],
+  launchCity: FeedPreferences["launchCity"]
+) => {
+  if (!launchCity) return 0;
+  const requested = normalizeTag(launchCity);
+  const candidateCity = normalizeTag(candidate.city);
+  return requested.length > 0 && requested === candidateCity ? 6 : 0;
+};
+
+const getNationalityScoreDelta = (
+  candidate: (typeof feedSeed)[number],
+  originCountry: FeedPreferences["originCountry"]
+) => {
+  if (!originCountry) return 0;
+  const candidateCountry = normalizeKey(candidate.originCountry);
+  if (!candidateCountry) return 0;
+
+  const userIsRussian = originCountry === "russian";
+  const candidateIsRussian = candidateCountry === "russian";
+  const isCrossRussianPair = userIsRussian !== candidateIsRussian;
+
+  // Strong circulation of Russian <-> non-Russian profiles.
+  if (isCrossRussianPair) return 9;
+
+  // Diversity boost for different non-Russian nationalities.
+  if (originCountry !== candidateCountry) return 5;
+
+  return 0;
+};
+
+const getLanguageScoreDelta = (
+  candidate: (typeof feedSeed)[number],
+  userLanguages: FeedPreferences["userLanguages"]
+) => {
+  const candidateLanguages = candidate.languages
+    .map((value) => normalizeTag(value))
+    .filter((value) => value.length > 0);
+
+  if (candidateLanguages.length === 0) return 0;
+  const candidateUnique = new Set(candidateLanguages);
+
+  if (userLanguages.length === 0) {
+    return candidateUnique.size >= 2 ? 3 : 0;
+  }
+
+  const userSet = new Set(userLanguages);
+  let overlap = 0;
+  let diversity = 0;
+
+  candidateUnique.forEach((language) => {
+    if (userSet.has(language)) {
+      overlap += 1;
+    } else {
+      diversity += 1;
+    }
+  });
+
+  let delta = 0;
+  if (diversity >= 1) delta += 4;
+  if (diversity >= 2) delta += 2;
+  if (overlap >= 1) delta += 1;
+  if (candidateUnique.size >= 3) delta += 1;
+
+  // Keep ranking stable while still making language diversity important.
+  return Math.min(8, delta);
+};
+
 const applyFiltersAndRank = (
   filters: string[],
   preferences: FeedPreferences,
@@ -241,10 +329,16 @@ const applyFiltersAndRank = (
       const effectiveDistanceKm = resolveCandidateDistanceKm(candidate, userGeoPoint);
       const intentDelta = getIntentScoreDelta(candidate, preferences.intent, effectiveDistanceKm);
       const interestDelta = getInterestsScoreDelta(candidate, preferences.interests);
-      const delta = intentDelta + interestDelta;
+      const launchCityDelta = getLaunchCityScoreDelta(candidate, preferences.launchCity);
+      const nationalityDelta = getNationalityScoreDelta(candidate, preferences.originCountry);
+      const languageDelta = getLanguageScoreDelta(candidate, preferences.userLanguages);
+      const delta = intentDelta + interestDelta + launchCityDelta + nationalityDelta + languageDelta;
       const reasonSuffix = [
         intentDelta > 0 && preferences.intent ? `intent_${preferences.intent}` : null,
         interestDelta > 0 ? "interest_match" : null,
+        launchCityDelta > 0 ? "launch_city_match" : null,
+        nationalityDelta > 0 ? "nationality_diversity" : null,
+        languageDelta > 0 ? "language_diversity" : null,
       ]
         .filter((value): value is string => Boolean(value))
         .join("_");

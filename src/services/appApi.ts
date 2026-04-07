@@ -50,9 +50,19 @@ type FeedSignals = {
   intent: FeedIntent | null;
   interests: string[];
   preciseLocationEnabled: boolean | null;
+  launchCity: string | null;
+  originCountry: string | null;
+  userLanguages: string[];
 };
 
-let cachedFeedSignals: FeedSignals = { intent: null, interests: [], preciseLocationEnabled: null };
+let cachedFeedSignals: FeedSignals = {
+  intent: null,
+  interests: [],
+  preciseLocationEnabled: null,
+  launchCity: null,
+  originCountry: null,
+  userLanguages: [],
+};
 let cachedFeedSignalsFetchedAt = 0;
 const FEED_SIGNALS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PRECISE_GEO_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -66,7 +76,14 @@ const getFeedSignals = async (): Promise<FeedSignals> => {
 
   const response = await authApi.getProfileMe();
   if (response.ok !== true) {
-    cachedFeedSignals = { intent: null, interests: [], preciseLocationEnabled: null };
+    cachedFeedSignals = {
+      intent: null,
+      interests: [],
+      preciseLocationEnabled: null,
+      launchCity: null,
+      originCountry: null,
+      userLanguages: [],
+    };
     cachedFeedSignalsFetchedAt = now;
     return cachedFeedSignals;
   }
@@ -83,8 +100,29 @@ const getFeedSignals = async (): Promise<FeedSignals> => {
     typeof response.data?.settings?.precise_location_enabled === 'boolean'
       ? response.data.settings.precise_location_enabled
       : null;
+  const launchCity =
+    typeof response.data?.profile?.city === 'string' && response.data.profile.city.trim().length > 0
+      ? response.data.profile.city.trim()
+      : null;
+  const originCountry =
+    typeof response.data?.profile?.origin_country === 'string' &&
+    response.data.profile.origin_country.trim().length > 0
+      ? response.data.profile.origin_country.trim()
+      : null;
+  const userLanguages = Array.isArray(response.data?.profile?.languages)
+    ? response.data.profile.languages.filter(
+        (value): value is string => typeof value === 'string' && value.trim().length > 0,
+      )
+    : [];
 
-  cachedFeedSignals = { intent: resolvedIntent, interests, preciseLocationEnabled };
+  cachedFeedSignals = {
+    intent: resolvedIntent,
+    interests,
+    preciseLocationEnabled,
+    launchCity,
+    originCountry,
+    userLanguages,
+  };
   cachedFeedSignalsFetchedAt = now;
   return cachedFeedSignals;
 };
@@ -234,6 +272,9 @@ export const appApi = {
           intent: null,
           interests: [],
           preciseLocationEnabled: null,
+          launchCity: null,
+          originCountry: null,
+          userLanguages: [],
         }));
         const preciseLocationEnabled =
           feedSignals.preciseLocationEnabled ?? settingsEnvelope.settings.privacy.preciseLocation;
@@ -250,6 +291,15 @@ export const appApi = {
         }
         if (feedSignals.interests.length > 0) {
           query.set('interests', feedSignals.interests.join(','));
+        }
+        if (feedSignals.launchCity) {
+          query.set('launchCity', feedSignals.launchCity);
+        }
+        if (feedSignals.originCountry) {
+          query.set('originCountry', feedSignals.originCountry);
+        }
+        if (feedSignals.userLanguages.length > 0) {
+          query.set('userLanguages', feedSignals.userLanguages.join(','));
         }
         if (preciseGeoPoint) {
           query.set('lat', String(preciseGeoPoint.lat));

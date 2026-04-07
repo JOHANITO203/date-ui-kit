@@ -249,12 +249,27 @@ const ProfileScreen = () => {
       return '';
     })();
 
+    const optimisticSeed = hydrateProfileSeed(
+      null,
+      user?.profile as Record<string, unknown> | null | undefined,
+    );
+    const optimisticName = optimisticSeed.firstName || fallbackNameFromSession || 'User';
+    if (optimisticName) setProfileName(optimisticName);
+    if (optimisticSeed.bio) setProfileBio(optimisticSeed.bio);
+    const optimisticAge = calculateAge(optimisticSeed.birthDate);
+    if (optimisticAge) setProfileAge(optimisticAge);
+    if (optimisticSeed.city) {
+      setProfileCity(normalizeCityLabel(optimisticSeed.city, t));
+    }
+    if (optimisticSeed.verifiedOptIn) {
+      setVerifiedIdentity(true);
+    }
+
     const hydrateProfileState = async () => {
       try {
-        const [profilePayload, photosPayload, likesPayload] = await Promise.all([
+        const [profileResult, photosResult] = await Promise.allSettled([
           authApi.getProfileMe(),
           authApi.getProfilePhotos(),
-          appApi.getLikes(),
         ]);
 
         if (isCancelled) return;
@@ -262,15 +277,21 @@ const ProfileScreen = () => {
         const trackedEvents = getTrackedEvents();
         const ownDiscoverViews = trackedEvents.filter((event) => event.name === 'profile_impression').length;
         const matches = trackedEvents.filter((event) => event.name === 'match_created').length;
-        const viewedByOthers =
-          likesPayload.inventory.visibleLikes.length + likesPayload.inventory.hiddenCount;
+        let viewedByOthers = 0;
+        try {
+          const likesPayload = await appApi.getLikes();
+          viewedByOthers =
+            likesPayload.inventory.visibleLikes.length + likesPayload.inventory.hiddenCount;
+        } catch {
+          viewedByOthers = 0;
+        }
         const computedViews = Math.round((ownDiscoverViews + viewedByOthers) * 1.35);
 
         setProfileViewsCount(computedViews);
         setMatchesCount(matches);
 
-        if (profilePayload.ok && profilePayload.data?.profile) {
-          const profile = profilePayload.data.profile;
+        if (profileResult.status === 'fulfilled' && profileResult.value.ok && profileResult.value.data?.profile) {
+          const profile = profileResult.value.data.profile;
           const seed = hydrateProfileSeed(profile, user?.profile as Record<string, unknown> | null | undefined);
           setVerifiedIdentity(seed.verifiedOptIn);
           setProfileName(seed.firstName || fallbackNameFromSession || 'User');
@@ -319,19 +340,16 @@ const ProfileScreen = () => {
           setProfileName(fallbackNameFromSession || 'User');
         }
 
-        if (photosPayload.ok) {
-          const photos = photosPayload.data?.photos ?? [];
+        if (photosResult.status === 'fulfilled' && photosResult.value.ok) {
+          const photos = photosResult.value.data?.photos ?? [];
           const firstPhotoUrl = photos.find((photo) => Boolean(photo.url))?.url ?? null;
           setProfilePhotosCount(photos.length);
           setProfilePhotoUrl(firstPhotoUrl);
         }
       } catch {
         if (!isCancelled) {
-          setVerifiedIdentity(false);
-          setProfileName(fallbackNameFromSession || 'User');
-          setProfileCity(t('settings.cities.moscow'));
-          setProfileBio('');
-          setProfilePhotosCount(0);
+          setProfileName((prev) => prev || fallbackNameFromSession || 'User');
+          setProfileCity((prev) => prev || t('settings.cities.moscow'));
         }
       }
     };

@@ -633,13 +633,8 @@ const OnboardingScreen = () => {
     event.currentTarget.value = '';
   };
 
-  const next = async () => {
-    if (!canContinue) return;
-    setSubmitErrorMessage('');
-    if (step < TOTAL_STEPS) {
-      setStep((s) => (s + 1) as Step);
-      return;
-    }
+  const completeOnboardingAndGoDiscover = async () => {
+    if (submitStatus === 'loading' || submitStatus === 'retry') return;
     if (!isAuthenticated) {
       setSubmitErrorMessage('Authenticate first to complete onboarding.');
       setSubmitStatus('error');
@@ -685,6 +680,16 @@ const OnboardingScreen = () => {
     setSubmitStatus('success');
     clearOnboardingDraft();
     navigate('/discover');
+  };
+
+  const next = async () => {
+    if (!canContinue) return;
+    setSubmitErrorMessage('');
+    if (step < TOTAL_STEPS) {
+      setStep((s) => (s + 1) as Step);
+      return;
+    }
+    await completeOnboardingAndGoDiscover();
   };
 
   const back = () => {
@@ -1474,8 +1479,7 @@ const OnboardingScreen = () => {
                   <GlassButton
                     variant="premium"
                     onClick={() => {
-                      clearOnboardingDraft();
-                      navigate(isAuthenticated ? '/discover' : '/login/methods');
+                      void completeOnboardingAndGoDiscover();
                     }}
                     className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]"
                   >
