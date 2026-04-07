@@ -67,6 +67,30 @@ type ProfilePhotoRow = {
 const PROFILE_PHOTOS_BUCKET = env.STORAGE_PROFILE_PHOTOS_BUCKET;
 const PHOTO_MAX_COUNT = 5;
 
+const mapStorageUploadError = (
+  error: { message?: string; statusCode?: string | number } | null,
+  context: "profile_photo" | "kyc_selfie"
+) => {
+  const message = (error?.message ?? "").toLowerCase();
+  const statusCode = Number(error?.statusCode ?? 0);
+  const bucketNotFound =
+    statusCode === 404 ||
+    message.includes("bucket not found") ||
+    message.includes("not found");
+
+  if (bucketNotFound) {
+    return {
+      code: context === "profile_photo" ? "PROFILE_PHOTO_BUCKET_MISSING" : "KYC_SELFIE_BUCKET_MISSING",
+      message: `Storage bucket "${PROFILE_PHOTOS_BUCKET}" is missing. Create it in Supabase Storage.`,
+    };
+  }
+
+  return {
+    code: context === "profile_photo" ? "PROFILE_PHOTO_UPLOAD_FAILED" : "KYC_SELFIE_UPLOAD_FAILED",
+    message: context === "profile_photo" ? "Unable to upload profile photo." : "Unable to upload selfie.",
+  };
+};
+
 const extensionFromMimeType = (mimeType: string) => {
   if (mimeType === "image/jpeg") return "jpg";
   if (mimeType === "image/png") return "png";
@@ -242,7 +266,8 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
       if (uploadResult.error) {
         request.log.error({ err: uploadResult.error, userId: session.user.id }, "profile.photos.upload_failed");
-        return sendAuthError(reply, 500, "PROFILE_PHOTO_UPLOAD_FAILED", "Unable to upload profile photo.");
+        const mapped = mapStorageUploadError(uploadResult.error as { message?: string; statusCode?: string | number }, "profile_photo");
+        return sendAuthError(reply, 500, mapped.code, mapped.message);
       }
 
       const maxSortResult = await supabaseServiceClient
@@ -320,7 +345,8 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
       if (uploadResult.error) {
         request.log.error({ err: uploadResult.error, userId: session.user.id }, "kyc.selfie.upload_failed");
-        return sendAuthError(reply, 500, "KYC_SELFIE_UPLOAD_FAILED", "Unable to upload selfie.");
+        const mapped = mapStorageUploadError(uploadResult.error as { message?: string; statusCode?: string | number }, "kyc_selfie");
+        return sendAuthError(reply, 500, mapped.code, mapped.message);
       }
 
       const insertResult = await supabaseServiceClient

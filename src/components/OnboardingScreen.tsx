@@ -560,14 +560,15 @@ const OnboardingScreen = () => {
   };
 
   const onPhotoFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files: File[] = Array.from(event.target.files ?? []).filter(
+    const inputEl = event.currentTarget;
+    const files: File[] = Array.from(inputEl.files ?? []).filter(
       (file): file is File => file instanceof File && file.type.startsWith('image/'),
     );
     if (files.length === 0) return;
 
     const available = PHOTO_SLOTS - uploadedPhotos.length;
     if (available <= 0) {
-      event.currentTarget.value = '';
+      inputEl.value = '';
       return;
     }
 
@@ -599,11 +600,12 @@ const OnboardingScreen = () => {
       setPhotoUploadStatus('success');
     }
 
-    event.currentTarget.value = '';
+    inputEl.value = '';
   };
 
   const onVerifySelfieSelected = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = Array.from(event.target.files ?? []).find(
+    const inputEl = event.currentTarget;
+    const file = Array.from(inputEl.files ?? []).find(
       (item) => item instanceof File && item.type.startsWith('image/'),
     );
     if (!file) return;
@@ -622,7 +624,7 @@ const OnboardingScreen = () => {
       setVerifySelfieStatus('error');
       setVerifySelfieErrorMessage(response.message ?? 'Unable to submit selfie now.');
       setField('verifyNow', false);
-      event.currentTarget.value = '';
+      inputEl.value = '';
       return;
     }
 
@@ -630,12 +632,22 @@ const OnboardingScreen = () => {
     setVerifySelfieStatus('success');
     setVerifySelfieErrorMessage('');
     setField('verifyNow', true);
-    event.currentTarget.value = '';
+    inputEl.value = '';
   };
 
   const completeOnboardingAndGoDiscover = async () => {
     if (submitStatus === 'loading' || submitStatus === 'retry') return;
-    if (!isAuthenticated) {
+    let hasSession = isAuthenticated;
+    if (!hasSession) {
+      try {
+        await refreshSession();
+        const sessionProbe = await authApi.getSession();
+        hasSession = Boolean(sessionProbe.ok && sessionProbe.data?.authenticated);
+      } catch {
+        hasSession = false;
+      }
+    }
+    if (!hasSession) {
       setSubmitErrorMessage('Authenticate first to complete onboarding.');
       setSubmitStatus('error');
       return;

@@ -246,7 +246,7 @@ const getLaunchCityScoreDelta = (
   if (!launchCity) return 0;
   const requested = normalizeTag(launchCity);
   const candidateCity = normalizeTag(candidate.city);
-  return requested.length > 0 && requested === candidateCity ? 6 : 0;
+  return requested.length > 0 && requested === candidateCity ? 5 : 0;
 };
 
 const getNationalityScoreDelta = (
@@ -262,10 +262,10 @@ const getNationalityScoreDelta = (
   const isCrossRussianPair = userIsRussian !== candidateIsRussian;
 
   // Strong circulation of Russian <-> non-Russian profiles.
-  if (isCrossRussianPair) return 9;
+  if (isCrossRussianPair) return 12;
 
   // Diversity boost for different non-Russian nationalities.
-  if (originCountry !== candidateCountry) return 5;
+  if (originCountry !== candidateCountry) return 7;
 
   return 0;
 };
@@ -298,13 +298,13 @@ const getLanguageScoreDelta = (
   });
 
   let delta = 0;
-  if (diversity >= 1) delta += 4;
-  if (diversity >= 2) delta += 2;
+  if (diversity >= 1) delta += 5;
+  if (diversity >= 2) delta += 3;
   if (overlap >= 1) delta += 1;
   if (candidateUnique.size >= 3) delta += 1;
 
   // Keep ranking stable while still making language diversity important.
-  return Math.min(8, delta);
+  return Math.min(10, delta);
 };
 
 const applyFiltersAndRank = (
