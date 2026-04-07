@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionUser } from '../contracts';
 import { authApi } from '../services';
+import { getOnboardingProfileSnapshot } from '../domain/profileHydration';
 
 type AuthStatus = 'loading' | 'authenticated' | 'guest';
 
@@ -70,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
   const refreshRequestIdRef = useRef(0);
   const ephemeralAccessRef = useRef(ephemeralAccessEnabled);
+  const profileBackfillUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     ephemeralAccessRef.current = ephemeralAccessEnabled;
@@ -107,6 +109,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void refreshSession();
   }, [ephemeralAccessEnabled]);
 
+  useEffect(() => {
+    if (status !== 'authenticated' || !user?.id || ephemeralAccessEnabled) return;
+    if (profileBackfillUserIdRef.current === user.id) return;
+    profileBackfillUserIdRef.current = user.id;
+
+    const backfillFromOnboardingSnapshot = async () => {
+      const snapshot = getOnboardingProfileSnapshot();
+      if (!snapshot) return;
+
+      try {
+        const current = await authApi.getProfileMe();
+        if (!current.ok || !current.data) return;
+        const profile = current.data.profile;
+        if (!profile) return;
+
+        const patch: {
+          first_name?: string;
+          city?: string;
+          birth_date?: string;
+          intent?: string;
+          interests?: string[];
+          verified_opt_in?: boolean;
+        } = {};
+
+        if (!profile.first_name && snapshot.firstName) patch.first_name = snapshot.firstName;
+        if (!profile.city && snapshot.city) patch.city = snapshot.city;
+        if (!profile.birth_date && snapshot.birthDate) patch.birth_date = snapshot.birthDate;
+        if (!profile.intent && snapshot.intent) patch.intent = snapshot.intent;
+        if ((!profile.interests || profile.interests.length === 0) && snapshot.interests.length > 0) {
+          patch.interests = snapshot.interests;
+        }
+        if (!profile.verified_opt_in && snapshot.verifyNow) {
+          patch.verified_opt_in = true;
+        }
+
+        if (Object.keys(patch).length === 0) return;
+        await authApi.patchProfileMe(patch);
+      } catch {
+        // Silent backfill best-effort: do not block auth flow.
+      }
+    };
+
+    void backfillFromOnboardingSnapshot();
+  }, [ephemeralAccessEnabled, status, user?.id]);
+
   const enableEphemeralAccess = () => {
     refreshRequestIdRef.current += 1;
     writeEphemeralAccess();
@@ -121,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setEphemeralAccessEnabled(false);
     setUser(null);
     setStatus('guest');
+    profileBackfillUserIdRef.current = null;
   };
 
   const logout = async () => {
@@ -133,6 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setUser(null);
       setStatus('guest');
+      profileBackfillUserIdRef.current = null;
     }
   };
 

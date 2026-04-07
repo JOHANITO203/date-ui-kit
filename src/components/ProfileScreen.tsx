@@ -11,6 +11,7 @@ import { useRuntimeSelector } from '../state';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { useAuth } from '../auth/AuthProvider';
+import { hydrateProfileSeed } from '../domain/profileHydration';
 
 const calculateAge = (birthDateIso: string | null | undefined) => {
   if (!birthDateIso) return undefined;
@@ -89,6 +90,15 @@ const computeVisibilityScore = (input: VisibilityScoreInput) => {
   if (input.shadowGhostActive) score += 4;
 
   return Math.max(0, Math.min(100, Math.round(score)));
+};
+
+const normalizeCityLabel = (value: string, t: (key: string) => string) => {
+  const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, '-');
+  if (normalized === 'voronezh') return t('settings.cities.voronezh');
+  if (normalized === 'moscow') return t('settings.cities.moscow');
+  if (normalized === 'saint-petersburg') return t('settings.cities.saintPetersburg');
+  if (normalized === 'sochi') return t('settings.cities.sochi');
+  return value;
 };
 
 const ProfileScreen = () => {
@@ -261,13 +271,14 @@ const ProfileScreen = () => {
 
         if (profilePayload.ok && profilePayload.data?.profile) {
           const profile = profilePayload.data.profile;
-          setVerifiedIdentity(Boolean(profile.verified_opt_in));
-          setProfileName(profile.first_name?.trim() || fallbackNameFromSession || 'User');
-          setProfileBio(typeof profile.bio === 'string' ? profile.bio.trim() : '');
-          setProfileAge(calculateAge(profile.birth_date));
-          const persistedCity = profile.city?.trim();
+          const seed = hydrateProfileSeed(profile, user?.profile as Record<string, unknown> | null | undefined);
+          setVerifiedIdentity(seed.verifiedOptIn);
+          setProfileName(seed.firstName || fallbackNameFromSession || 'User');
+          setProfileBio(seed.bio);
+          setProfileAge(calculateAge(seed.birthDate));
+          const persistedCity = seed.city;
           if (persistedCity) {
-            setProfileCity(persistedCity);
+            setProfileCity(normalizeCityLabel(persistedCity, t));
           } else if (settings.preferences.travelPassCity) {
             const cityId = settings.preferences.travelPassCity;
             const cityLabel =

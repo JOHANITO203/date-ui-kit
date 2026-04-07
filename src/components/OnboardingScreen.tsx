@@ -13,6 +13,7 @@ import Logo from './ui/Logo';
 import { useAuth } from '../auth/AuthProvider';
 import { authApi } from '../services';
 import type { AuthErrorResponse, AuthResponse } from '../contracts';
+import { saveOnboardingProfileSnapshot } from '../domain/profileHydration';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 type Distance = 25 | 50 | 100;
@@ -673,6 +674,14 @@ const OnboardingScreen = () => {
       setSubmitStatus('error');
       return;
     }
+    saveOnboardingProfileSnapshot({
+      firstName: form.firstName,
+      city: form.city,
+      intent: form.intent || 'verrai',
+      interests: form.interests,
+      birthDate: form.birthDate,
+      verifyNow: form.verifyNow,
+    });
     setSubmitStatus('success');
     clearOnboardingDraft();
     navigate('/discover');

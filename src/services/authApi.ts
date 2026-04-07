@@ -1,6 +1,6 @@
 import type { AuthResponse, SessionPayload } from '../contracts';
 
-const AUTH_BFF_URL = (import.meta.env.VITE_AUTH_BFF_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://127.0.0.1:8787';
+const AUTH_BFF_URL = (import.meta.env.VITE_AUTH_BFF_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787';
 
 const request = async <T>(
   path: string,
@@ -115,6 +115,10 @@ export const authApi = {
     last_name?: string;
     locale?: string;
     bio?: string;
+    birth_date?: string;
+    intent?: string;
+    interests?: string[];
+    verified_opt_in?: boolean;
     city?: string;
     settings?: {
       language?: 'en' | 'ru';

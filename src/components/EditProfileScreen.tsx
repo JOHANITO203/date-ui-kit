@@ -8,6 +8,7 @@ import GlassButton from './ui/GlassButton';
 import { useI18n } from '../i18n/I18nProvider';
 import { authApi } from '../services';
 import { useAuth } from '../auth/AuthProvider';
+import { hydrateProfileSeed, saveOnboardingProfileSnapshot } from '../domain/profileHydration';
 
 type UploadedPhoto = {
   id: string;
@@ -65,19 +66,11 @@ const EditProfileScreen = () => {
 
         if (profilePayload.ok && profilePayload.data?.profile) {
           const profile = profilePayload.data.profile;
-          const sessionProfile = user?.profile as Record<string, unknown> | null | undefined;
-          const fallbackFirstName =
-            typeof sessionProfile?.first_name === 'string'
-              ? sessionProfile.first_name
-              : typeof sessionProfile?.given_name === 'string'
-                ? sessionProfile.given_name
-                : typeof sessionProfile?.name === 'string'
-                  ? sessionProfile.name
-                  : '';
-          setFirstName((profile.first_name ?? fallbackFirstName ?? '').trim());
-          setCity((profile.city ?? '').trim());
-          setAbout((profile.bio ?? '').trim());
-          setInterests(Array.isArray(profile.interests) ? profile.interests : []);
+          const seed = hydrateProfileSeed(profile, user?.profile as Record<string, unknown> | null | undefined);
+          setFirstName(seed.firstName);
+          setCity(seed.city);
+          setAbout(seed.bio);
+          setInterests(seed.interests);
         }
 
         if (photosPayload.ok) {
@@ -102,7 +95,7 @@ const EditProfileScreen = () => {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [user?.profile]);
 
   const saveProfile = async () => {
     setIsSaving(true);
@@ -118,6 +111,12 @@ const EditProfileScreen = () => {
         setErrorText(response.message || 'Unable to save profile.');
         return;
       }
+      saveOnboardingProfileSnapshot({
+        firstName: firstName.trim(),
+        city: city.trim(),
+        intent: about.trim(),
+        interests,
+      });
       setSuccessText('Profile updated.');
     } catch {
       setErrorText('Unable to save profile.');

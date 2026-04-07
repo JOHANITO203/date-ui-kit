@@ -1,12 +1,10 @@
 import { motion } from 'motion/react';
-import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
 import { authApi } from '../services';
-import { useAuth } from '../auth/AuthProvider';
 
 const GoogleMark = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden>
@@ -21,17 +19,9 @@ const LoginScreen = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { ephemeralAccessEnabled, enableEphemeralAccess, disableEphemeralAccess } = useAuth();
   const params = new URLSearchParams(location.search);
   const from = params.get('from');
-  const ephemeralParam = params.get('ephemeral');
   const safeFrom = from && from.startsWith('/') && !from.startsWith('//') ? from : '/discover';
-
-  useEffect(() => {
-    if (ephemeralParam !== '1' || ephemeralAccessEnabled) return;
-    enableEphemeralAccess();
-    window.location.replace(safeFrom);
-  }, [enableEphemeralAccess, ephemeralAccessEnabled, ephemeralParam, safeFrom]);
 
   return (
     <motion.div
@@ -66,21 +56,6 @@ const LoginScreen = () => {
           <GoogleMark />
           <span className="font-bold">{t('login.continueGoogle')}</span>
         </GlassButton>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (ephemeralAccessEnabled) {
-              disableEphemeralAccess();
-              return;
-            }
-            enableEphemeralAccess();
-            window.location.replace(safeFrom);
-          }}
-          className="w-full py-4 rounded-[16px] border border-white/15 bg-white/5 text-[11px] font-black uppercase tracking-[0.16em] text-white/75 hover:border-pink-500/35 transition-all"
-        >
-          {ephemeralAccessEnabled ? 'Disable temporary access' : 'Temporary access (12h)'}
-        </button>
       </div>
 
       <p className="text-[10px] text-center text-white/30 px-8">
