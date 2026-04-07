@@ -15,7 +15,7 @@ const onboardingCompleteSchema = z.object({
   originCountry: z.string().min(1).max(120),
   languages: z.array(z.string().min(1)).min(1).max(10),
   intent: z.enum(["serieuse", "connexion", "decouverte", "verrai"]),
-  interests: z.array(z.string().min(1)).min(1).max(12),
+  interests: z.array(z.string().min(1)).min(3).max(5),
   photosCount: z.number().int().min(0).max(12),
   verifyNow: z.boolean(),
   lookingFor: z.enum(["hommes", "femmes", "tous"]),

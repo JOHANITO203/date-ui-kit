@@ -352,12 +352,26 @@ const OnboardingScreen = () => {
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const [photoUploadStatus, setPhotoUploadStatus] = useState<ApiStatus>('idle');
   const [photoErrorMessage, setPhotoErrorMessage] = useState('');
+  const [verifySelfieStatus, setVerifySelfieStatus] = useState<ApiStatus>('idle');
+  const [verifySelfiePreviewUrl, setVerifySelfiePreviewUrl] = useState<string | null>(null);
+  const [verifySelfieErrorMessage, setVerifySelfieErrorMessage] = useState('');
+  const [verifyConsentGranted, setVerifyConsentGranted] = useState(false);
+  const [verifyConsentOpen, setVerifyConsentOpen] = useState(false);
   const hydrationRequestIdRef = useRef(0);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const verifySelfieCameraInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     persistOnboardingDraft(step, form);
   }, [step, form]);
+
+  useEffect(() => {
+    return () => {
+      if (verifySelfiePreviewUrl && verifySelfiePreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(verifySelfiePreviewUrl);
+      }
+    };
+  }, [verifySelfiePreviewUrl]);
 
   useEffect(() => {
     if (!location.search) return;
@@ -503,6 +517,14 @@ const OnboardingScreen = () => {
     photoInputRef.current?.click();
   };
 
+  const openVerifySelfieConsent = () => {
+    setVerifyConsentOpen(true);
+  };
+
+  const openVerifySelfieCameraPicker = () => {
+    verifySelfieCameraInputRef.current?.click();
+  };
+
   const loadProfilePhotos = useCallback(async () => {
     if (!isAuthenticated) return;
     const payload = await authApi.getProfilePhotos();
@@ -576,6 +598,37 @@ const OnboardingScreen = () => {
       setPhotoUploadStatus('success');
     }
 
+    event.currentTarget.value = '';
+  };
+
+  const onVerifySelfieSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = Array.from(event.target.files ?? []).find(
+      (item) => item instanceof File && item.type.startsWith('image/'),
+    );
+    if (!file) return;
+
+    setVerifySelfieStatus(verifySelfieStatus === 'error' ? 'retry' : 'loading');
+    setVerifySelfieErrorMessage('');
+
+    if (verifySelfiePreviewUrl && verifySelfiePreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(verifySelfiePreviewUrl);
+    }
+
+    const nextPreview = URL.createObjectURL(file);
+    const response = await authApi.submitKycSelfie(file);
+    if (isAuthError(response)) {
+      URL.revokeObjectURL(nextPreview);
+      setVerifySelfieStatus('error');
+      setVerifySelfieErrorMessage(response.message ?? 'Unable to submit selfie now.');
+      setField('verifyNow', false);
+      event.currentTarget.value = '';
+      return;
+    }
+
+    setVerifySelfiePreviewUrl(nextPreview);
+    setVerifySelfieStatus('success');
+    setVerifySelfieErrorMessage('');
+    setField('verifyNow', true);
     event.currentTarget.value = '';
   };
 
@@ -1300,15 +1353,74 @@ const OnboardingScreen = () => {
 
               {step === 10 && (
                 <div className="space-y-4 text-center py-6">
-                  <div className="w-24 h-24 mx-auto rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-                    <ICONS.Shield className="text-blue-400" size={40} />
+                  <div className="w-24 h-24 mx-auto rounded-full bg-blue-500/10 border border-blue-500/30 overflow-hidden flex items-center justify-center">
+                    {verifySelfiePreviewUrl ? (
+                      <img src={verifySelfiePreviewUrl} alt="Verification selfie" className="w-full h-full object-cover" />
+                    ) : (
+                      <ICONS.Shield className="text-blue-400" size={40} />
+                    )}
                   </div>
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.verify.title}</h2>
                   <p className="text-white/60">{copy.verify.subtitle}</p>
-                  <GlassButton variant="premium" onClick={() => setField('verifyNow', true)} className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]">
+                  <input
+                    ref={verifySelfieCameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    className="hidden"
+                    onChange={onVerifySelfieSelected}
+                  />
+                  <GlassButton variant="premium" onClick={openVerifySelfieConsent} className="w-full h-[var(--cta-height)] font-black uppercase tracking-[0.14em]">
                     {copy.verify.now}
                   </GlassButton>
-                  <button onClick={() => setField('verifyNow', false)} className="text-xs font-black uppercase tracking-[0.2em] text-white/55">
+                  {verifyConsentOpen && (
+                    <div className="rounded-[18px] border border-white/10 bg-white/5 p-4 text-left space-y-3">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-sky-200">
+                        Selfie verification consent
+                      </p>
+                      <p className="text-xs text-white/75 leading-relaxed">
+                        You agree to provide a selfie for identity verification. This photo is used only for verification and will not appear on your profile, feed, or chats.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setVerifyConsentGranted(true);
+                          setVerifyConsentOpen(false);
+                          openVerifySelfieCameraPicker();
+                        }}
+                        className="w-full h-10 rounded-xl border border-sky-300/35 bg-sky-500/12 text-sky-100 text-[10px] font-black uppercase tracking-[0.12em]"
+                      >
+                        Front camera selfie
+                      </button>
+                      <button
+                        onClick={() => setVerifyConsentOpen(false)}
+                        className="w-full h-9 rounded-xl border border-white/15 bg-transparent text-white/70 text-[10px] font-black uppercase tracking-[0.12em]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                  {verifyConsentGranted && !verifyConsentOpen && (
+                    <div className="rounded-[14px] border border-sky-400/20 bg-sky-500/10 p-2">
+                      <p className="text-[10px] text-sky-100 font-black uppercase tracking-[0.12em]">
+                        Consent captured. Use front camera for selfie verification.
+                      </p>
+                    </div>
+                  )}
+                  {verifySelfieStatus === 'success' && <p className="text-xs text-sky-300">{copy.common.active}</p>}
+                  {verifySelfieErrorMessage && <p className="text-xs text-red-300">{verifySelfieErrorMessage}</p>}
+                  <button
+                    onClick={() => {
+                      setField('verifyNow', false);
+                      setVerifySelfieStatus('idle');
+                      setVerifyConsentOpen(false);
+                      setVerifyConsentGranted(false);
+                      if (verifySelfiePreviewUrl && verifySelfiePreviewUrl.startsWith('blob:')) {
+                        URL.revokeObjectURL(verifySelfiePreviewUrl);
+                      }
+                      setVerifySelfiePreviewUrl(null);
+                    }}
+                    className="text-xs font-black uppercase tracking-[0.2em] text-white/55"
+                  >
                     {copy.verify.later}
                   </button>
                 </div>
@@ -1331,7 +1443,17 @@ const OnboardingScreen = () => {
               {step === 12 && (
                 <div className="space-y-5 text-center py-4">
                   <div className="w-32 h-32 mx-auto rounded-full border-4 border-pink-500/70 overflow-hidden relative">
-                    <img src="/assets/profile-1.jpg" alt={copy.ready.profileAlt} className="w-full h-full object-cover" />
+                    {uploadedPhotos[0]?.url || verifySelfiePreviewUrl ? (
+                      <img
+                        src={uploadedPhotos[0]?.url ?? verifySelfiePreviewUrl ?? ''}
+                        alt={copy.ready.profileAlt}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-fuchsia-600/30 to-sky-500/30 flex items-center justify-center">
+                        <ICONS.Profile size={34} className="text-white/70" />
+                      </div>
+                    )}
                     {form.verifyNow && (
                       <span className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-blue-500 border-2 border-black flex items-center justify-center">
                         <ICONS.Shield size={14} />
@@ -1339,11 +1461,7 @@ const OnboardingScreen = () => {
                     )}
                   </div>
                   <h2 className="text-4xl font-black italic uppercase tracking-tight">{copy.ready.title}</h2>
-                  <p className="text-white/60">
-                    {`${form.firstName || copy.ready.fallbackName}, ${age || 24} ${copy.common.years} • ${
-                      (form.city && copy.cities[form.city]) || copy.ready.fallbackCity
-                    }`}
-                  </p>
+                  <p className="text-white/60">{`${form.firstName || 'User'}${age ? `, ${age} ${copy.common.years}` : ''}${form.city ? ` - ${copy.cities[form.city]}` : ''}`}</p>
                   <GlassButton
                     variant="premium"
                     onClick={() => {

@@ -104,8 +104,6 @@ type OnboardingCopy = {
     title: string;
     viewProfiles: string;
     improveProfile: string;
-    fallbackName: string;
-    fallbackCity: string;
     profileAlt: string;
   };
   dateModal: {
@@ -252,8 +250,6 @@ export const onboardingCopy: Record<Locale, OnboardingCopy> = {
       title: 'Profile ready!',
       viewProfiles: 'See my profiles',
       improveProfile: 'Improve my profile',
-      fallbackName: 'Alex',
-      fallbackCity: 'Barnaul',
       profileAlt: 'Profile',
     },
     dateModal: {
@@ -500,8 +496,6 @@ export const onboardingCopy: Record<Locale, OnboardingCopy> = {
       title: 'Профиль готов!',
       viewProfiles: 'Смотреть анкеты',
       improveProfile: 'Улучшить профиль',
-      fallbackName: 'Алекс',
-      fallbackCity: 'Барнаул',
       profileAlt: 'Профиль',
     },
     dateModal: {

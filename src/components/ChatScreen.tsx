@@ -6,7 +6,7 @@ import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
-import { appApi } from '../services';
+import { appApi, authApi } from '../services';
 import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
 
 interface ChatScreenProps {
@@ -23,6 +23,16 @@ const formatTime = (isoDate: string) =>
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
   return shortPassTier ? 'essential' : 'free';
+};
+
+const resolveChatTargetLocale = (
+  targetLang: string | null | undefined,
+  fallbackLocale: string,
+): 'en' | 'ru' => {
+  if (targetLang === 'ru') return 'ru';
+  if (targetLang === 'en') return 'en';
+  if (fallbackLocale === 'ru') return 'ru';
+  return 'en';
 };
 
 const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
@@ -42,6 +52,9 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const [isApplyingSafetyAction, setIsApplyingSafetyAction] = useState(false);
   const [safetyFeedback, setSafetyFeedback] = useState('');
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [translationTargetLocale, setTranslationTargetLocale] = useState<'en' | 'ru'>(
+    locale === 'ru' ? 'ru' : 'en',
+  );
   const userId = propUserId || routeUserId;
 
   const containerProps = embedded
@@ -54,6 +67,30 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
         exit: { x: '100%' },
         className: 'absolute inset-0 z-50 bg-black flex flex-col',
       };
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const hydrateTranslationTarget = async () => {
+      try {
+        const profileResponse = await authApi.getProfileMe();
+        if (!isCancelled && profileResponse.ok) {
+          const nextTarget = resolveChatTargetLocale(profileResponse.data?.settings?.target_lang, locale);
+          setTranslationTargetLocale(nextTarget);
+        }
+      } catch {
+        if (!isCancelled) {
+          setTranslationTargetLocale(locale === 'ru' ? 'ru' : 'en');
+        }
+      }
+    };
+
+    void hydrateTranslationTarget();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [locale]);
 
   useEffect(() => {
     if (!userId) {
@@ -162,7 +199,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     void appApi.setTranslationToggle({
       conversationId,
       enabled: next,
-      targetLocale: locale,
+      targetLocale: translationTargetLocale,
     });
   };
 

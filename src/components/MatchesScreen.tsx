@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
-import { useRuntimeSelector } from '../state';
 
 const MatchesScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -16,9 +15,7 @@ const MatchesScreen: React.FC = () => {
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrollThumb, setScrollThumb] = useState(28);
-  const likesRefreshKey = useRuntimeSelector(
-    (payload) => `${payload.likesUnlocked}-${payload.planTier}-${payload.likes.length}`,
-  );
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [remoteState, setRemoteState] = useState<'loading' | 'empty' | 'locked' | 'unlocked'>(
@@ -71,7 +68,49 @@ const MatchesScreen: React.FC = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [likesRefreshKey]);
+  }, [reloadNonce]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    let inFlight = false;
+
+    const refreshLive = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const response = await appApi.getLikes();
+        if (isCancelled) return;
+        setRemoteState(response.state);
+        setHiddenLikesCount(response.inventory.hiddenCount);
+        setIceBreakerEligibleCount(response.inventory.iceBreaker.eligibleLikesHiddenCount);
+        setLikesCards(
+          response.inventory.visibleLikes.map((entry) => ({
+            id: entry.id,
+            profileId: entry.profile.id,
+            name: entry.profile.name,
+            age: entry.profile.age,
+            ageMasked: entry.profile.flags.hideAge,
+            city: entry.profile.city,
+            photo: entry.profile.photos[0] ?? '',
+            wasSuperLike: entry.wasSuperLike,
+          })),
+        );
+      } catch {
+        // Keep existing state and retry on next tick.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const timer = window.setInterval(() => {
+      void refreshLive();
+    }, 4000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -232,6 +271,12 @@ const MatchesScreen: React.FC = () => {
             <Heart size={28} className="mx-auto text-red-200" />
             <p className="mt-4 text-lg font-black text-white">{t('likes.errorTitle')}</p>
             <p className="mt-2 text-sm text-white/60">{t('likes.errorSubtitle')}</p>
+            <button
+              onClick={() => setReloadNonce((prev) => prev + 1)}
+              className="mt-4 h-10 px-4 rounded-xl border border-white/20 bg-white/5 text-[10px] uppercase tracking-[0.14em] font-black"
+            >
+              {t('discover.retry')}
+            </button>
           </section>
         )}
 

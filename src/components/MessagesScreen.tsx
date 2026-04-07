@@ -6,7 +6,6 @@ import ChatScreen from './ChatScreen';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
-import { useRuntimeSelector } from '../state';
 import type { ConversationSummary, PlanTier } from '../contracts';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
@@ -20,15 +19,10 @@ const MessagesScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
-  const likesCount = useRuntimeSelector((payload) => payload.likes.length);
-  const conversationsRefreshKey = useRuntimeSelector((payload) =>
-    payload.conversations
-      .map((entry) => `${entry.id}:${entry.lastMessageAtIso}:${entry.unreadCount}:${entry.relationState}`)
-      .join('|'),
-  );
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [conversationItems, setConversationItems] = useState<ConversationSummary[]>([]);
+  const [likesCount, setLikesCount] = useState(0);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [isApplyingSafetyAction, setIsApplyingSafetyAction] = useState(false);
   
@@ -49,10 +43,10 @@ const MessagesScreen = () => {
   useEffect(() => {
     setIsLoading(true);
     setHasError(false);
-    appApi
-      .getConversations()
-      .then((items) => {
+    Promise.all([appApi.getConversations(), appApi.getLikes()])
+      .then(([items, likesResponse]) => {
         setConversationItems(items);
+        setLikesCount(likesResponse.inventory.visibleLikes.length + likesResponse.inventory.hiddenCount);
         if (!urlUserId) {
           setSelectedUserId((prev) => prev ?? items[0]?.peer.id ?? null);
         }
@@ -64,7 +58,7 @@ const MessagesScreen = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [conversationsRefreshKey, urlUserId, reloadNonce]);
+  }, [urlUserId, reloadNonce]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -74,9 +68,13 @@ const MessagesScreen = () => {
       if (inFlight) return;
       inFlight = true;
       try {
-        const items = await appApi.getConversations();
+        const [items, likesResponse] = await Promise.all([
+          appApi.getConversations(),
+          appApi.getLikes(),
+        ]);
         if (isCancelled) return;
         setConversationItems(items);
+        setLikesCount(likesResponse.inventory.visibleLikes.length + likesResponse.inventory.hiddenCount);
       } catch {
         // Ignore transient live errors; manual retry keeps explicit recovery path.
       } finally {

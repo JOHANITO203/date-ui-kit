@@ -48,6 +48,12 @@ const uploadPhotoBodySchema = z.object({
   base64Data: z.string().min(1),
 });
 
+const uploadKycSelfieBodySchema = z.object({
+  mimeType: z.string().min(1),
+  base64Data: z.string().min(1),
+  captureMode: z.literal("front_camera"),
+});
+
 type ProfilePhotoRow = {
   id: string;
   user_id: string;
@@ -272,6 +278,88 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         ok: true,
         data: {
           photo: photoPayload,
+        },
+      } satisfies AuthResponse);
+    });
+
+    protectedRoutes.post("/profiles/kyc/selfie", async (request, reply) => {
+      const session = request.userSession;
+      if (!session) return;
+
+      const parsedBody = uploadKycSelfieBodySchema.safeParse(request.body);
+      if (!parsedBody.success) {
+        return sendAuthError(reply, 400, "KYC_SELFIE_INVALID_PAYLOAD", "Invalid KYC selfie payload.");
+      }
+
+      const { mimeType, base64Data, captureMode } = parsedBody.data;
+      if (captureMode !== "front_camera") {
+        return sendAuthError(reply, 400, "KYC_SELFIE_CAPTURE_MODE_INVALID", "Only front camera capture is allowed.");
+      }
+      if (!mimeType.startsWith("image/")) {
+        return sendAuthError(reply, 400, "KYC_SELFIE_INVALID_TYPE", "Only image uploads are allowed.");
+      }
+
+      const buffer = Buffer.from(base64Data, "base64");
+      if (!buffer || buffer.length === 0) {
+        return sendAuthError(reply, 400, "KYC_SELFIE_INVALID_PAYLOAD", "Selfie data is empty.");
+      }
+      if (buffer.length > 10 * 1024 * 1024) {
+        return sendAuthError(reply, 400, "KYC_SELFIE_FILE_TOO_LARGE", "Selfie exceeds max allowed size.");
+      }
+
+      const ext = extensionFromMimeType(mimeType);
+      const storagePath = `${session.user.id}/kyc/${Date.now()}-${randomUUID()}.${ext}`;
+
+      const uploadResult = await supabaseServiceClient.storage
+        .from(PROFILE_PHOTOS_BUCKET)
+        .upload(storagePath, buffer, {
+          contentType: mimeType,
+          upsert: false,
+        });
+
+      if (uploadResult.error) {
+        request.log.error({ err: uploadResult.error, userId: session.user.id }, "kyc.selfie.upload_failed");
+        return sendAuthError(reply, 500, "KYC_SELFIE_UPLOAD_FAILED", "Unable to upload selfie.");
+      }
+
+      const insertResult = await supabaseServiceClient
+        .from("kyc_selfie_submissions")
+        .insert({
+          user_id: session.user.id,
+          storage_path: storagePath,
+          status: "pending",
+          provider: "internal_v1",
+        })
+        .select("id,status,created_at")
+        .single();
+
+      if (insertResult.error || !insertResult.data) {
+        request.log.error({ err: insertResult.error, userId: session.user.id }, "kyc.selfie.insert_failed");
+        await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([storagePath]);
+        return sendAuthError(reply, 500, "KYC_SELFIE_PIPELINE_FAILED", "Unable to register KYC submission.");
+      }
+
+      const profileUpdateResult = await supabaseServiceClient
+        .from("profiles")
+        .upsert(
+          {
+            user_id: session.user.id,
+            verified_opt_in: true,
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (profileUpdateResult.error) {
+        request.log.error({ err: profileUpdateResult.error, userId: session.user.id }, "kyc.selfie.profile_flag_failed");
+      }
+
+      return sendAuthSuccess(reply, {
+        ok: true,
+        data: {
+          submissionId: insertResult.data.id,
+          status: insertResult.data.status,
+          submittedAt: insertResult.data.created_at,
+          verifiedOptIn: true,
         },
       } satisfies AuthResponse);
     });

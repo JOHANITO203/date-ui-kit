@@ -224,6 +224,44 @@ export const authApi = {
     });
   },
 
+  submitKycSelfie(file: File) {
+    return new Promise<AuthResponse<{
+      submissionId: string;
+      status: 'pending' | 'approved' | 'rejected';
+      submittedAt: string;
+      verifiedOptIn: boolean;
+    }>>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+        const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] ?? '' : '';
+        const payload = await request<{
+          submissionId: string;
+          status: 'pending' | 'approved' | 'rejected';
+          submittedAt: string;
+          verifiedOptIn: boolean;
+        }>('/profiles/kyc/selfie', {
+          method: 'POST',
+          body: JSON.stringify({
+            mimeType: file.type || 'application/octet-stream',
+            base64Data,
+            captureMode: 'front_camera',
+          }),
+        });
+        resolve(payload);
+      };
+      reader.onerror = () => {
+        resolve({
+          ok: false,
+          code: 'KYC_SELFIE_READ_FAILED',
+          message: 'Unable to read selfie file.',
+          fallback: ['login_with_google'],
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  },
+
   completeOnboarding(payload: {
     version: 'v1';
     firstName: string;

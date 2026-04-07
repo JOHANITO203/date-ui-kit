@@ -32,6 +32,7 @@ import type {
   ReportUserResponse,
 } from '../contracts';
 import { runtimeApi } from '../state';
+import { authApi } from './authApi';
 
 const DISCOVER_API_URL = (import.meta.env.VITE_DISCOVER_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 const CHAT_API_URL = (import.meta.env.VITE_CHAT_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
@@ -42,6 +43,82 @@ const SAFETY_API_URL = (import.meta.env.VITE_SAFETY_API_URL as string | undefine
 const withLatency = async <T>(value: T, delayMs = 120): Promise<T> => {
   await new Promise((resolve) => window.setTimeout(resolve, delayMs));
   return value;
+};
+
+type FeedIntent = 'serieuse' | 'connexion' | 'decouverte' | 'verrai';
+type FeedSignals = {
+  intent: FeedIntent | null;
+  interests: string[];
+  preciseLocationEnabled: boolean | null;
+};
+
+let cachedFeedSignals: FeedSignals = { intent: null, interests: [], preciseLocationEnabled: null };
+let cachedFeedSignalsFetchedAt = 0;
+const FEED_SIGNALS_CACHE_TTL_MS = 5 * 60 * 1000;
+const PRECISE_GEO_CACHE_TTL_MS = 2 * 60 * 1000;
+let cachedGeoPosition: { lat: number; lng: number; fetchedAt: number } | null = null;
+
+const getFeedSignals = async (): Promise<FeedSignals> => {
+  const now = Date.now();
+  if (cachedFeedSignalsFetchedAt > 0 && now - cachedFeedSignalsFetchedAt < FEED_SIGNALS_CACHE_TTL_MS) {
+    return cachedFeedSignals;
+  }
+
+  const response = await authApi.getProfileMe();
+  if (response.ok !== true) {
+    cachedFeedSignals = { intent: null, interests: [], preciseLocationEnabled: null };
+    cachedFeedSignalsFetchedAt = now;
+    return cachedFeedSignals;
+  }
+
+  const intent = response.data?.profile?.intent;
+  const resolvedIntent: FeedIntent | null =
+    intent === 'serieuse' || intent === 'connexion' || intent === 'decouverte' || intent === 'verrai'
+      ? intent
+      : null;
+  const interests = Array.isArray(response.data?.profile?.interests)
+    ? response.data?.profile?.interests.filter((value): value is string => typeof value === 'string' && value.length > 0)
+    : [];
+  const preciseLocationEnabled =
+    typeof response.data?.settings?.precise_location_enabled === 'boolean'
+      ? response.data.settings.precise_location_enabled
+      : null;
+
+  cachedFeedSignals = { intent: resolvedIntent, interests, preciseLocationEnabled };
+  cachedFeedSignalsFetchedAt = now;
+  return cachedFeedSignals;
+};
+
+const getPreciseGeoPoint = async (enabled: boolean): Promise<{ lat: number; lng: number } | null> => {
+  if (!enabled) return null;
+  if (typeof window === 'undefined' || !('geolocation' in navigator)) return null;
+
+  const now = Date.now();
+  if (cachedGeoPosition && now - cachedGeoPosition.fetchedAt < PRECISE_GEO_CACHE_TTL_MS) {
+    return { lat: cachedGeoPosition.lat, lng: cachedGeoPosition.lng };
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const point = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        cachedGeoPosition = {
+          ...point,
+          fetchedAt: Date.now(),
+        };
+        resolve(point);
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 4500,
+        maximumAge: PRECISE_GEO_CACHE_TTL_MS,
+      },
+    );
+  });
 };
 
 const discoverRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
@@ -152,6 +229,15 @@ export const appApi = {
     if (DISCOVER_API_URL) {
       try {
         const preferences = runtimeApi.getSettingsEnvelope().settings.preferences;
+        const settingsEnvelope = runtimeApi.getSettingsEnvelope();
+        const feedSignals = await getFeedSignals().catch<FeedSignals>(() => ({
+          intent: null,
+          interests: [],
+          preciseLocationEnabled: null,
+        }));
+        const preciseLocationEnabled =
+          feedSignals.preciseLocationEnabled ?? settingsEnvelope.settings.privacy.preciseLocation;
+        const preciseGeoPoint = await getPreciseGeoPoint(preciseLocationEnabled).catch(() => null);
         const query = new URLSearchParams({
           quickFilters: quickFilters.join(','),
           ageMin: String(preferences.ageMin),
@@ -159,6 +245,16 @@ export const appApi = {
           distanceKm: String(preferences.distanceKm),
           genderPreference: preferences.genderPreference,
         });
+        if (feedSignals.intent) {
+          query.set('intent', feedSignals.intent);
+        }
+        if (feedSignals.interests.length > 0) {
+          query.set('interests', feedSignals.interests.join(','));
+        }
+        if (preciseGeoPoint) {
+          query.set('lat', String(preciseGeoPoint.lat));
+          query.set('lng', String(preciseGeoPoint.lng));
+        }
         return await discoverRequest<GetFeedResponse>(`/discover/feed?${query.toString()}`);
       } catch (error) {
         if (!shouldFallbackToRuntime(error)) throw error;

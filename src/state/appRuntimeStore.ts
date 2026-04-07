@@ -27,7 +27,6 @@ import type {
   EntitlementSnapshot,
 } from '../contracts';
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
-import { conversationsSeed, messagesSeed, profileCards, receivedLikesSeed } from './runtimeData';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 
@@ -51,7 +50,12 @@ type RuntimeState = {
   likedProfileIds: string[];
   likedByProfileIds: string[];
   likesUnlocked: boolean;
-  likes: typeof receivedLikesSeed;
+  likes: {
+    id: string;
+    profile: ProfileCard;
+    receivedAtIso: string;
+    wasSuperLike: boolean;
+  }[];
   conversations: ConversationSummary[];
   messagesByConversation: Record<string, ChatMessage[]>;
   translationByConversationId: Record<string, boolean>;
@@ -61,13 +65,10 @@ type RuntimeState = {
   impressionByProfileId: Record<string, boolean>;
 };
 
-const cloneMessages = (payload: Record<string, ChatMessage[]>) =>
-  Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, [...value]]));
-
 const defaultSettings: UserSettings = {
   account: {
-    phone: '+7 900 000 00 00',
-    email: 'alex@exotic.app',
+    phone: '',
+    email: '',
   },
   privacy: {
     visibility: 'public',
@@ -136,17 +137,15 @@ const createInitialState = (): RuntimeState => ({
     activeUntilIso: null,
   },
   settings: readPersistedSettings() ?? defaultSettings,
-  feedSource: [...profileCards],
+  feedSource: [],
   dismissedProfileIds: [],
   likedProfileIds: [],
   likedByProfileIds: [],
   likesUnlocked: false,
-  likes: [...receivedLikesSeed],
-  conversations: [...conversationsSeed],
-  messagesByConversation: cloneMessages(messagesSeed),
-  translationByConversationId: Object.fromEntries(
-    conversationsSeed.map((entry) => [entry.id, defaultSettings.translation.autoDetectEnabled]),
-  ),
+  likes: [],
+  conversations: [],
+  messagesByConversation: {},
+  translationByConversationId: {},
   firstMessageSentByConversationId: {},
   firstMessageReplyByConversationId: {},
   sixMessagesReachedByConversationId: {},

@@ -4,6 +4,7 @@ export interface ProfileMeData {
     last_name?: string | null;
     locale?: string | null;
     city?: string | null;
+    verified_opt_in?: boolean | null;
   } | null;
   settings: {
     language?: 'en' | 'ru' | null;

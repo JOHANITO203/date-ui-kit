@@ -6,10 +6,23 @@ import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
-import { appApi } from '../services';
+import { appApi, authApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
+
+const calculateAge = (birthDateIso: string | null | undefined) => {
+  if (!birthDateIso) return undefined;
+  const birthDate = new Date(birthDateIso);
+  if (Number.isNaN(birthDate.getTime())) return undefined;
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDiff = now.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age >= 18 ? age : undefined;
+};
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -24,6 +37,11 @@ const ProfileScreen = () => {
   }));
   const settings = useRuntimeSelector((payload) => payload.settings);
   const [onlineOnly, setOnlineOnly] = useState(false);
+  const [verifiedIdentity, setVerifiedIdentity] = useState(false);
+  const [profileName, setProfileName] = useState('User');
+  const [profileAge, setProfileAge] = useState<number | undefined>(undefined);
+  const [profileCity, setProfileCity] = useState<string | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const shadowGhostAccess = resolveShadowGhostAccess({
     planTier: previewPlan,
     entitlementSource: settings.preferences.shadowGhostEntitlementSource,
@@ -91,6 +109,44 @@ const ProfileScreen = () => {
     }
     navigate('/boost');
   };
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const hydrateProfileState = async () => {
+      try {
+        const [profilePayload, photosPayload] = await Promise.all([
+          authApi.getProfileMe(),
+          authApi.getProfilePhotos(),
+        ]);
+
+        if (isCancelled) return;
+
+        if (profilePayload.ok && profilePayload.data?.profile) {
+          const profile = profilePayload.data.profile;
+          setVerifiedIdentity(Boolean(profile.verified_opt_in));
+          setProfileName(profile.first_name?.trim() || 'User');
+          setProfileAge(calculateAge(profile.birth_date));
+          setProfileCity(profile.city?.trim() || null);
+        }
+
+        if (photosPayload.ok) {
+          const firstPhotoUrl = (photosPayload.data?.photos ?? []).find((photo) => Boolean(photo.url))?.url ?? null;
+          setProfilePhotoUrl(firstPhotoUrl);
+        }
+      } catch {
+        if (!isCancelled) {
+          setVerifiedIdentity(false);
+        }
+      }
+    };
+
+    void hydrateProfileState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -168,28 +224,34 @@ const ProfileScreen = () => {
               className="relative z-10"
             >
               <div className="aspect-square rounded-[var(--card-radius)] overflow-hidden border border-white/10 shadow-2xl">
-                <img 
-                  src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80" 
-                  className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
-                  alt="Me" 
-                  referrerPolicy="no-referrer"
-                />
+                {profilePhotoUrl ? (
+                  <img
+                    src={profilePhotoUrl}
+                    className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700"
+                    alt="Me"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-fuchsia-700/35 via-zinc-900 to-sky-700/30 flex items-center justify-center">
+                    <ICONS.Profile size={56} className="text-white/70" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 
                 <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
                   <div>
                     <div className="mb-1">
                       <NameWithBadge
-                        name="Alex"
-                        age={26}
+                        name={profileName}
+                        age={profileAge}
                         ageMasked={hideAge}
-                        verified
+                        verified={verifiedIdentity}
                         premiumTier={previewPlan}
                         size="xl"
                       />
                     </div>
                     <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
-                      <ICONS.MapPin size={12} className="text-pink-500" /> {t('profile.city')}
+                      <ICONS.MapPin size={12} className="text-pink-500" /> {profileCity || t('profile.city')}
                     </div>
                   </div>
                   <button 

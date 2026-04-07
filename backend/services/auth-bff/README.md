@@ -11,7 +11,11 @@ Auth BFF microservice for this project.
 - Internal session token cookie
 - Profile/settings bootstrap endpoints (`/profiles/me`)
 - Profile photos real upload endpoints (`/profiles/photos`)
+- KYC selfie submission endpoint (`POST /profiles/kyc/selfie`)
 - Dedicated onboarding finalize endpoint (`POST /onboarding/complete`)
+
+KYC selfie contract:
+- `POST /profiles/kyc/selfie` accepts only `captureMode: "front_camera"` payloads.
 
 ## Setup
 
@@ -33,6 +37,10 @@ Auth BFF microservice for this project.
 
 Detailed Supabase + Google OAuth setup:
 - `backend/supabase/AUTH_BFF_SUPABASE_SETUP.md`
+
+Required migrations for photo + KYC pipelines:
+- `backend/supabase/migrations/20260407_000006_profile_photos_storage.sql`
+- `backend/supabase/migrations/20260407_000007_kyc_selfie_pipeline.sql`
 
 ## Health
 
