@@ -28,13 +28,16 @@ const LoginScreen = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="flex flex-col h-full p-8 pt-16"
+      className="flex flex-col h-full px-[var(--page-x)] pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)]"
     >
-      <button onClick={() => navigate('/')} className="absolute top-8 left-8 p-2 glass rounded-full">
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-[calc(env(safe-area-inset-top)+1.5rem)] left-[var(--page-x)] p-2 glass rounded-full"
+      >
         <ICONS.ChevronLeft size={20} />
       </button>
 
-      <div className="mt-12 mb-12">
+      <div className="mt-8 mb-10 md:mb-12">
         <div className="mb-8">
           <Logo size={42} />
         </div>
@@ -42,7 +45,7 @@ const LoginScreen = () => {
         <p className="text-white/60 text-lg">{t('login.subtitle')}</p>
       </div>
 
-      <div className="space-y-4 mt-auto mb-12">
+      <div className="space-y-4 mt-auto mb-8 md:mb-12">
         <GlassButton
           variant="premium"
           className="w-full py-5 flex items-center justify-center gap-3"
@@ -58,7 +61,7 @@ const LoginScreen = () => {
         </GlassButton>
       </div>
 
-      <p className="text-[10px] text-center text-white/30 px-8">
+      <p className="text-[10px] text-center text-white/30 px-2 sm:px-8">
         {t('login.legalPrefix')} <span className="underline">{t('login.legalTerms')}</span>{' '}
         {t('login.legalAnd')} <span className="underline">{t('login.legalPrivacy')}</span>.
       </p>

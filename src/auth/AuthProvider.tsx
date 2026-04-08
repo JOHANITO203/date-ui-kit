@@ -72,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshRequestIdRef = useRef(0);
   const ephemeralAccessRef = useRef(ephemeralAccessEnabled);
   const profileBackfillUserIdRef = useRef<string | null>(null);
+  const entitlementSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     ephemeralAccessRef.current = ephemeralAccessEnabled;
@@ -163,7 +164,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const payload = await appApi.getEntitlements();
         if (cancelled) return;
         if (payload.entitlementSnapshot) {
-          await appApi.applyEntitlementSnapshot(payload.entitlementSnapshot);
+          const signature = JSON.stringify(payload.entitlementSnapshot);
+          if (signature !== entitlementSignatureRef.current) {
+            await appApi.applyEntitlementSnapshot(payload.entitlementSnapshot);
+            entitlementSignatureRef.current = signature;
+          }
         }
       } catch {
         // Non-blocking: boost UI still works with runtime state.
@@ -171,8 +176,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     void hydrateEntitlements();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void hydrateEntitlements();
+      }
+    };
+    const intervalId = window.setInterval(() => {
+      void hydrateEntitlements();
+    }, 60000);
+    window.addEventListener('focus', onVisibility);
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onVisibility);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [ephemeralAccessEnabled, status, user?.id]);
 
@@ -191,6 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setStatus('guest');
     profileBackfillUserIdRef.current = null;
+    entitlementSignatureRef.current = null;
   };
 
   const logout = async () => {
@@ -204,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setStatus('guest');
       profileBackfillUserIdRef.current = null;
+      entitlementSignatureRef.current = null;
     }
   };
 

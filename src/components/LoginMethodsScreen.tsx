@@ -70,13 +70,16 @@ const LoginMethodsScreen = () => {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="flex flex-col h-full p-8 pt-16"
+      className="flex flex-col h-full px-[var(--page-x)] pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)]"
     >
-      <button onClick={() => navigate('/login')} className="absolute top-8 left-8 p-2 glass rounded-full">
+      <button
+        onClick={() => navigate('/login')}
+        className="absolute top-[calc(env(safe-area-inset-top)+1.5rem)] left-[var(--page-x)] p-2 glass rounded-full"
+      >
         <ICONS.ChevronLeft size={20} />
       </button>
 
-      <div className="mt-12 mb-10">
+      <div className="mt-8 mb-8 md:mb-10">
         <h1 className="text-3xl font-bold tracking-tight mb-4">{t('loginMethods.title')}</h1>
         <p className="text-white/60">Google authentication only (MVP mode).</p>
       </div>

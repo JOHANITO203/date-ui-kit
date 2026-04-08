@@ -5,12 +5,18 @@ import { useDevice } from '../hooks/useDevice';
 import ChatScreen from './ChatScreen';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
-import { appApi } from '../services';
+import { appApi, subscribeConversationRelationChange } from '../services';
 import type { ConversationSummary, PlanTier } from '../contracts';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
   return shortPassTier ? 'essential' : 'free';
+};
+
+const resolvePhotoUrl = (photos: string[] | undefined): string => {
+  if (!Array.isArray(photos)) return '/placeholder.svg';
+  const direct = photos.find((entry) => typeof entry === 'string' && entry.trim().length > 0);
+  return direct ?? '/placeholder.svg';
 };
 
 const MessagesScreen = () => {
@@ -215,6 +221,13 @@ const MessagesScreen = () => {
     );
   };
 
+  useEffect(() => {
+    const unsubscribe = subscribeConversationRelationChange(({ conversationId, state }) => {
+      applyConversationRelationState(conversationId, state);
+    });
+    return unsubscribe;
+  }, []);
+
   const handleQuickBlockToggle = async (conversation: ConversationSummary) => {
     const canToggleQuickBlock =
       conversation.relationState === 'active' || conversation.relationState === 'blocked_by_me';
@@ -319,7 +332,13 @@ const MessagesScreen = () => {
                 onClick={() => handleUserSelect(conversation.peer.id)}
               >
                 <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
-                  <img src={conversation.peer.photos[0]} className="w-full h-full object-cover" alt={conversation.peer.name} referrerPolicy="no-referrer" />
+                  <img
+                    src={resolvePhotoUrl(conversation.peer.photos)}
+                    className="w-full h-full object-cover"
+                    alt={conversation.peer.name}
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                  />
                 </div>
                 <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider">
                   {conversation.peer.name}, {conversation.peer.age}
@@ -411,7 +430,13 @@ const MessagesScreen = () => {
                     style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
                   >
                     <div className="relative shrink-0">
-                      <img src={conversation.peer.photos[0]} className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`} alt={conversation.peer.name} referrerPolicy="no-referrer" />
+                      <img
+                        src={resolvePhotoUrl(conversation.peer.photos)}
+                        className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`}
+                        alt={conversation.peer.name}
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                      />
                       {conversation.online && (
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
                       )}
@@ -471,7 +496,7 @@ const MessagesScreen = () => {
                             actionConversationId === conversation.id ||
                             !(conversation.relationState === 'active' || conversation.relationState === 'blocked_by_me')
                           }
-                          className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-orange-300/35 bg-orange-500/12 text-orange-100 disabled:opacity-50"
+                          className="min-h-6 px-2 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-orange-300/35 bg-orange-500/12 text-orange-100 disabled:opacity-50 whitespace-nowrap"
                         >
                           {conversation.relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
                         </button>
@@ -481,7 +506,7 @@ const MessagesScreen = () => {
                             void handleQuickReport(conversation);
                           }}
                           disabled={actionConversationId === conversation.id}
-                          className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-red-300/35 bg-red-500/12 text-red-100 disabled:opacity-50"
+                          className="min-h-6 px-2 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-red-300/35 bg-red-500/12 text-red-100 disabled:opacity-50 whitespace-nowrap"
                         >
                           {t('chat.report')}
                         </button>

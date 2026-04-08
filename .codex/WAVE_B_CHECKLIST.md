@@ -10,7 +10,7 @@ This checklist follows the current repository state and the product timeline.
 - [x] Webhook validation in backend (shared secret + payload checks).
 - [x] Entitlement creation on successful payment.
 - [x] Entitlement expiration handling (time-based sanitization/revocation on read/merge).
-- [ ] Frontend state reflects entitlement change without manual refresh.
+- [x] Frontend state reflects entitlement change without manual refresh (AuthProvider background hydration + dedupe).
 
 ## 2) Block / Report
 - [x] Block API + persistence (`blocks`) fully active.
@@ -20,6 +20,7 @@ This checklist follows the current repository state and the product timeline.
   - blocked me
   - unblock path
   - report feedback
+  - local sync patch added between list/chat relation states (`exotic:conversation-relation-state`)
 
 ## 3) Supabase Security Baseline
 - [x] RLS enabled on sensitive tables used in Wave B.

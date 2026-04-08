@@ -18,9 +18,11 @@ Date: 2026-04-06
   - confirmer zero ecriture directe `anon/authenticated` sur tables server-owned
 - Dette de modelisation `user_id`:
   - unifier le type (`uuid` vs `text`) sur toutes les tables metier
-  - planifier migration + retrocompatibilite backend
+  - migration preparee: `backend/supabase/migrations/20260408_000015_user_id_uuid_alignment.sql`
+  - appliquer la migration sur Supabase, puis verifier qu'aucune ligne legacy non-uuid ne bloque le cast
 - Dette referentielle:
   - ajouter FK manquantes sur paiements/entitlements/securite apres unification de `user_id`
+  - migration preparee dans `20260408_000015_user_id_uuid_alignment.sql`
 - Dette de validation runtime:
   - completer les checks d'expiration entitlement (edges temporels)
   - ajouter checks post-migration (tables, policies, indexes, triggers `updated_at`)

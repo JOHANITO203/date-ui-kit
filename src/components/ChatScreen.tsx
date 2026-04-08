@@ -6,7 +6,7 @@ import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
-import { appApi, authApi } from '../services';
+import { appApi, authApi, subscribeConversationRelationChange } from '../services';
 import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
 
 interface ChatScreenProps {
@@ -23,6 +23,12 @@ const formatTime = (isoDate: string) =>
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
   return shortPassTier ? 'essential' : 'free';
+};
+
+const resolvePhotoUrl = (photos: string[] | undefined): string => {
+  if (!Array.isArray(photos)) return '/placeholder.svg';
+  const direct = photos.find((entry) => typeof entry === 'string' && entry.trim().length > 0);
+  return direct ?? '/placeholder.svg';
 };
 
 const resolveChatTargetLocale = (
@@ -196,6 +202,19 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     };
   }, [conversationId, userId]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeConversationRelationChange(({ conversationId: changedConversationId, state }) => {
+      setConversation((prev) => {
+        if (!prev || prev.id !== changedConversationId) return prev;
+        return {
+          ...prev,
+          relationState: state,
+        };
+      });
+    });
+    return unsubscribe;
+  }, []);
+
   const activePeer = conversation?.peer;
   const relationState = conversation?.relationState ?? 'active';
   const isConversationRestricted = relationState !== 'active';
@@ -345,7 +364,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           )}
           <div className="relative">
             <img
-              src={activePeer.photos[0]}
+              src={resolvePhotoUrl(activePeer.photos)}
               className="w-10 h-10 rounded-[14px] object-cover"
               alt={activePeer.name}
               referrerPolicy="no-referrer"
@@ -511,10 +530,11 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             return (
               <div key={message.id} className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
                 <img
-                  src={activePeer.photos[0]}
+                  src={resolvePhotoUrl(activePeer.photos)}
                   className="w-8 h-8 rounded-xl object-cover self-end shrink-0"
                   alt=""
                   referrerPolicy="no-referrer"
+                  loading="lazy"
                 />
                 <div className="space-y-1.5">
                   <div className="p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed bg-[#111319] border border-white/10">

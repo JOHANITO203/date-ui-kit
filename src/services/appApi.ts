@@ -69,6 +69,12 @@ let cachedGeoPosition: { lat: number; lng: number; fetchedAt: number } | null = 
 let cachedInternalToken: { value: string; fetchedAt: number } | null = null;
 let pendingInternalTokenPromise: Promise<string> | null = null;
 const INTERNAL_TOKEN_CACHE_TTL_MS = 30 * 1000;
+const CONVERSATION_RELATION_EVENT = 'exotic:conversation-relation-state';
+
+export type ConversationRelationEventDetail = {
+  conversationId: string;
+  state: ConversationSummary['relationState'];
+};
 
 const invalidateFeedSignalsCache = () => {
   cachedFeedSignals = {
@@ -276,7 +282,7 @@ const shouldFallbackToRuntime = (error: unknown) => {
 };
 
 const syncRuntimeSettingsFromAuthProfile = (
-  payload: Awaited<ReturnType<typeof authApi.getProfileMe>>['data'] | undefined,
+  payload: ProfileMeData | undefined,
 ) => {
   if (!payload) return;
 
@@ -376,6 +382,30 @@ const syncRuntimeSettingsFromAuthProfile = (
     runtimeApi.patchSettings({ patch: nextPatch });
     invalidateFeedSignalsCache();
   }
+};
+
+const emitConversationRelationChange = (detail: ConversationRelationEventDetail) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent<ConversationRelationEventDetail>(CONVERSATION_RELATION_EVENT, {
+      detail,
+    }),
+  );
+};
+
+export const subscribeConversationRelationChange = (
+  listener: (detail: ConversationRelationEventDetail) => void,
+) => {
+  if (typeof window === 'undefined') return () => {};
+  const handler = (event: Event) => {
+    const custom = event as CustomEvent<ConversationRelationEventDetail>;
+    if (!custom.detail) return;
+    listener(custom.detail);
+  };
+  window.addEventListener(CONVERSATION_RELATION_EVENT, handler as EventListener);
+  return () => {
+    window.removeEventListener(CONVERSATION_RELATION_EVENT, handler as EventListener);
+  };
 };
 
 export const appApi = {
@@ -563,9 +593,21 @@ export const appApi = {
       return chatRequest<UpdateConversationRelationStateResponse>('/chat/relation-state', {
         method: 'PATCH',
         body: JSON.stringify(request),
+      }).then((payload) => {
+        emitConversationRelationChange({
+          conversationId: payload.conversationId,
+          state: payload.state,
+        });
+        return payload;
       });
     }
-    return withLatency(runtimeApi.setConversationRelationState(request), 50);
+    return withLatency(runtimeApi.setConversationRelationState(request), 50).then((payload) => {
+      emitConversationRelationChange({
+        conversationId: payload.conversationId,
+        state: payload.state,
+      });
+      return payload;
+    });
   },
 
   setTranslationToggle(request: TranslationToggleRequest): Promise<TranslationToggleResponse> {
@@ -676,7 +718,7 @@ export const appApi = {
       .getProfileMe()
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`profile_me_failed_${response.code ?? 'unknown'}`);
+          throw new Error('profile_me_failed');
         }
 
         syncRuntimeSettingsFromAuthProfile(response.data);

@@ -13,8 +13,9 @@ This file tracks remaining debt for Wave C (production hardening).
 - Realtime load/interval tuning per environment is not finalized.
 
 ## 3) Responsive debt
-- Final manual QA pass on real devices is still pending.
-- Validation matrix for small devices and browser-safe-area variants is not yet documented.
+- Final manual QA pass on real devices completed (validated by in-field device tests).
+- Safe-area / small-device responsive behavior considered locked for MVP scope.
+- Remaining work is documentation-only: optional validation matrix formalization (non-blocking).
 
 ## 4) Staging/release debt
 - Staging deployment verification loop not completed end-to-end.

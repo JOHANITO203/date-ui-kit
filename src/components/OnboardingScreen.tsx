@@ -458,7 +458,9 @@ const OnboardingScreen = () => {
 
   const canContinue = useMemo(() => {
     if (step === 2) return form.consentAge && form.consentTerms;
-    if (step === 3) return isAuthenticated;
+    // Step 3 is UX-only (city/launch server choice). Do not hard-block navigation
+    // on transient auth session state; final submission still enforces auth.
+    if (step === 3) return true;
     if (step === 4) return Boolean(form.firstName && form.birthDate && age >= 18 && form.gender && form.city && form.originCountry && form.languages.length);
     if (step === 5) return form.photos >= 1;
     if (step === 6) return form.ageMin < form.ageMax;

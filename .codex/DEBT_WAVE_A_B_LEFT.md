@@ -25,6 +25,9 @@ It is a tracking list, not a blocker for Wave C execution.
 - Validate RLS policies per table (`auth.uid()` ownership checks).
 - Validate grants: server-owned tables must not allow direct writes from `anon/authenticated`.
 - Normalize `user_id` typing strategy (`uuid` vs `text`) and prepare migration plan.
+- `user_id` alignment migration now prepared:
+  - `20260408_000015_user_id_uuid_alignment.sql`
+  - pending execution on real Supabase + post-run verification
 - Add a migration execution log (env/date/version/operator) for production traceability.
 - Operational blocker for automated push from this environment:
   - Supabase CLI non-interactive login requires `SUPABASE_ACCESS_TOKEN`
