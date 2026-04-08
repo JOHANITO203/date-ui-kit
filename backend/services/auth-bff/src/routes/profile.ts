@@ -29,7 +29,25 @@ const settingsSchema = z
     ageMax: z.number().int().min(18).max(100).optional(),
     genderPreference: z.enum(["everyone", "women", "men"]).optional(),
   })
-  .partial();
+  .partial()
+  .superRefine((value, ctx) => {
+    if (
+      typeof value.ageMin === "number" &&
+      typeof value.ageMax === "number" &&
+      value.ageMin > value.ageMax
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ageMin"],
+        message: "ageMin must be lower than or equal to ageMax",
+      });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ageMax"],
+        message: "ageMax must be greater than or equal to ageMin",
+      });
+    }
+  });
 
 const profileUpdateSchema = z.object({
   first_name: z.string().min(1).max(100).optional(),

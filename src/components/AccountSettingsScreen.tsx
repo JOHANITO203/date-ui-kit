@@ -5,6 +5,7 @@ import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
+import { translations } from '../i18n/translations';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { appApi } from '../services';
 import type { SettingsEnvelope, BlockEntry } from '../contracts';
@@ -44,12 +45,32 @@ const PHONE_COUNTRY_CODES = [
   { value: '+49', label: '+49 (DE)' },
 ];
 
+const MOJIBAKE_RE = /(?:Ð.|Ñ.|Ã.|Â.)|�/;
+const resolveI18nPath = (obj: Record<string, unknown>, path: string): string | undefined =>
+  path.split('.').reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === 'object') {
+      return (acc as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, obj) as string | undefined;
+
 const AccountSettingsScreen = () => {
   const navigate = useNavigate();
   const { category, sub } = useParams();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
-  const { t, locale, setLocale } = useI18n();
+  const { t: rawT, locale, setLocale } = useI18n();
+  const t = (key: string, params?: Record<string, string | number>) => {
+    const localized = rawT(key, params);
+    if (localized !== key && !MOJIBAKE_RE.test(localized)) return localized;
+    const englishTemplate = resolveI18nPath(
+      translations.en as unknown as Record<string, unknown>,
+      key,
+    );
+    if (typeof englishTemplate !== 'string') return localized;
+    if (!params) return englishTemplate;
+    return englishTemplate.replace(/\{(\w+)\}/g, (_, name: string) => `${params[name] ?? `{${name}}`}`);
+  };
   const { logout, user } = useAuth();
   const isLarge = isDesktop || isTablet;
   const [settingsEnvelope, setSettingsEnvelope] = useState<SettingsEnvelope | null>(null);
@@ -137,7 +158,7 @@ const AccountSettingsScreen = () => {
         setSettingsPatchStatus('success');
       } catch {
         setSettingsPatchStatus('error');
-        setProfileSettingsError('Unable to save settings.');
+        setProfileSettingsError(t('settings.error'));
       }
     };
 
@@ -158,7 +179,7 @@ const AccountSettingsScreen = () => {
     } catch {
       failed = true;
       setProfilePatchStatus('error');
-      setProfileSettingsError('Unable to save profile settings.');
+      setProfileSettingsError(t('settings.error'));
     } finally {
       if (!failed) {
         setProfilePatchStatus('idle');
@@ -184,6 +205,13 @@ const AccountSettingsScreen = () => {
           ? 'settings.cities.sochi'
           : 'settings.cities.moscow';
 
+  const selectedVisibilityOption =
+    (settings?.privacy.visibility ?? 'public') === 'hidden'
+      ? 'settings.visibility.hidden'
+      : (settings?.privacy.visibility ?? 'public') === 'limited'
+        ? 'settings.visibility.limited'
+        : 'settings.visibility.public';
+
   const sections: SettingSection[] = [
     {
       id: 'account',
@@ -201,7 +229,14 @@ const AccountSettingsScreen = () => {
       titleKey: 'settings.sections.privacy',
       icon: <ICONS.Shield size={18} />,
       items: [
-        { labelKey: 'settings.items.visibility', id: 'visibility', type: 'toggle', descKey: 'settings.items.visibilityDesc' },
+        {
+          labelKey: 'settings.items.visibility',
+          id: 'visibility',
+          type: 'select',
+          descKey: 'settings.items.visibilityDesc',
+          options: ['settings.visibility.public', 'settings.visibility.limited', 'settings.visibility.hidden'],
+          selectedOption: selectedVisibilityOption,
+        },
         { labelKey: 'settings.items.hideAge', id: 'hide-age', type: 'toggle', descKey: 'settings.items.hideAgeDesc' },
         { labelKey: 'settings.items.hideDistance', id: 'hide-distance', type: 'toggle', descKey: 'settings.items.hideDistanceDesc' },
         { labelKey: 'settings.items.shadowGhost', id: 'shadow-ghost', type: 'toggle', descKey: 'settings.items.shadowGhostDesc' },
@@ -224,10 +259,7 @@ const AccountSettingsScreen = () => {
       titleKey: 'settings.sections.notifications',
       icon: <ICONS.Bell size={18} />,
       items: [
-        { labelKey: 'settings.items.matches', id: 'matches', type: 'toggle' },
-        { labelKey: 'settings.items.messages', id: 'messages', type: 'toggle' },
-        { labelKey: 'settings.items.likes', id: 'likes', type: 'toggle' },
-        { labelKey: 'settings.items.offers', id: 'offers', type: 'toggle' },
+        { labelKey: 'settings.items.notificationsMaster', id: 'notifications-enabled', type: 'toggle', descKey: 'settings.items.notificationsMasterDesc' },
       ],
       path: '/settings/notifications',
     },
@@ -272,8 +304,6 @@ const AccountSettingsScreen = () => {
 
   const isToggleEnabled = (id: string) => {
     switch (id) {
-      case 'visibility':
-        return (settings?.privacy.visibility ?? 'public') === 'public';
       case 'hide-age':
         return settings?.privacy.hideAge ?? false;
       case 'hide-distance':
@@ -284,14 +314,13 @@ const AccountSettingsScreen = () => {
         return settings?.privacy.incognito ?? false;
       case 'read-receipts':
         return settings?.privacy.readReceipts ?? true;
-      case 'matches':
-        return settings?.notifications.matches ?? true;
-      case 'messages':
-        return settings?.notifications.messages ?? true;
-      case 'likes':
-        return settings?.notifications.likes ?? true;
-      case 'offers':
-        return settings?.notifications.offers ?? true;
+      case 'notifications-enabled':
+        return (
+          (settings?.notifications.matches ?? true) ||
+          (settings?.notifications.messages ?? true) ||
+          (settings?.notifications.likes ?? true) ||
+          (settings?.notifications.offers ?? true)
+        );
       default:
         return false;
     }
@@ -348,7 +377,7 @@ const AccountSettingsScreen = () => {
     const numberLooksValid = /^[0-9]{4,15}$/.test(normalizedNumber);
     if (!codeLooksValid || !numberLooksValid) {
       setProfilePatchStatus('error');
-      setProfileSettingsError('Invalid phone format. Use country code + digits only.');
+      setProfileSettingsError(t('settings.phone.invalid'));
       return;
     }
     await patchProfileSettings({
@@ -361,13 +390,6 @@ const AccountSettingsScreen = () => {
 
   const toggleSetting = (id: string) => {
     switch (id) {
-      case 'visibility':
-        patchSettings({
-          privacy: {
-            visibility: (settings?.privacy.visibility ?? 'public') === 'public' ? 'limited' : 'public',
-          },
-        });
-        break;
       case 'hide-age':
         patchSettings({
           privacy: {
@@ -407,16 +429,13 @@ const AccountSettingsScreen = () => {
           },
         });
         break;
-      case 'matches':
-      case 'messages':
-      case 'likes':
-      case 'offers': {
+      case 'notifications-enabled': {
+        const nextValue = !isToggleEnabled('notifications-enabled');
         const nextNotifications = {
-          matches: settings?.notifications.matches ?? true,
-          messages: settings?.notifications.messages ?? true,
-          likes: settings?.notifications.likes ?? true,
-          offers: settings?.notifications.offers ?? true,
-          [id]: !isToggleEnabled(id),
+          matches: nextValue,
+          messages: nextValue,
+          likes: nextValue,
+          offers: nextValue,
         };
         patchSettings({
           notifications: nextNotifications,
@@ -464,6 +483,19 @@ const AccountSettingsScreen = () => {
               : 'moscow';
       patchSettings({
         preferences: { travelPassCity: nextCity },
+      });
+      return;
+    }
+
+    if (itemId === 'visibility') {
+      const nextVisibility =
+        optionKey === 'settings.visibility.hidden'
+          ? 'hidden'
+          : optionKey === 'settings.visibility.limited'
+            ? 'limited'
+            : 'public';
+      patchSettings({
+        privacy: { visibility: nextVisibility },
       });
     }
   };
@@ -616,13 +648,13 @@ const AccountSettingsScreen = () => {
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-secondary uppercase tracking-widest px-1">{itemLabel}</label>
                       <div className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70">
-                        Use secure reset flow from login methods.
+                        {t('settings.password.resetHint')}
                       </div>
                     </div>
                   )}
                   {profileSettingsError && <p className="text-xs text-red-300">{profileSettingsError}</p>}
                   {(profilePatchStatus === 'loading' || settingsPatchStatus === 'loading') && (
-                    <p className="text-xs text-cyan-200">Saving...</p>
+                    <p className="text-xs text-cyan-200">{t('settings.saving')}</p>
                   )}
                 </div>
               )}
@@ -887,7 +919,6 @@ const AccountSettingsScreen = () => {
           </button>
           <h2 className="text-2xl font-black italic uppercase tracking-tight">{t('settings.title')}</h2>
         </div>
-        <GlassButton className="py-2 px-4 rounded-full text-xs">{t('settings.save')}</GlassButton>
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">

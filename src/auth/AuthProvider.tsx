@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionUser } from '../contracts';
-import { authApi } from '../services';
+import { appApi, authApi } from '../services';
 import { getOnboardingProfileSnapshot } from '../domain/profileHydration';
 
 type AuthStatus = 'loading' | 'authenticated' | 'guest';
@@ -152,6 +152,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     void backfillFromOnboardingSnapshot();
+  }, [ephemeralAccessEnabled, status, user?.id]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !user?.id || ephemeralAccessEnabled) return;
+    let cancelled = false;
+
+    const hydrateEntitlements = async () => {
+      try {
+        const payload = await appApi.getEntitlements();
+        if (cancelled) return;
+        if (payload.entitlementSnapshot) {
+          await appApi.applyEntitlementSnapshot(payload.entitlementSnapshot);
+        }
+      } catch {
+        // Non-blocking: boost UI still works with runtime state.
+      }
+    };
+
+    void hydrateEntitlements();
+    return () => {
+      cancelled = true;
+    };
   }, [ephemeralAccessEnabled, status, user?.id]);
 
   const enableEphemeralAccess = () => {

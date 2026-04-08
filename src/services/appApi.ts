@@ -37,7 +37,6 @@ import { authApi } from './authApi';
 const DISCOVER_API_URL = (import.meta.env.VITE_DISCOVER_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 const CHAT_API_URL = (import.meta.env.VITE_CHAT_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 const PAYMENTS_API_URL = (import.meta.env.VITE_PAYMENTS_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
-const PROFILE_API_URL = (import.meta.env.VITE_PROFILE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 const SAFETY_API_URL = (import.meta.env.VITE_SAFETY_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 
 const withLatency = async <T>(value: T, delayMs = 120): Promise<T> => {
@@ -251,37 +250,7 @@ const chatRequest = async <T>(path: string, init?: RequestInit): Promise<T> =>
   serviceRequest<T>(CHAT_API_URL, path, init);
 
 const paymentsRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${PAYMENTS_API_URL}${path}`, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
-
-  if (!response.ok) {
-    throw new Error(`payments_request_failed_${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-};
-
-const profileRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${PROFILE_API_URL}${path}`, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
-
-  if (!response.ok) {
-    throw new Error(`profile_request_failed_${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
+  return serviceRequest<T>(PAYMENTS_API_URL, path, init);
 };
 
 const safetyRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
@@ -694,51 +663,15 @@ export const appApi = {
         if (response.ok) {
           syncRuntimeSettingsFromAuthProfile(response.data);
           invalidateFeedSignalsCache();
+          return runtimeApi.getSettingsEnvelope();
         }
-        return runtimeApi.getSettingsEnvelope();
+        throw new Error('settings_patch_failed');
       })
-      .catch(async () => {
-        try {
-          const latest = await authApi.getProfileMe();
-          if (latest.ok) {
-            syncRuntimeSettingsFromAuthProfile(latest.data);
-            invalidateFeedSignalsCache();
-          }
-        } catch {
-          // Keep last known runtime state if refresh fails.
-        }
-        return runtimeApi.getSettingsEnvelope();
-      })
+      .catch((error) => Promise.reject(error))
       .then((payload) => withLatency(payload, 100));
   },
 
   getProfileMe(): Promise<ProfileMeData> {
-    if (PROFILE_API_URL) {
-      return profileRequest<{
-        userId: string;
-        profile: ProfileMeData['profile'];
-        settings: ProfileMeData['settings'];
-      }>('/profiles/me')
-        .then((payload) => ({
-          profile: payload.profile,
-          settings: payload.settings,
-        }))
-        .catch((error) => {
-          if (!shouldFallbackToRuntime(error)) {
-            return Promise.reject(error);
-          }
-          return withLatency({
-            profile: {
-              first_name: null,
-              last_name: null,
-              locale: runtimeApi.getSettingsEnvelope().settings.preferences.language,
-              city: null,
-            },
-            settings: null,
-          });
-        });
-    }
-
     return authApi
       .getProfileMe()
       .then((response) => {
@@ -795,81 +728,6 @@ export const appApi = {
 
   patchProfileMe(payload: PatchProfileMeRequest): Promise<ProfileMeData> {
     invalidateFeedSignalsCache();
-    if (PROFILE_API_URL) {
-      return profileRequest<{
-        userId: string;
-        profile: ProfileMeData['profile'];
-        settings: ProfileMeData['settings'];
-      }>('/profiles/me', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          first_name: payload.first_name,
-          last_name: payload.last_name,
-          locale: payload.locale,
-          bio: payload.bio,
-          city: payload.city,
-          settings: payload.settings
-            ? {
-                language: payload.settings.language,
-                target_lang: payload.settings.targetLang,
-                auto_translate: payload.settings.autoTranslate,
-                auto_detect_language: payload.settings.autoDetectLanguage,
-                precise_location_enabled: payload.settings.preciseLocationEnabled,
-                visibility: payload.settings.visibility,
-                hide_age: payload.settings.hideAge,
-                hide_distance: payload.settings.hideDistance,
-                incognito: payload.settings.incognito,
-                read_receipts: payload.settings.readReceipts,
-                shadow_ghost: payload.settings.shadowGhost,
-                travel_pass_city: payload.settings.travelPassCity,
-                phone_country_code: payload.settings.phoneCountryCode,
-                phone_national_number: payload.settings.phoneNationalNumber,
-                distance_km: payload.settings.distanceKm,
-                age_min: payload.settings.ageMin,
-                age_max: payload.settings.ageMax,
-                gender_preference: payload.settings.genderPreference,
-                notifications_enabled: payload.settings.notificationsEnabled,
-              }
-            : undefined,
-        }),
-      })
-        .then((response) => {
-          invalidateFeedSignalsCache();
-          runtimeApi.patchSettings({
-            patch: {
-              account: {
-                phone:
-                  response.settings?.phone_country_code || response.settings?.phone_national_number
-                    ? `${response.settings?.phone_country_code ?? ''}${response.settings?.phone_national_number ?? ''}`
-                    : undefined,
-              },
-              preferences: {
-                language: response.settings?.language ?? undefined,
-                travelPassCity: response.settings?.travel_pass_city ?? undefined,
-                distanceKm: response.settings?.distance_km ?? undefined,
-                ageMin: response.settings?.age_min ?? undefined,
-                ageMax: response.settings?.age_max ?? undefined,
-                genderPreference: response.settings?.gender_preference ?? undefined,
-              },
-            },
-          });
-
-          return {
-            profile: response.profile,
-            settings: response.settings,
-          };
-        })
-        .catch((error) => {
-          if (!shouldFallbackToRuntime(error)) {
-            return Promise.reject(error);
-          }
-          return withLatency({
-            profile: null,
-            settings: null,
-          });
-        });
-    }
-
     if (payload.settings) {
       runtimeApi.patchSettings({
         patch: {
@@ -917,10 +775,7 @@ export const appApi = {
       })
       .then((response) => {
         if (!response.ok) {
-          return {
-            profile: null,
-            settings: null,
-          };
+          throw new Error('profile_patch_failed');
         }
 
         syncRuntimeSettingsFromAuthProfile(response.data);
@@ -961,10 +816,7 @@ export const appApi = {
             : null,
         };
       })
-      .catch(() => ({
-        profile: null,
-        settings: null,
-      }))
+      .catch((error) => Promise.reject(error))
       .then((result) => withLatency(result));
   },
 
@@ -1054,6 +906,18 @@ export const appApi = {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  },
+
+  getEntitlements(): Promise<{ userId: string; entitlementSnapshot: EntitlementSnapshot | null }> {
+    if (!PAYMENTS_API_URL) {
+      return Promise.resolve({
+        userId: 'me',
+        entitlementSnapshot: null,
+      });
+    }
+    return paymentsRequest<{ userId: string; entitlementSnapshot: EntitlementSnapshot | null }>(
+      '/entitlements/me',
+    );
   },
 
   applyEntitlementSnapshot(snapshot: EntitlementSnapshot): Promise<SettingsEnvelope> {

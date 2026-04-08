@@ -384,7 +384,6 @@ const BoostScreen = () => {
   };
   const isOfferPurchasable = (offerId: string) => {
     if (catalogStatus !== 'success') return true;
-    if (Object.keys(catalogById).length === 0) return true;
     return Boolean(catalogById[offerId]);
   };
   const glowShadow = (token: GlowToken, alpha = 0.28, blur = 34) => ({

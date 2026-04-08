@@ -1,5 +1,6 @@
-﻿import Fastify from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
+import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config";
 import { supabaseServiceClient } from "./lib/supabaseClient";
@@ -33,6 +34,21 @@ const patchSchema = z.object({
       notifications_enabled: z.boolean().optional(),
     })
     .optional(),
+}).superRefine((value, ctx) => {
+  const ageMin = value.settings?.age_min;
+  const ageMax = value.settings?.age_max;
+  if (typeof ageMin === "number" && typeof ageMax === "number" && ageMin > ageMax) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["settings", "age_min"],
+      message: "age_min must be lower than or equal to age_max",
+    });
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["settings", "age_max"],
+      message: "age_max must be greater than or equal to age_min",
+    });
+  }
 });
 
 type MemoryProfile = {
@@ -67,6 +83,48 @@ type MemorySettings = {
 
 const memoryProfiles = new Map<string, MemoryProfile>();
 const memorySettings = new Map<string, MemorySettings>();
+type InternalJwtPayload = {
+  sub: string;
+  email?: string;
+  role?: string;
+};
+
+const verifyInternalToken = createVerifier({
+  key: env.INTERNAL_JWT_SECRET,
+  algorithms: ["HS256"],
+});
+
+const extractBearerToken = (request: FastifyRequest) => {
+  const header = request.headers.authorization;
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+  const token = trimmed.slice(7).trim();
+  return token.length > 0 ? token : null;
+};
+
+const resolveAuthenticatedUserId = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): string | null => {
+  const token = extractBearerToken(request);
+  if (!token) {
+    reply.status(401);
+    return null;
+  }
+
+  try {
+    const payload = verifyInternalToken(token) as InternalJwtPayload;
+    if (!payload?.sub || typeof payload.sub !== "string" || payload.sub.trim().length === 0) {
+      reply.status(401);
+      return null;
+    }
+    return payload.sub.trim();
+  } catch {
+    reply.status(401);
+    return null;
+  }
+};
 
 export const buildServer = () => {
   const app = Fastify({ logger: true });
@@ -86,8 +144,10 @@ export const buildServer = () => {
   }));
 
   app.get("/profiles/me", async (request, reply) => {
-    const query = request.query as { userId?: string };
-    const userId = query.userId ?? "me";
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
 
     if (!supabaseServiceClient) {
       return {
@@ -115,8 +175,10 @@ export const buildServer = () => {
   });
 
   app.patch("/profiles/me", async (request, reply) => {
-    const query = request.query as { userId?: string };
-    const userId = query.userId ?? "me";
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
 
     const parsed = patchSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -200,3 +262,5 @@ export const buildServer = () => {
 
   return app;
 };
+
+

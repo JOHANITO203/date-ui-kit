@@ -1,6 +1,7 @@
-﻿import Fastify from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import formbody from "@fastify/formbody";
+import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config.js";
 import { offerSchema, offersCatalog, resolveOffer, type Offer } from "./catalog.js";
@@ -38,7 +39,7 @@ const CATALOG_CACHE_TTL_MS = 60_000;
 
 const checkoutSchema = z.object({
   offerId: z.string().min(1),
-  userId: z.string().min(1),
+  userId: z.string().min(1).optional(),
   locale: z.string().optional(),
   successUrl: z.string().url().optional(),
   failUrl: z.string().url().optional(),
@@ -46,7 +47,7 @@ const checkoutSchema = z.object({
 
 const checkoutStatusSchema = z.object({
   checkoutId: z.string().min(1),
-  userId: z.string().min(1),
+  userId: z.string().min(1).optional(),
 });
 
 const yookassaOrderStatusSchema = z.object({
@@ -120,12 +121,54 @@ const getWebhookSecret = (headers: Record<string, unknown>) => {
   return "";
 };
 
+type InternalJwtPayload = {
+  sub: string;
+  email?: string;
+  role?: string;
+};
+
+const verifyInternalToken = createVerifier({
+  key: env.INTERNAL_JWT_SECRET,
+  algorithms: ["HS256"],
+});
+
+const extractBearerToken = (request: FastifyRequest) => {
+  const header = request.headers.authorization;
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+  const token = trimmed.slice(7).trim();
+  return token.length > 0 ? token : null;
+};
+
+const resolveAuthenticatedUserId = (request: FastifyRequest, reply: FastifyReply) => {
+  const token = extractBearerToken(request);
+  if (!token) {
+    reply.status(401);
+    return null;
+  }
+
+  try {
+    const payload = verifyInternalToken(token) as InternalJwtPayload;
+    if (!payload?.sub || typeof payload.sub !== "string" || payload.sub.trim().length === 0) {
+      reply.status(401);
+      return null;
+    }
+    return payload.sub.trim();
+  } catch {
+    reply.status(401);
+    return null;
+  }
+};
+
 export const buildServer = () => {
   const app = Fastify({ logger: true });
 
   app.register(cors, {
     origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
     credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
   app.register(formbody);
 
@@ -366,8 +409,10 @@ export const buildServer = () => {
   });
 
   app.get("/entitlements/me", async (request, reply) => {
-    const query = request.query as { userId?: string };
-    const userId = query.userId ?? "me";
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
     try {
       const snapshot = await getEntitlement(userId);
       if (snapshot) {
@@ -387,6 +432,10 @@ export const buildServer = () => {
   });
 
   app.post("/payments/checkout", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
     const requestKey = `${getRequestIp(request.headers as Record<string, unknown>, request.ip)}:checkout`;
     if (isRateLimited(requestKey, env.RATE_LIMIT_MAX_CHECKOUT)) {
       reply.status(429);
@@ -406,7 +455,7 @@ export const buildServer = () => {
       return { code: "OFFER_NOT_FOUND", message: "Offer not found." };
     }
 
-    const orderNumber = formatOrderNumber(offer.id, payload.userId);
+    const orderNumber = formatOrderNumber(offer.id, userId);
 
     if (!yookassa) {
       const checkoutId = `mock_${orderNumber}`;
@@ -414,7 +463,7 @@ export const buildServer = () => {
         checkout_id: checkoutId,
         yookassa_payment_id: null,
         order_number: orderNumber,
-        user_id: payload.userId,
+        user_id: userId,
         offer_id: offer.id,
         mode: "mock",
         status: "pending",
@@ -439,7 +488,7 @@ export const buildServer = () => {
         currency: toCurrencyCode(offer.currencyNumeric),
         description: `${offer.label} (${offer.id})`,
         orderNumber,
-        userId: payload.userId,
+        userId,
         offerId: offer.id,
         returnUrl: payload.successUrl ?? env.YOOKASSA_RETURN_URL,
         capture: true,
@@ -456,7 +505,7 @@ export const buildServer = () => {
       checkout_id: checkoutId,
       yookassa_payment_id: payment.id,
       order_number: orderNumber,
-      user_id: payload.userId,
+      user_id: userId,
       offer_id: offer.id,
       mode: "yookassa",
       status: normalizeYooKassaStatus(payment.status),
@@ -477,6 +526,10 @@ export const buildServer = () => {
   });
 
   app.post("/payments/checkout/status", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
     const requestKey = `${getRequestIp(request.headers as Record<string, unknown>, request.ip)}:status`;
     if (isRateLimited(requestKey, env.RATE_LIMIT_MAX_STATUS)) {
       reply.status(429);
@@ -489,7 +542,7 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid checkout status payload." };
     }
 
-    const checkout = await getCheckout(parsed.data.checkoutId, parsed.data.userId);
+    const checkout = await getCheckout(parsed.data.checkoutId, userId);
     if (!checkout) {
       return {
         checkoutId: parsed.data.checkoutId,

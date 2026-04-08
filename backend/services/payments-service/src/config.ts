@@ -6,6 +6,7 @@ loadEnv();
 const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4025),
   APP_URL: z.string().url().default("http://localhost:3000"),
+  INTERNAL_JWT_SECRET: z.string().min(16),
 
   SUPABASE_URL: z.string().url().optional().or(z.literal("")),
   SUPABASE_SERVICE_ROLE: z.string().optional().or(z.literal("")),

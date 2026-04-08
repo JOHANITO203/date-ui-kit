@@ -7,16 +7,17 @@ Domain ownership:
 
 Implemented endpoints:
 - `GET /payments/catalog`
-- `POST /payments/checkout`
-- `POST /payments/checkout/status`
+- `POST /payments/checkout` (protected)
+- `POST /payments/checkout/status` (protected)
 - `POST /payments/webhook/yookassa`
 - `POST /payments/order-status`
-- `GET /entitlements/me`
+- `GET /entitlements/me` (protected)
 - `GET /health`
 
 Runtime:
 - `PORT` default `4025`
 - CORS allows app URL from `.env` (`APP_URL`)
+- internal service JWT required on protected endpoints (`Authorization: Bearer <token>`)
 - persistence in Supabase tables (`payments_checkouts`, `user_entitlements`) when Supabase creds are set
 - catalog source:
   - reads `public.in_app_offers` when available
