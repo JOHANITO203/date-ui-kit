@@ -62,12 +62,15 @@ Source of truth code: `backend/services/discover-service/src/server.ts`
 ## 4) Propositions next-step (NON ENFORCEES)
 Les points ci-dessous sont des propositions, pas encore des regles actives:
 
-1. Ajouter tests de non-regression ranking:
-   - ordre relatif attendu
-   - verification du plafond des boosts
-   - scenarios cross-nationalites / meme ville / langues
-2. Ajouter monitoring ranking minimal:
-   - distribution des `scoreReason`
-   - ratio local vs cross-nationalite
-   - impact des deltas onboarding sur top-N feed
-3. Versionner officiellement la calibration (`algo_ranking_v1`, puis v2...).
+1. Versionner officiellement la calibration (`algo_ranking_v1`, puis v2...).
+
+## 5) Verification runtime active (2026-04-08)
+- Script de non-regression actif dans `discover-service`:
+  - `npm run check:ranking`
+  - Scenarios A/B/C verifies:
+    - priorite locale (launch city),
+    - circulation cross-nationalite (sans ecraser totalement le local),
+    - cap language diversity (`+10` max).
+- Monitoring minimal actif:
+  - endpoint `GET /discover/metrics/ranking`
+  - expose distribution `scoreReason`, ratio local/non-local, ratio same/cross nationalite sur top-N.

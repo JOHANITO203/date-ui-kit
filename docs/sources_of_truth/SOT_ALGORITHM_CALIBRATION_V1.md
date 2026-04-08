@@ -32,12 +32,15 @@ Source code: `backend/services/discover-service/src/server.ts`
 - Pas de boost non borne qui detruit la diversite.
 - Les deltas restent interpretable via `scoreReason`.
 
-## 4) Propositions a executer (non enforcees)
+## 4) Verification active (enforcee)
 1. Non-regression ranking:
+   - Script: `backend/services/discover-service/src/scripts/ranking-regression.ts`
+   - Commande: `npm run check:ranking`
    - Scenario A: meme ville + langue commune doit battre profil hors-ville sans signal fort.
    - Scenario B: pair russe/non-russe doit remonter sans ecraser tous les profils locaux.
    - Scenario C: multi-langues doit apporter gain mesurable avec cap respecte.
 2. Monitoring minimal:
+   - Endpoint: `GET /discover/metrics/ranking`
    - distribution des suffixes `scoreReason`,
-   - part top-20 locale vs cross-nationalite,
-   - impact moyen des deltas onboarding (intent/interests/city/nationality/languages).
+   - part top-N locale vs non-locale,
+   - part same/cross nationalite et cross russe/non-russe.

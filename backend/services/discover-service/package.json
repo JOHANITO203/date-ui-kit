@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "check:ranking": "tsx src/scripts/ranking-regression.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
