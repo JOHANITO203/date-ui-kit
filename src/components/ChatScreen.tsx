@@ -178,7 +178,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       } finally {
         inFlight = false;
         const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-        const baseDelay = hidden ? 12000 : 2500;
+        const baseDelay = hidden ? 18000 : 4000;
         const nextDelay = Math.min(30000, baseDelay * Math.pow(2, Math.min(failureCount, 3)));
         timerId = window.setTimeout(() => {
           void refreshLive();
@@ -188,7 +188,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
 
     timerId = window.setTimeout(() => {
       void refreshLive();
-    }, 2500);
+    }, 4000);
 
     return () => {
       isCancelled = true;

@@ -39,6 +39,10 @@ export const authApi = {
     return request<SessionPayload>('/auth/session', { method: 'GET' });
   },
 
+  refreshInternalToken() {
+    return request<{ token: string }>('/auth/token/refresh', { method: 'POST' });
+  },
+
   loginWithPassword(email: string, password: string) {
     return request('/auth/email/login', {
       method: 'POST',

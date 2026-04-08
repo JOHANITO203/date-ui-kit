@@ -34,6 +34,10 @@ export interface GetConversationsResponse {
 
 export interface GetMessagesResponse {
   conversationId: string;
+  translation?: {
+    enabled: boolean;
+    targetLocale: 'en' | 'ru';
+  };
   messages: ChatMessage[];
 }
 

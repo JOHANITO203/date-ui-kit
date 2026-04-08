@@ -390,12 +390,19 @@ export async function registerEmailAuthRoutes(app: FastifyInstance) {
           refresh.data.session.access_token,
           refresh.data.session.refresh_token
         );
+        const refreshedInternalToken = issueInternalSessionToken({
+          sub: refresh.data.session.user.id,
+          email: refresh.data.session.user.email,
+          role: refresh.data.session.user.role ?? "authenticated",
+        });
+        persistInternalSession(reply, refreshedInternalToken);
         userResponse = await supabaseServiceClient.auth.getUser(
           refresh.data.session.access_token
         );
       } else {
         request.log.warn({ reason: "refresh_failed" }, "auth.session.invalidated");
         clearAuthCookies(reply);
+        clearInternalSession(reply);
         return sendAuthSuccess(reply, {
           ok: true,
           data: { authenticated: false },
@@ -406,6 +413,7 @@ export async function registerEmailAuthRoutes(app: FastifyInstance) {
     if (userResponse.error || !userResponse.data.user) {
       request.log.warn({ err: userResponse.error }, "auth.session.get_user_failed");
       clearAuthCookies(reply);
+      clearInternalSession(reply);
       return sendAuthSuccess(reply, {
         ok: true,
         data: { authenticated: false },
@@ -427,10 +435,18 @@ export async function registerEmailAuthRoutes(app: FastifyInstance) {
         .maybeSingle(),
     ]);
 
+    const internalToken = issueInternalSessionToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role ?? "authenticated",
+    });
+    persistInternalSession(reply, internalToken);
+
     return sendAuthSuccess(reply, {
       ok: true,
       data: {
         authenticated: true,
+        token: internalToken,
         user: {
           id: user.id,
           email: user.email,

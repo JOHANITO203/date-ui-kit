@@ -67,9 +67,9 @@ let cachedFeedSignalsFetchedAt = 0;
 const FEED_SIGNALS_CACHE_TTL_MS = 5 * 60 * 1000;
 const PRECISE_GEO_CACHE_TTL_MS = 2 * 60 * 1000;
 let cachedGeoPosition: { lat: number; lng: number; fetchedAt: number } | null = null;
-let cachedChatUserId: { value: string; fetchedAt: number } | null = null;
-let pendingChatUserIdPromise: Promise<string> | null = null;
-const CHAT_USER_CACHE_TTL_MS = 60 * 1000;
+let cachedInternalToken: { value: string; fetchedAt: number } | null = null;
+let pendingInternalTokenPromise: Promise<string> | null = null;
+const INTERNAL_TOKEN_CACHE_TTL_MS = 30 * 1000;
 
 const getFeedSignals = async (): Promise<FeedSignals> => {
   const now = Date.now();
@@ -179,53 +179,59 @@ const discoverRequest = async <T>(path: string, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 };
 
-const chatRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const resolveChatUserId = async () => {
-    const now = Date.now();
-    if (cachedChatUserId && now - cachedChatUserId.fetchedAt < CHAT_USER_CACHE_TTL_MS) {
-      return cachedChatUserId.value;
-    }
-    if (pendingChatUserIdPromise) return pendingChatUserIdPromise;
-
-    pendingChatUserIdPromise = authApi
-      .getSession()
-      .then((session) => {
-        const userId =
-          session.ok && session.data?.authenticated && session.data.user?.id
-            ? session.data.user.id
-            : 'me';
-        cachedChatUserId = { value: userId, fetchedAt: Date.now() };
-        return userId;
-      })
-      .catch(() => 'me')
-      .finally(() => {
-        pendingChatUserIdPromise = null;
-      });
-
-    return pendingChatUserIdPromise;
-  };
-
-  const chatUserId = await resolveChatUserId();
-  const url = new URL(`${CHAT_API_URL}${path}`);
-  if (!url.searchParams.get('userId')) {
-    url.searchParams.set('userId', chatUserId);
+const resolveInternalToken = async (): Promise<string> => {
+  const now = Date.now();
+  if (cachedInternalToken && now - cachedInternalToken.fetchedAt < INTERNAL_TOKEN_CACHE_TTL_MS) {
+    return cachedInternalToken.value;
   }
-  const response = await fetch(url.toString(), {
+
+  if (pendingInternalTokenPromise) return pendingInternalTokenPromise;
+
+  pendingInternalTokenPromise = (async () => {
+    const session = await authApi.getSession();
+    if (session.ok && session.data?.authenticated && session.data.token) {
+      cachedInternalToken = { value: session.data.token, fetchedAt: Date.now() };
+      return session.data.token;
+    }
+
+    const refresh = await authApi.refreshInternalToken();
+    if (refresh.ok && refresh.data?.token) {
+      cachedInternalToken = { value: refresh.data.token, fetchedAt: Date.now() };
+      return refresh.data.token;
+    }
+
+    throw new Error('internal_token_unavailable');
+  })().finally(() => {
+    pendingInternalTokenPromise = null;
+  });
+
+  return pendingInternalTokenPromise;
+};
+
+const serviceRequest = async <T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> => {
+  const internalToken = await resolveInternalToken();
+  const response = await fetch(`${baseUrl}${path}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      'x-exotic-user-id': chatUserId,
+      Authorization: `Bearer ${internalToken}`,
       ...(init?.headers ?? {}),
     },
     ...init,
   });
 
   if (!response.ok) {
-    throw new Error(`chat_request_failed_${response.status}`);
+    if (response.status === 401 || response.status === 403) {
+      cachedInternalToken = null;
+    }
+    throw new Error(`service_request_failed_${response.status}`);
   }
 
   return response.json() as Promise<T>;
 };
+
+const chatRequest = async <T>(path: string, init?: RequestInit): Promise<T> =>
+  serviceRequest<T>(CHAT_API_URL, path, init);
 
 const paymentsRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${PAYMENTS_API_URL}${path}`, {
@@ -262,20 +268,7 @@ const profileRequest = async <T>(path: string, init?: RequestInit): Promise<T> =
 };
 
 const safetyRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${SAFETY_API_URL}${path}`, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
-
-  if (!response.ok) {
-    throw new Error(`safety_request_failed_${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
+  return serviceRequest<T>(SAFETY_API_URL, path, init);
 };
 
 const shouldFallbackToRuntime = (error: unknown) => {
@@ -496,13 +489,9 @@ export const appApi = {
 
   getConversations(): Promise<ConversationSummary[]> {
     if (CHAT_API_URL) {
-      return chatRequest<{ conversations: ConversationSummary[] }>('/chat/conversations')
-        .then((payload) => payload.conversations)
-        .catch((error) =>
-          shouldFallbackToRuntime(error)
-            ? withLatency(runtimeApi.getConversations(), 100)
-            : Promise.reject(error),
-        );
+      return chatRequest<{ conversations: ConversationSummary[] }>('/chat/conversations').then(
+        (payload) => payload.conversations,
+      );
     }
     return withLatency(runtimeApi.getConversations(), 100);
   },
@@ -512,28 +501,27 @@ export const appApi = {
       return chatRequest<{ conversationId: string }>('/chat/open', {
         method: 'POST',
         body: JSON.stringify({ profileId, fromSuperLike }),
-      })
-        .then((payload) => payload.conversationId)
-        .catch((error) =>
-          shouldFallbackToRuntime(error)
-            ? withLatency(runtimeApi.openChat(profileId, fromSuperLike), 60)
-            : Promise.reject(error),
-        );
+      }).then((payload) => payload.conversationId);
     }
     return withLatency(runtimeApi.openChat(profileId, fromSuperLike), 60);
   },
 
   getMessages(conversationId: string): Promise<ChatMessage[]> {
     if (CHAT_API_URL) {
-      return chatRequest<{ conversationId: string; messages: ChatMessage[] }>(
-        `/chat/conversations/${conversationId}/messages`,
-      )
-        .then((payload) => payload.messages)
-        .catch((error) =>
-          shouldFallbackToRuntime(error)
-            ? withLatency(runtimeApi.getConversationMessages(conversationId), 80)
-            : Promise.reject(error),
-        );
+      return chatRequest<{
+        conversationId: string;
+        messages: ChatMessage[];
+        translation?: { enabled: boolean; targetLocale: 'en' | 'ru' };
+      }>(`/chat/conversations/${conversationId}/messages`).then((payload) => {
+        if (payload.translation) {
+          runtimeApi.setTranslationToggle({
+            conversationId,
+            enabled: payload.translation.enabled,
+            targetLocale: payload.translation.targetLocale,
+          });
+        }
+        return payload.messages;
+      });
     }
     return withLatency(runtimeApi.getConversationMessages(conversationId), 80);
   },
@@ -545,10 +533,6 @@ export const appApi = {
         {
           method: 'POST',
         },
-      ).catch((error) =>
-        shouldFallbackToRuntime(error)
-          ? withLatency({ conversationId, markedRead: true }, 40)
-          : Promise.reject(error),
       );
     }
 
@@ -560,11 +544,7 @@ export const appApi = {
       return chatRequest<SendMessageResponse>('/chat/messages', {
         method: 'POST',
         body: JSON.stringify(request),
-      }).catch((error) =>
-        shouldFallbackToRuntime(error)
-          ? withLatency(runtimeApi.sendMessage(request), 60)
-          : Promise.reject(error),
-      );
+      });
     }
     return withLatency(runtimeApi.sendMessage(request), 60);
   },
@@ -576,16 +556,21 @@ export const appApi = {
       return chatRequest<UpdateConversationRelationStateResponse>('/chat/relation-state', {
         method: 'PATCH',
         body: JSON.stringify(request),
-      }).catch((error) =>
-        shouldFallbackToRuntime(error)
-          ? withLatency(runtimeApi.setConversationRelationState(request), 50)
-          : Promise.reject(error),
-      );
+      });
     }
     return withLatency(runtimeApi.setConversationRelationState(request), 50);
   },
 
   setTranslationToggle(request: TranslationToggleRequest): Promise<TranslationToggleResponse> {
+    if (CHAT_API_URL) {
+      return chatRequest<TranslationToggleResponse>('/chat/translation', {
+        method: 'PATCH',
+        body: JSON.stringify(request),
+      }).then((payload) => {
+        runtimeApi.setTranslationToggle(request);
+        return payload;
+      });
+    }
     return withLatency(runtimeApi.setTranslationToggle(request), 40);
   },
 
@@ -939,9 +924,7 @@ export const appApi = {
 
   getBlockedUsers(): Promise<GetBlocksResponse> {
     if (SAFETY_API_URL) {
-      return safetyRequest<GetBlocksResponse>('/safety/blocks').catch((error) =>
-        shouldFallbackToRuntime(error) ? withLatency({ blocks: [] }) : Promise.reject(error),
-      );
+      return safetyRequest<GetBlocksResponse>('/safety/blocks');
     }
     return withLatency({ blocks: [] });
   },
@@ -951,17 +934,7 @@ export const appApi = {
       return safetyRequest<BlockUserResponse>('/safety/blocks', {
         method: 'POST',
         body: JSON.stringify({ userId }),
-      }).catch((error) =>
-        shouldFallbackToRuntime(error)
-          ? withLatency({
-              status: 'blocked',
-              block: {
-                blockedUserId: userId,
-                createdAtIso: new Date().toISOString(),
-              },
-            })
-          : Promise.reject(error),
-      );
+      });
     }
     return withLatency({
       status: 'blocked',
@@ -976,9 +949,7 @@ export const appApi = {
     if (SAFETY_API_URL) {
       return safetyRequest<UnblockUserResponse>(`/safety/blocks/${userId}`, {
         method: 'DELETE',
-      }).catch((error) =>
-        shouldFallbackToRuntime(error) ? withLatency({ status: 'noop', userId }) : Promise.reject(error),
-      );
+      });
     }
     return withLatency({ status: 'noop', userId });
   },

@@ -66,6 +66,8 @@ const MessagesScreen = () => {
       conversation.relationState === 'active' &&
       (conversation.unreadCount > 0 || Boolean(conversation.receivedSuperLikeTraceAtIso)),
   );
+  const newMatchIds = new Set(newMatchItems.map((conversation) => conversation.id));
+  const conversationListItems = conversationItems.filter((conversation) => !newMatchIds.has(conversation.id));
 
   useEffect(() => {
     let isCancelled = false;
@@ -92,7 +94,7 @@ const MessagesScreen = () => {
       } finally {
         inFlight = false;
         const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
-        const baseDelay = hidden ? 15000 : 3000;
+        const baseDelay = hidden ? 20000 : 5000;
         const nextDelay = Math.min(30000, baseDelay * Math.pow(2, Math.min(failureCount, 3)));
         timerId = window.setTimeout(() => {
           void refreshLive();
@@ -102,7 +104,7 @@ const MessagesScreen = () => {
 
     timerId = window.setTimeout(() => {
       void refreshLive();
-    }, 3000);
+    }, 5000);
 
     return () => {
       isCancelled = true;
@@ -192,12 +194,12 @@ const MessagesScreen = () => {
     const node = conversationItemRefs.current[index];
     if (!node) return;
     node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    const target = conversationItems[index];
+    const target = conversationListItems[index];
     if (target) handleUserSelect(target.peer.id);
   };
 
   const hasMatches = newMatchItems.length > 0;
-  const hasConversations = conversationItems.length > 0;
+  const hasConversations = conversationListItems.length > 0;
   const showContent = !isLoading && !hasError;
 
   const applyConversationRelationState = (conversationId: string, state: ConversationSummary['relationState']) => {
@@ -393,7 +395,7 @@ const MessagesScreen = () => {
             className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
             style={{ touchAction: 'pan-y' }}
           >
-            {conversationItems.map((conversation, index) => {
+            {conversationListItems.map((conversation, index) => {
                 return (
                   <div
                     key={conversation.id}
@@ -511,7 +513,7 @@ const MessagesScreen = () => {
                 </div>
               </div>
               <div className="ml-1 flex flex-col gap-2">
-                {conversationItems.map((conversation, index) => (
+                {conversationListItems.map((conversation, index) => (
                   <button
                     key={`jump-${conversation.id}`}
                     onClick={() => jumpToConversation(index)}

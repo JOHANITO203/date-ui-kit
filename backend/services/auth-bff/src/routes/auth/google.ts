@@ -38,6 +38,8 @@ const CALLBACK_EXPIRATION = 1000 * 60 * 10; // 10 minutes
 const INTENT_EXPIRATION = 1000 * 60 * 5; // 5 minutes
 const OAUTH_CALLBACK_MAX_ATTEMPTS = 3;
 const OAUTH_CALLBACK_RETRY_DELAYS_MS = [250, 700];
+const SUPABASE_SIGNIN_MAX_ATTEMPTS = 3;
+const SUPABASE_SIGNIN_RETRY_DELAYS_MS = [300, 900];
 
 const intentStore = new Map<string, OnboardingIntent>();
 
@@ -110,6 +112,27 @@ const isTransientOAuthNetworkError = (error: unknown) => {
   }
 
   return typeof message === "string" && message.toLowerCase().includes("timed out");
+};
+
+const isTransientSupabaseAuthError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+
+  const status = (error as { status?: number }).status;
+  const code = (error as { code?: string }).code;
+  const message = (error as { message?: string }).message ?? "";
+
+  if (status === 0) return true;
+  if (
+    code === "EAI_AGAIN" ||
+    code === "ENOTFOUND" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET"
+  ) {
+    return true;
+  }
+
+  const lowered = typeof message === "string" ? message.toLowerCase() : "";
+  return lowered.includes("fetch failed") || lowered.includes("timed out");
 };
 
 const isOauth2GoogleapisDnsError = (error: unknown) => {
@@ -197,6 +220,38 @@ const exchangeGoogleCallbackWithRetry = async (input: {
   }
 
   throw lastError;
+};
+
+const signInWithSupabaseIdTokenWithRetry = async (input: {
+  idToken: string;
+  accessToken: string;
+}) => {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= SUPABASE_SIGNIN_MAX_ATTEMPTS; attempt += 1) {
+    const { data, error } = await supabaseAnonClient.auth.signInWithIdToken({
+      provider: "google",
+      token: input.idToken,
+      access_token: input.accessToken,
+    });
+
+    if (!error && data.session) {
+      return { data, error: null as null };
+    }
+
+    lastError = error ?? new Error("supabase_signin_missing_session");
+    if (!isTransientSupabaseAuthError(lastError) || attempt >= SUPABASE_SIGNIN_MAX_ATTEMPTS) {
+      break;
+    }
+
+    const retryDelay = SUPABASE_SIGNIN_RETRY_DELAYS_MS[attempt - 1] ?? 1200;
+    await sleep(retryDelay);
+  }
+
+  return {
+    data: null,
+    error: lastError,
+  };
 };
 
 export async function registerGoogleAuthRoutes(app: FastifyInstance) {
@@ -322,14 +377,22 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         );
       }
 
-      const { data, error: supabaseError } = await supabaseAnonClient.auth.signInWithIdToken({
-        provider: "google",
-        token: idToken,
-        access_token: accessToken,
+      const { data, error: supabaseError } = await signInWithSupabaseIdTokenWithRetry({
+        idToken,
+        accessToken,
       });
 
       if (supabaseError || !data.session) {
         request.log.error({ err: supabaseError }, "auth.google.supabase_signin_failed");
+        if (isTransientSupabaseAuthError(supabaseError)) {
+          return sendAuthError(
+            reply,
+            503,
+            "SUPABASE_NETWORK_UNAVAILABLE",
+            "Temporary network issue while finalizing Google sign-in. Please retry.",
+            ["login_with_google"]
+          );
+        }
         return sendAuthError(
           reply,
           401,

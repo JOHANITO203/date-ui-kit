@@ -271,7 +271,7 @@ export const ensureConversationForProfile = (
 export const updateRelationPreview = (state: ConversationRelationState, previous: string) => {
   if (state === "blocked_by_me") return "You blocked this conversation.";
   if (state === "blocked_me") return "You were blocked by this user.";
-  return previous === "You blocked this conversation." || previous === "Conversation no longer available."
+  return previous === "You blocked this conversation." || previous === "You were blocked by this user."
     ? "Conversation reopened."
     : previous;
 };

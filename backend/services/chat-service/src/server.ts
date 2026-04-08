@@ -1,5 +1,6 @@
-import Fastify, { type FastifyRequest } from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
+import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config";
 import { supabaseServiceClient } from "./lib/supabaseClient";
@@ -27,14 +28,58 @@ const relationStateSchema = z.object({
   state: z.enum(["active", "blocked_by_me", "blocked_me"]),
 });
 
-const resolveUserId = (request: FastifyRequest) => {
-  const query = (request.query as Record<string, unknown>) ?? {};
-  const headerCandidate = request.headers["x-exotic-user-id"];
-  if (typeof headerCandidate === "string" && headerCandidate.trim()) return headerCandidate.trim();
-  const queryCandidate = query.userId;
-  if (typeof queryCandidate === "string" && queryCandidate.trim()) return queryCandidate.trim();
-  const fallbackIp = request.ip?.trim() || "unknown";
-  return `anon:${fallbackIp}`;
+const translationToggleSchema = z.object({
+  conversationId: z.string().min(1),
+  enabled: z.boolean(),
+  targetLocale: z.enum(["en", "ru"]),
+});
+
+type InternalJwtPayload = {
+  sub: string;
+  email?: string;
+  role?: string;
+};
+
+type TranslationSetting = {
+  enabled: boolean;
+  targetLocale: "en" | "ru";
+};
+
+const verifyInternalToken = createVerifier({
+  key: env.INTERNAL_JWT_SECRET,
+  algorithms: ["HS256"],
+});
+
+const extractBearerToken = (request: FastifyRequest) => {
+  const header = request.headers.authorization;
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+  const token = trimmed.slice(7).trim();
+  return token.length > 0 ? token : null;
+};
+
+const resolveAuthenticatedUserId = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): string | null => {
+  const token = extractBearerToken(request);
+  if (!token) {
+    reply.status(401);
+    return null;
+  }
+
+  try {
+    const payload = verifyInternalToken(token) as InternalJwtPayload;
+    if (!payload?.sub || typeof payload.sub !== "string" || payload.sub.trim().length === 0) {
+      reply.status(401);
+      return null;
+    }
+    return payload.sub.trim();
+  } catch {
+    reply.status(401);
+    return null;
+  }
 };
 
 const normalizeRelationState = (value: unknown): "active" | "blocked_by_me" | "blocked_me" => {
@@ -44,10 +89,29 @@ const normalizeRelationState = (value: unknown): "active" | "blocked_by_me" | "b
 };
 
 const resolveConversationId = (userId: string, profileId: string) =>
-  userId === "me" ? `conv-${profileId}` : `conv-${userId}-${profileId}`;
+  `conv-${userId}-${profileId}`;
 
 const toOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0 ? value : undefined;
+
+const toTranslationMapKey = (userId: string, conversationId: string) =>
+  `${userId}:${conversationId}`;
+
+const translationSettingsByConversation = new Map<string, TranslationSetting>();
+
+const getTranslationSetting = (userId: string, conversationId: string): TranslationSetting =>
+  translationSettingsByConversation.get(toTranslationMapKey(userId, conversationId)) ?? {
+    enabled: false,
+    targetLocale: "en",
+  };
+
+const setTranslationSetting = (
+  userId: string,
+  conversationId: string,
+  setting: TranslationSetting,
+) => {
+  translationSettingsByConversation.set(toTranslationMapKey(userId, conversationId), setting);
+};
 
 const store = createStore();
 
@@ -57,6 +121,8 @@ export const buildServer = () => {
   app.register(cors, {
     origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
     credentials: true,
+    methods: ["GET", "POST", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   const scheduleIncomingReply = (input: {
@@ -67,8 +133,21 @@ export const buildServer = () => {
     setTimeout(async () => {
       const replyText = "Nice! I will answer soon.";
       const createdAtIso = new Date().toISOString();
+      const translationSetting = getTranslationSetting(input.userId, input.conversationId);
 
       if (supabaseServiceClient) {
+        const unreadSnapshot = await supabaseServiceClient
+          .from("chat_conversations")
+          .select("unread_count")
+          .eq("user_id", input.userId)
+          .eq("conversation_id", input.conversationId)
+          .maybeSingle();
+
+        const nextUnreadCount = Math.max(
+          1,
+          Number(unreadSnapshot.data?.unread_count ?? 0) + 1,
+        );
+
         const [messageInsert, conversationUpdate] = await Promise.all([
           supabaseServiceClient.from("chat_messages").upsert(
             {
@@ -78,7 +157,9 @@ export const buildServer = () => {
               sender_user_id: input.peerProfileId,
               direction: "incoming",
               original_text: replyText,
-              translated: false,
+              translated: translationSetting.enabled,
+              translated_text: translationSetting.enabled ? replyText : null,
+              target_locale: translationSetting.enabled ? translationSetting.targetLocale : null,
               created_at: createdAtIso,
             },
             { onConflict: "user_id,message_id" },
@@ -86,7 +167,7 @@ export const buildServer = () => {
           supabaseServiceClient
             .from("chat_conversations")
             .update({
-              unread_count: 1,
+              unread_count: nextUnreadCount,
               last_message_preview: replyText,
               last_message_at: createdAtIso,
             })
@@ -110,7 +191,9 @@ export const buildServer = () => {
         senderUserId: input.peerProfileId,
         direction: "incoming",
         originalText: replyText,
-        translated: false,
+        translated: translationSetting.enabled,
+        translatedText: translationSetting.enabled ? replyText : undefined,
+        targetLocale: translationSetting.enabled ? translationSetting.targetLocale : undefined,
         createdAtIso,
       };
 
@@ -140,8 +223,12 @@ export const buildServer = () => {
   }));
 
   app.get("/chat/conversations", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
+
     if (supabaseServiceClient) {
-      const userId = resolveUserId(request);
       const conversationsResult = await supabaseServiceClient
         .from("chat_conversations")
         .select("*")
@@ -188,8 +275,12 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid open chat payload." };
     }
 
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
+
     if (supabaseServiceClient) {
-      const userId = resolveUserId(request);
       const peer = getProfileById(parsed.data.profileId);
       if (!peer) {
         reply.status(404);
@@ -282,9 +373,12 @@ export const buildServer = () => {
       return { code: "INVALID_PARAMS", message: "conversationId is required." };
     }
 
-    if (supabaseServiceClient) {
-      const userId = resolveUserId(request);
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
 
+    if (supabaseServiceClient) {
       const conversationResult = await supabaseServiceClient
         .from("chat_conversations")
         .select("conversation_id")
@@ -314,20 +408,28 @@ export const buildServer = () => {
         return { code: "CHAT_MESSAGES_READ_FAILED" };
       }
 
+      const translation = getTranslationSetting(userId, conversationId);
+
       return {
         conversationId,
-        messages: (messagesResult.data ?? []).map((row) => ({
-          id: row.message_id,
-          conversationId: row.conversation_id,
-          senderUserId: row.sender_user_id,
-          direction: row.direction,
-          originalText: row.original_text,
-          translatedText: toOptionalString(row.translated_text),
-          translated: Boolean(row.translated),
-          targetLocale: toOptionalString(row.target_locale) as "en" | "ru" | undefined,
-          createdAtIso: row.created_at,
-          readAtIso: toOptionalString(row.read_at),
-        })),
+        translation,
+        messages: (messagesResult.data ?? []).map((row) => {
+          const translatedText = translation.enabled
+            ? toOptionalString(row.translated_text) ?? row.original_text
+            : undefined;
+          return {
+            id: row.message_id,
+            conversationId: row.conversation_id,
+            senderUserId: row.sender_user_id,
+            direction: row.direction,
+            originalText: row.original_text,
+            translatedText,
+            translated: translation.enabled,
+            targetLocale: translation.enabled ? translation.targetLocale : undefined,
+            createdAtIso: row.created_at,
+            readAtIso: toOptionalString(row.read_at),
+          };
+        }),
       };
     }
 
@@ -337,9 +439,25 @@ export const buildServer = () => {
       return { code: "NOT_FOUND", message: "Conversation not found." };
     }
 
+    const translation = getTranslationSetting(userId, conversationId);
     return {
       conversationId,
-      messages: [...(store.messagesByConversation[conversationId] ?? [])],
+      translation,
+      messages: [...(store.messagesByConversation[conversationId] ?? [])].map((message) =>
+        translation.enabled
+          ? {
+              ...message,
+              translated: true,
+              translatedText: message.translatedText ?? message.originalText,
+              targetLocale: translation.targetLocale,
+            }
+          : {
+              ...message,
+              translated: false,
+              translatedText: undefined,
+              targetLocale: undefined,
+            },
+      ),
     };
   });
 
@@ -351,7 +469,10 @@ export const buildServer = () => {
       return { code: "INVALID_PARAMS", message: "conversationId is required." };
     }
 
-    const userId = resolveUserId(request);
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
 
     if (supabaseServiceClient) {
       const conversationResult = await supabaseServiceClient
@@ -422,7 +543,10 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid send message payload." };
     }
 
-    const userId = resolveUserId(request);
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
     const { conversationId } = parsed.data;
     const trimmed = parsed.data.text.trim();
 
@@ -448,13 +572,17 @@ export const buildServer = () => {
         return { status: relationState };
       }
 
+      const translationSetting = getTranslationSetting(userId, conversationId);
+
       const message: ChatMessage = {
         id: `m-${Date.now()}`,
         conversationId,
         senderUserId: userId,
         direction: "outgoing",
         originalText: trimmed,
-        translated: false,
+        translated: translationSetting.enabled,
+        translatedText: translationSetting.enabled ? trimmed : undefined,
+        targetLocale: translationSetting.enabled ? translationSetting.targetLocale : undefined,
         createdAtIso: new Date().toISOString(),
       };
 
@@ -467,7 +595,9 @@ export const buildServer = () => {
             sender_user_id: userId,
             direction: "outgoing",
             original_text: trimmed,
-            translated: false,
+            translated: translationSetting.enabled,
+            translated_text: translationSetting.enabled ? trimmed : null,
+            target_locale: translationSetting.enabled ? translationSetting.targetLocale : null,
             created_at: message.createdAtIso,
           },
           { onConflict: "user_id,message_id" },
@@ -511,13 +641,17 @@ export const buildServer = () => {
       return { status: conversation.relationState };
     }
 
+    const translationSetting = getTranslationSetting(userId, conversationId);
+
     const message: ChatMessage = {
       id: `m-${Date.now()}`,
       conversationId,
-      senderUserId: "me",
+      senderUserId: userId,
       direction: "outgoing",
       originalText: trimmed,
-      translated: false,
+      translated: translationSetting.enabled,
+      translatedText: translationSetting.enabled ? trimmed : undefined,
+      targetLocale: translationSetting.enabled ? translationSetting.targetLocale : undefined,
       createdAtIso: new Date().toISOString(),
     };
 
@@ -556,7 +690,10 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid relation state payload." };
     }
 
-    const userId = resolveUserId(request);
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
     const { conversationId, state } = parsed.data;
     const updatedAtIso = new Date().toISOString();
 
@@ -617,6 +754,55 @@ export const buildServer = () => {
     return {
       conversationId,
       state,
+    };
+  });
+
+  app.patch("/chat/translation", async (request, reply) => {
+    const parsed = translationToggleSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { code: "INVALID_PAYLOAD", message: "Invalid translation payload." };
+    }
+
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED" };
+    }
+
+    const { conversationId, enabled, targetLocale } = parsed.data;
+
+    const conversationExists = supabaseServiceClient
+      ? await supabaseServiceClient
+          .from("chat_conversations")
+          .select("conversation_id")
+          .eq("user_id", userId)
+          .eq("conversation_id", conversationId)
+          .maybeSingle()
+      : {
+          data: store.conversations.find((entry) => entry.id === conversationId)
+            ? { conversation_id: conversationId }
+            : null,
+          error: null,
+        };
+
+    if (conversationExists.error) {
+      reply.status(500);
+      return { code: "CHAT_TRANSLATION_UPDATE_FAILED" };
+    }
+
+    if (!conversationExists.data) {
+      reply.status(404);
+      return { code: "NOT_FOUND", message: "Conversation not found." };
+    }
+
+    setTranslationSetting(userId, conversationId, {
+      enabled,
+      targetLocale,
+    });
+
+    return {
+      conversationId,
+      enabled,
     };
   });
 

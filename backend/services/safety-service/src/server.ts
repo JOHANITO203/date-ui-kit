@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config.js";
 import { supabaseServiceClient } from "./lib/supabaseClient.js";
@@ -16,13 +17,42 @@ const reportSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
-const resolveActorUserId = (query: Record<string, unknown>) => {
-  const candidate = query.userId;
-  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : "me";
+type InternalJwtPayload = {
+  sub: string;
+  email?: string;
+  role?: string;
 };
 
 const blocks = new Map<string, BlockEntry>();
 const reports: ReportEntry[] = [];
+
+const verifyInternalToken = createVerifier({
+  key: env.INTERNAL_JWT_SECRET,
+  algorithms: ["HS256"],
+});
+
+const extractBearerToken = (authorization: unknown) => {
+  if (typeof authorization !== "string") return null;
+  const trimmed = authorization.trim();
+  if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+  const token = trimmed.slice(7).trim();
+  return token.length > 0 ? token : null;
+};
+
+const resolveActorUserId = (authorization: unknown): string | null => {
+  const token = extractBearerToken(authorization);
+  if (!token) return null;
+
+  try {
+    const payload = verifyInternalToken(token) as InternalJwtPayload;
+    if (!payload?.sub || typeof payload.sub !== "string" || payload.sub.trim().length === 0) {
+      return null;
+    }
+    return payload.sub.trim();
+  } catch {
+    return null;
+  }
+};
 
 const getRequestIp = (headers: Record<string, unknown>, fallback: string) => {
   const forwardedFor = headers["x-forwarded-for"];
@@ -38,6 +68,8 @@ export const buildServer = () => {
   app.register(cors, {
     origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
     credentials: true,
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   app.get("/health", async () => ({
@@ -48,8 +80,13 @@ export const buildServer = () => {
   }));
 
   app.get("/safety/blocks", async (request, reply) => {
+    const actorUserId = resolveActorUserId(request.headers.authorization);
+    if (!actorUserId) {
+      reply.status(401);
+      return { code: "UNAUTHORIZED" };
+    }
+
     if (supabaseServiceClient) {
-      const actorUserId = resolveActorUserId((request.query as Record<string, unknown>) ?? {});
       const blocksResult = await supabaseServiceClient
         .from("safety_blocks")
         .select("*")
@@ -77,6 +114,12 @@ export const buildServer = () => {
   });
 
   app.post("/safety/blocks", async (request, reply) => {
+    const actorUserId = resolveActorUserId(request.headers.authorization);
+    if (!actorUserId) {
+      reply.status(401);
+      return { code: "UNAUTHORIZED" };
+    }
+
     const requestIp = getRequestIp(request.headers as Record<string, unknown>, request.ip);
     const rateLimit = consumeRateLimit(`${requestIp}:block`, {
       windowMs: env.RATE_LIMIT_WINDOW_MS,
@@ -93,7 +136,6 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid block payload." };
     }
 
-    const actorUserId = resolveActorUserId((request.query as Record<string, unknown>) ?? {});
     if (parsed.data.userId === actorUserId) {
       reply.status(400);
       return { code: "INVALID_BLOCK_TARGET", message: "User cannot block self." };
@@ -131,9 +173,13 @@ export const buildServer = () => {
   app.delete("/safety/blocks/:userId", async (request, reply) => {
     const params = request.params as { userId?: string };
     const userId = params.userId ?? "";
+    const actorUserId = resolveActorUserId(request.headers.authorization);
+    if (!actorUserId) {
+      reply.status(401);
+      return { code: "UNAUTHORIZED" };
+    }
 
     if (supabaseServiceClient) {
-      const actorUserId = resolveActorUserId((request.query as Record<string, unknown>) ?? {});
       const deleteResult = await supabaseServiceClient
         .from("safety_blocks")
         .delete()
@@ -159,6 +205,12 @@ export const buildServer = () => {
   });
 
   app.post("/safety/reports", async (request, reply) => {
+    const actorUserId = resolveActorUserId(request.headers.authorization);
+    if (!actorUserId) {
+      reply.status(401);
+      return { code: "UNAUTHORIZED" };
+    }
+
     const requestIp = getRequestIp(request.headers as Record<string, unknown>, request.ip);
     const rateLimit = consumeRateLimit(`${requestIp}:report`, {
       windowMs: env.RATE_LIMIT_WINDOW_MS,
@@ -175,7 +227,6 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid report payload." };
     }
 
-    const actorUserId = resolveActorUserId((request.query as Record<string, unknown>) ?? {});
     if (parsed.data.userId === actorUserId) {
       reply.status(400);
       return { code: "INVALID_REPORT_TARGET", message: "User cannot report self." };

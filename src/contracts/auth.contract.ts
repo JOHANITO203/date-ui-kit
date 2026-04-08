@@ -29,5 +29,6 @@ export type SessionUser = {
 
 export type SessionPayload = {
   authenticated: boolean;
+  token?: string;
   user?: SessionUser;
 };
