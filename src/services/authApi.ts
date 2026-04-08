@@ -1,6 +1,96 @@
 import type { AuthResponse, SessionPayload } from '../contracts';
 
 const AUTH_BFF_URL = (import.meta.env.VITE_AUTH_BFF_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787';
+const UPLOAD_IMAGE_MAX_EDGE = 1600;
+const UPLOAD_IMAGE_TARGET_MAX_BYTES = 2 * 1024 * 1024;
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('read_result_invalid'));
+    };
+    reader.onerror = () => reject(new Error('file_read_failed'));
+    reader.readAsDataURL(file);
+  });
+
+const loadImageFromBlob = (blob: Blob) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('image_decode_failed'));
+    };
+    image.src = url;
+  });
+
+const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
+  new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), type, quality);
+  });
+
+const optimizeImageForUpload = async (file: File): Promise<File> => {
+  if (typeof window === 'undefined' || !file.type.startsWith('image/')) return file;
+
+  try {
+    const image = await loadImageFromBlob(file);
+    const longestEdge = Math.max(image.width, image.height);
+    const scale = longestEdge > UPLOAD_IMAGE_MAX_EDGE ? UPLOAD_IMAGE_MAX_EDGE / longestEdge : 1;
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const primaryMimeType = file.type === 'image/png' ? 'image/webp' : file.type;
+    const fallbackMimeType = file.type.startsWith('image/') ? 'image/jpeg' : 'application/octet-stream';
+
+    const tryEncode = async (mimeType: string, quality: number) =>
+      (await canvasToBlob(canvas, mimeType, quality)) ?? (await canvasToBlob(canvas, fallbackMimeType, quality));
+
+    let encoded =
+      (await tryEncode(primaryMimeType, 0.84)) ??
+      (await tryEncode(fallbackMimeType, 0.84));
+
+    if (!encoded) return file;
+
+    if (encoded.size > UPLOAD_IMAGE_TARGET_MAX_BYTES && (encoded.type === 'image/webp' || encoded.type === 'image/jpeg')) {
+      for (const quality of [0.78, 0.72, 0.66, 0.6]) {
+        const candidate = await tryEncode(encoded.type, quality);
+        if (!candidate) continue;
+        encoded = candidate;
+        if (encoded.size <= UPLOAD_IMAGE_TARGET_MAX_BYTES) break;
+      }
+    }
+
+    if (encoded.size >= file.size * 0.98 && file.size <= UPLOAD_IMAGE_TARGET_MAX_BYTES) {
+      return file;
+    }
+
+    const extension =
+      encoded.type === 'image/webp' ? 'webp' : encoded.type === 'image/png' ? 'png' : 'jpg';
+    const safeBaseName = file.name.replace(/\.[^/.]+$/, '');
+    return new File([encoded], `${safeBaseName}.${extension}`, {
+      type: encoded.type,
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  }
+};
 
 const request = async <T>(
   path: string,
@@ -223,9 +313,9 @@ export const authApi = {
         created_at: string;
       };
     }>>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      (async () => {
+        const optimized = await optimizeImageForUpload(file);
+        const dataUrl = await readFileAsDataUrl(optimized);
         const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] ?? '' : '';
         const payload = await request<{
           photo: {
@@ -239,21 +329,19 @@ export const authApi = {
         }>('/profiles/photos', {
           method: 'POST',
           body: JSON.stringify({
-            mimeType: file.type || 'application/octet-stream',
+            mimeType: optimized.type || file.type || 'application/octet-stream',
             base64Data,
           }),
         });
         resolve(payload);
-      };
-      reader.onerror = () => {
+      })().catch(() => {
         resolve({
           ok: false,
           code: 'PHOTO_READ_FAILED',
           message: 'Unable to read photo file.',
           fallback: ['login_with_google'],
         });
-      };
-      reader.readAsDataURL(file);
+      });
     });
   },
 
@@ -270,9 +358,9 @@ export const authApi = {
       submittedAt: string;
       verifiedOptIn: boolean;
     }>>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      (async () => {
+        const optimized = await optimizeImageForUpload(file);
+        const dataUrl = await readFileAsDataUrl(optimized);
         const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] ?? '' : '';
         const payload = await request<{
           submissionId: string;
@@ -282,22 +370,20 @@ export const authApi = {
         }>('/profiles/kyc/selfie', {
           method: 'POST',
           body: JSON.stringify({
-            mimeType: file.type || 'application/octet-stream',
+            mimeType: optimized.type || file.type || 'application/octet-stream',
             base64Data,
             captureMode: 'front_camera',
           }),
         });
         resolve(payload);
-      };
-      reader.onerror = () => {
+      })().catch(() => {
         resolve({
           ok: false,
           code: 'KYC_SELFIE_READ_FAILED',
           message: 'Unable to read selfie file.',
           fallback: ['login_with_google'],
         });
-      };
-      reader.readAsDataURL(file);
+      });
     });
   },
 

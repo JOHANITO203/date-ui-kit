@@ -93,6 +93,35 @@ type ProfilePhotoRow = {
 
 const PROFILE_PHOTOS_BUCKET = env.STORAGE_PROFILE_PHOTOS_BUCKET;
 const PHOTO_MAX_COUNT = 5;
+const SIGNED_URL_CACHE_VERSION = "v2:original";
+const SIGNED_URL_CACHE_SKEW_MS = 30_000;
+const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
+
+const signedPhotoCacheKey = (storagePath: string) => `${SIGNED_URL_CACHE_VERSION}:${storagePath}`;
+
+const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
+  const key = signedPhotoCacheKey(storagePath);
+  const cached = signedPhotoUrlCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAtMs <= Date.now()) {
+    signedPhotoUrlCache.delete(key);
+    return null;
+  }
+  return cached.url;
+};
+
+const setCachedSignedPhotoUrl = (storagePath: string, url: string) => {
+  const key = signedPhotoCacheKey(storagePath);
+  const ttlMs = Math.max(15_000, env.STORAGE_SIGNED_URL_TTL_SEC * 1000 - SIGNED_URL_CACHE_SKEW_MS);
+  signedPhotoUrlCache.set(key, {
+    url,
+    expiresAtMs: Date.now() + ttlMs,
+  });
+};
+
+const invalidateCachedSignedPhotoUrl = (storagePath: string) => {
+  signedPhotoUrlCache.delete(signedPhotoCacheKey(storagePath));
+};
 
 const mapStorageUploadError = (
   error: { message?: string; statusCode?: string | number } | null,
@@ -128,6 +157,18 @@ const extensionFromMimeType = (mimeType: string) => {
 };
 
 const buildPhotoPublicPayload = async (row: ProfilePhotoRow) => {
+  const cachedSignedUrl = getCachedSignedPhotoUrl(row.storage_path);
+  if (cachedSignedUrl) {
+    return {
+      id: row.id,
+      path: row.storage_path,
+      url: cachedSignedUrl,
+      sort_order: row.sort_order,
+      is_primary: row.is_primary,
+      created_at: row.created_at,
+    };
+  }
+
   const { data, error } = await supabaseServiceClient.storage
     .from(PROFILE_PHOTOS_BUCKET)
     .createSignedUrl(row.storage_path, env.STORAGE_SIGNED_URL_TTL_SEC);
@@ -142,6 +183,8 @@ const buildPhotoPublicPayload = async (row: ProfilePhotoRow) => {
       created_at: row.created_at,
     };
   }
+
+  setCachedSignedPhotoUrl(row.storage_path, data.signedUrl);
 
   return {
     id: row.id,
@@ -378,6 +421,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       if (insertResult.error || !insertResult.data) {
         request.log.error({ err: insertResult.error, userId: session.user.id }, "profile.photos.insert_failed");
         await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([storagePath]);
+        invalidateCachedSignedPhotoUrl(storagePath);
         return sendAuthError(reply, 500, "PROFILE_PHOTO_INSERT_FAILED", "Unable to persist profile photo.");
       }
 
@@ -501,6 +545,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       }
 
       await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([lookup.data.storage_path]);
+      invalidateCachedSignedPhotoUrl(lookup.data.storage_path);
 
       const removeResult = await supabaseServiceClient
         .from("profile_photos")

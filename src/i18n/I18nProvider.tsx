@@ -4,6 +4,7 @@ import { Locale, translations } from './translations';
 const STORAGE_KEY = 'exotic.locale';
 const PLACEHOLDER_RE = /\{(\w+)\}/g;
 const MOJIBAKE_RE = /(?:\u00D0.|\u00D1.|\u00C3.|\u00C2.)|\uFFFD/;
+const LOOKS_BROKEN_RE = /\?{2,}/;
 const STRICT_I18N_VALIDATION = import.meta.env.VITE_STRICT_I18N === 'true';
 
 type Params = Record<string, string | number>;
@@ -16,14 +17,7 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-const RUNTIME_TRANSLATION_OVERRIDES: Partial<Record<Locale, Record<string, string>>> = {
-  ru: {
-    'discover.hiddenDistance': 'Расстояние скрыто',
-    'discover.distanceKm': '{value} км',
-    'discover.errorSubtitle': 'Повтори чуть позже, чтобы загрузить анкеты Discover.',
-    'discover.retry': 'Повторить',
-  },
-};
+const RUNTIME_TRANSLATION_OVERRIDES: Partial<Record<Locale, Record<string, string>>> = {};
 
 const resolve = (obj: Record<string, any>, path: string): string | undefined => {
   return path.split('.').reduce<any>((acc, part) => {
@@ -134,9 +128,17 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const t = (key: string, params?: Params) => {
     const override = RUNTIME_TRANSLATION_OVERRIDES[locale]?.[key];
-    const raw = override ?? resolve(translations[locale], key) ?? resolve(translations.en, key) ?? key;
-    if (typeof raw !== 'string') return key;
-    return interpolate(raw, params);
+    const localeValue = override ?? resolve(translations[locale], key);
+    const enValue = resolve(translations.en, key);
+    const localeString = typeof localeValue === 'string' ? localeValue : undefined;
+    const fallbackString = typeof enValue === 'string' ? enValue : undefined;
+
+    const selected =
+      locale === 'ru' && localeString && (MOJIBAKE_RE.test(localeString) || LOOKS_BROKEN_RE.test(localeString))
+        ? fallbackString ?? localeString
+        : localeString ?? fallbackString ?? key;
+
+    return interpolate(selected, params);
   };
 
   const value = useMemo(() => ({ locale, setLocale, t }), [locale]);

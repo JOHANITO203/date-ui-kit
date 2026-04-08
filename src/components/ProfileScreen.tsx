@@ -234,9 +234,16 @@ const ProfileScreen = () => {
 
     const hydrateProfileState = async () => {
       try {
-        const [profileResult, photosResult, conversationsResult, likesResult] = await Promise.allSettled([
+        const photosPromise = authApi.getProfilePhotos().then((photosPayload) => {
+          if (isCancelled || !photosPayload.ok) return;
+          const photos = photosPayload.data?.photos ?? [];
+          const firstPhotoUrl = photos.find((photo) => Boolean(photo.url))?.url ?? null;
+          setProfilePhotosCount(photos.length);
+          setProfilePhotoUrl(firstPhotoUrl);
+        });
+
+        const [profileResult, conversationsResult, likesResult] = await Promise.allSettled([
           authApi.getProfileMe(),
-          authApi.getProfilePhotos(),
           appApi.getConversations(),
           appApi.getLikes(),
         ]);
@@ -313,12 +320,7 @@ const ProfileScreen = () => {
           setProfileName(fallbackNameFromSession || 'User');
         }
 
-        if (photosResult.status === 'fulfilled' && photosResult.value.ok) {
-          const photos = photosResult.value.data?.photos ?? [];
-          const firstPhotoUrl = photos.find((photo) => Boolean(photo.url))?.url ?? null;
-          setProfilePhotosCount(photos.length);
-          setProfilePhotoUrl(firstPhotoUrl);
-        }
+        await photosPromise;
       } catch {
         if (!isCancelled) {
           setProfileName((prev) => prev || fallbackNameFromSession || 'User');
@@ -425,6 +427,9 @@ const ProfileScreen = () => {
                     src={profilePhotoUrl}
                     className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700"
                     alt="Me"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
