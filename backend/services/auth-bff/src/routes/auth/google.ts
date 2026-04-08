@@ -381,8 +381,9 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         idToken,
         accessToken,
       });
+      const session = data?.session;
 
-      if (supabaseError || !data.session) {
+      if (supabaseError || !session) {
         request.log.error({ err: supabaseError }, "auth.google.supabase_signin_failed");
         if (isTransientSupabaseAuthError(supabaseError)) {
           return sendAuthError(
@@ -402,20 +403,20 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         );
       }
 
-      setAuthCookies(reply, data.session.access_token, data.session.refresh_token);
+      setAuthCookies(reply, session.access_token, session.refresh_token);
       request.log.info(
         {
           provider: "google",
-          userId: data.session.user.id,
-          email: data.session.user.email,
+          userId: session.user.id,
+          email: session.user.email,
         },
         "auth.google.success"
       );
 
       const internalToken = issueInternalSessionToken({
-        sub: data.session.user.id,
-        email: data.session.user.email,
-        role: data.session.user.role ?? "authenticated",
+        sub: session.user.id,
+        email: session.user.email,
+        role: session.user.role ?? "authenticated",
       });
       persistInternalSession(reply, internalToken);
 
@@ -434,15 +435,15 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
       const redirectUrl = new URL(redirectPath, env.APP_URL);
       redirectUrl.searchParams.set("provider", "google");
       redirectUrl.searchParams.set("token", internalToken);
-      if (data.session.access_token) {
-        redirectUrl.searchParams.set("access_token", data.session.access_token);
+      if (session.access_token) {
+        redirectUrl.searchParams.set("access_token", session.access_token);
       }
-      if (data.session.refresh_token) {
-        redirectUrl.searchParams.set("refresh_token", data.session.refresh_token);
+      if (session.refresh_token) {
+        redirectUrl.searchParams.set("refresh_token", session.refresh_token);
       }
       redirectUrl.searchParams.set("next", nextPath);
-      if (data.session.expires_in) {
-        redirectUrl.searchParams.set("expires_in", String(data.session.expires_in));
+      if (session.expires_in) {
+        redirectUrl.searchParams.set("expires_in", String(session.expires_in));
       }
 
       stateStore.delete(state);
