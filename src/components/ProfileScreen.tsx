@@ -11,7 +11,8 @@ import { useRuntimeSelector } from '../state';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { useAuth } from '../auth/AuthProvider';
-import { hydrateProfileSeed } from '../domain/profileHydration';
+import { getOnboardingProfileSnapshot, hydrateProfileSeed } from '../domain/profileHydration';
+import { computeVisibilityScore } from '../domain/visibilityScore';
 
 const calculateAge = (birthDateIso: string | null | undefined) => {
   if (!birthDateIso) return undefined;
@@ -49,49 +50,6 @@ const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: num
   return earthRadiusKm * c;
 };
 
-type VisibilityScoreInput = {
-  photosCount: number;
-  hasVideo: boolean;
-  hasFirstName: boolean;
-  hasCity: boolean;
-  hasBio: boolean;
-  verifiedIdentity: boolean;
-  planTier: 'free' | 'essential' | 'gold' | 'platinum' | 'elite';
-  boostActive: boolean;
-  boostTokens: number;
-  superlikesTokens: number;
-  rewindTokens: number;
-  travelPassSource: 'none' | 'travel_pass' | 'bundle_included' | 'plan_included';
-  shadowGhostActive: boolean;
-};
-
-const computeVisibilityScore = (input: VisibilityScoreInput) => {
-  let score = 15;
-
-  score += Math.min(22, input.photosCount * 5);
-  if (input.hasVideo) score += 6;
-  if (input.hasFirstName) score += 8;
-  if (input.hasCity) score += 8;
-  if (input.hasBio) score += 10;
-  if (input.verifiedIdentity) score += 14;
-
-  if (input.planTier === 'essential') score += 3;
-  if (input.planTier === 'gold') score += 5;
-  if (input.planTier === 'platinum') score += 7;
-  if (input.planTier === 'elite') score += 9;
-
-  if (input.boostActive) score += 8;
-  if (input.boostTokens > 0) score += 2;
-  if (input.superlikesTokens > 0) score += 2;
-  if (input.rewindTokens > 0) score += 1;
-  if (input.travelPassSource === 'travel_pass') score += 4;
-  if (input.travelPassSource === 'bundle_included') score += 3;
-  if (input.travelPassSource === 'plan_included') score += 2;
-  if (input.shadowGhostActive) score += 4;
-
-  return Math.max(0, Math.min(100, Math.round(score)));
-};
-
 const normalizeCityLabel = (value: string, t: (key: string) => string) => {
   const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, '-');
   if (normalized === 'voronezh') return t('settings.cities.voronezh');
@@ -123,7 +81,6 @@ const ProfileScreen = () => {
   const [profileBio, setProfileBio] = useState('');
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [profilePhotosCount, setProfilePhotosCount] = useState(0);
-  const [profileVideosCount] = useState(0);
   const [profileViewsCount, setProfileViewsCount] = useState(0);
   const [matchesCount, setMatchesCount] = useState(0);
   const shadowGhostAccess = resolveShadowGhostAccess({
@@ -187,7 +144,16 @@ const ProfileScreen = () => {
           : settings.preferences.travelPassCity === 'moscow'
             ? t('settings.cities.moscow')
             : null;
-  const currentServerCityLabel = travelPassCityLabel ?? profileCity ?? t('settings.cities.moscow');
+  const onboardingLaunchCityLabel = useMemo(() => {
+    const snapshot = getOnboardingProfileSnapshot();
+    const launchCity = snapshot?.city?.trim();
+    return launchCity ? normalizeCityLabel(launchCity, t) : null;
+  }, [t, user?.id]);
+  const currentServerCityLabel =
+    (travelPassServerAccess.canChangeServer ? travelPassCityLabel : null) ??
+    profileCity ??
+    onboardingLaunchCityLabel ??
+    t('settings.cities.moscow');
   const travelPassSourceLabel = t(`settings.travelPass.sources.${travelPassServerAccess.source}`);
   const boostActive = useMemo(() => {
     if (!boostActiveUntilIso) return false;
@@ -198,7 +164,6 @@ const ProfileScreen = () => {
     () =>
       computeVisibilityScore({
         photosCount: profilePhotosCount,
-        hasVideo: profileVideosCount > 0,
         hasFirstName: profileName.trim().length > 0,
         hasCity: Boolean(profileCity?.trim()),
         hasBio: profileBio.trim().length > 0,
@@ -221,7 +186,6 @@ const ProfileScreen = () => {
       profileCity,
       profileName,
       profilePhotosCount,
-      profileVideosCount,
       settings.privacy.shadowGhost,
       shadowGhostLocked,
       travelPassServerAccess.source,
@@ -270,24 +234,26 @@ const ProfileScreen = () => {
 
     const hydrateProfileState = async () => {
       try {
-        const [profileResult, photosResult] = await Promise.allSettled([
+        const [profileResult, photosResult, conversationsResult, likesResult] = await Promise.allSettled([
           authApi.getProfileMe(),
           authApi.getProfilePhotos(),
+          appApi.getConversations(),
+          appApi.getLikes(),
         ]);
 
         if (isCancelled) return;
 
         const trackedEvents = getTrackedEvents();
         const ownDiscoverViews = trackedEvents.filter((event) => event.name === 'profile_impression').length;
-        const matches = trackedEvents.filter((event) => event.name === 'match_created').length;
-        let viewedByOthers = 0;
-        try {
-          const likesPayload = await appApi.getLikes();
-          viewedByOthers =
-            likesPayload.inventory.visibleLikes.length + likesPayload.inventory.hiddenCount;
-        } catch {
-          viewedByOthers = 0;
-        }
+        const fallbackMatches = trackedEvents.filter((event) => event.name === 'match_created').length;
+        const matches =
+          conversationsResult.status === 'fulfilled'
+            ? conversationsResult.value.items.filter((item) => item.relationState === 'active').length
+            : fallbackMatches;
+        const viewedByOthers =
+          likesResult.status === 'fulfilled'
+            ? likesResult.value.inventory.visibleLikes.length + likesResult.value.inventory.hiddenCount
+            : 0;
         const computedViews = Math.round((ownDiscoverViews + viewedByOthers) * 1.35);
 
         setProfileViewsCount(computedViews);
@@ -303,7 +269,7 @@ const ProfileScreen = () => {
           const persistedCity = seed.city;
           if (persistedCity) {
             setProfileCity(normalizeCityLabel(persistedCity, t));
-          } else if (travelPassCityLabel) {
+          } else if (travelPassServerAccess.canChangeServer && travelPassCityLabel) {
             const cityId = settings.preferences.travelPassCity;
             const cityLabel =
               cityId === 'voronezh'
@@ -312,10 +278,12 @@ const ProfileScreen = () => {
                   ? t('settings.cities.saintPetersburg')
                   : cityId === 'sochi'
                     ? t('settings.cities.sochi')
-                    : cityId === 'moscow'
+                  : cityId === 'moscow'
                       ? t('settings.cities.moscow')
                       : null;
             setProfileCity(cityLabel);
+          } else if (onboardingLaunchCityLabel) {
+            setProfileCity(onboardingLaunchCityLabel);
           } else if (settings.privacy.preciseLocation && typeof window !== 'undefined' && 'geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
               (position) => {
@@ -334,12 +302,12 @@ const ProfileScreen = () => {
                 setProfileCity(cityLabel);
               },
               () => {
-                setProfileCity(t('settings.cities.moscow'));
+                setProfileCity(onboardingLaunchCityLabel ?? t('settings.cities.moscow'));
               },
               { enableHighAccuracy: true, timeout: 3000, maximumAge: 10 * 60 * 1000 },
             );
           } else {
-            setProfileCity(t('settings.cities.moscow'));
+            setProfileCity(onboardingLaunchCityLabel ?? t('settings.cities.moscow'));
           }
         } else {
           setProfileName(fallbackNameFromSession || 'User');
@@ -354,7 +322,7 @@ const ProfileScreen = () => {
       } catch {
         if (!isCancelled) {
           setProfileName((prev) => prev || fallbackNameFromSession || 'User');
-          setProfileCity((prev) => prev || t('settings.cities.moscow'));
+          setProfileCity((prev) => prev || onboardingLaunchCityLabel || t('settings.cities.moscow'));
         }
       }
     };
@@ -364,7 +332,17 @@ const ProfileScreen = () => {
     return () => {
       isCancelled = true;
     };
-  }, [settings.preferences.travelPassCity, settings.privacy.preciseLocation, t, travelPassCityLabel, user?.email, user?.id, user?.profile]);
+  }, [
+    onboardingLaunchCityLabel,
+    settings.preferences.travelPassCity,
+    settings.privacy.preciseLocation,
+    t,
+    travelPassCityLabel,
+    travelPassServerAccess.canChangeServer,
+    user?.email,
+    user?.id,
+    user?.profile,
+  ]);
 
   useEffect(() => {
     const node = scrollRef.current;

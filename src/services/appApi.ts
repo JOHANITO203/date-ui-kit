@@ -675,54 +675,48 @@ export const appApi = {
     return authApi
       .getProfileMe()
       .then((response) => {
-        if (response.ok) {
-          syncRuntimeSettingsFromAuthProfile(response.data);
-          return {
-            profile: response.data?.profile
-              ? {
-                  first_name: response.data.profile.first_name ?? null,
-                  last_name: response.data.profile.last_name ?? null,
-                  locale: response.data.profile.locale ?? null,
-                  bio: response.data.profile.bio ?? null,
-                  city: response.data.profile.city ?? null,
-                  verified_opt_in: response.data.profile.verified_opt_in ?? null,
-                }
-              : null,
-            settings: response.data?.settings
-              ? {
-                  language: response.data.settings.language ?? null,
-                  target_lang: response.data.settings.target_lang ?? null,
-                  auto_translate: response.data.settings.auto_translate ?? null,
-                  auto_detect_language: response.data.settings.auto_detect_language ?? null,
-                  precise_location_enabled: response.data.settings.precise_location_enabled ?? null,
-                  visibility: response.data.settings.visibility ?? null,
-                  hide_age: response.data.settings.hide_age ?? null,
-                  hide_distance: response.data.settings.hide_distance ?? null,
-                  incognito: response.data.settings.incognito ?? null,
-                  read_receipts: response.data.settings.read_receipts ?? null,
-                  shadow_ghost: response.data.settings.shadow_ghost ?? null,
-                  travel_pass_city: response.data.settings.travel_pass_city ?? null,
-                  phone_country_code: response.data.settings.phone_country_code ?? null,
-                  phone_national_number: response.data.settings.phone_national_number ?? null,
-                  distance_km: response.data.settings.distance_km ?? null,
-                  age_min: response.data.settings.age_min ?? null,
-                  age_max: response.data.settings.age_max ?? null,
-                  gender_preference: response.data.settings.gender_preference ?? null,
-                  notifications_enabled: response.data.settings.notifications_enabled ?? null,
-                }
-              : null,
-          };
+        if (!response.ok) {
+          throw new Error(`profile_me_failed_${response.code ?? 'unknown'}`);
         }
 
+        syncRuntimeSettingsFromAuthProfile(response.data);
         return {
-          profile: null,
-          settings: null,
+          profile: response.data?.profile
+            ? {
+                first_name: response.data.profile.first_name ?? null,
+                last_name: response.data.profile.last_name ?? null,
+                locale: response.data.profile.locale ?? null,
+                bio: response.data.profile.bio ?? null,
+                city: response.data.profile.city ?? null,
+                verified_opt_in: response.data.profile.verified_opt_in ?? null,
+              }
+            : null,
+          settings: response.data?.settings
+            ? {
+                language: response.data.settings.language ?? null,
+                target_lang: response.data.settings.target_lang ?? null,
+                auto_translate: response.data.settings.auto_translate ?? null,
+                auto_detect_language: response.data.settings.auto_detect_language ?? null,
+                precise_location_enabled: response.data.settings.precise_location_enabled ?? null,
+                visibility: response.data.settings.visibility ?? null,
+                hide_age: response.data.settings.hide_age ?? null,
+                hide_distance: response.data.settings.hide_distance ?? null,
+                incognito: response.data.settings.incognito ?? null,
+                read_receipts: response.data.settings.read_receipts ?? null,
+                shadow_ghost: response.data.settings.shadow_ghost ?? null,
+                travel_pass_city: response.data.settings.travel_pass_city ?? null,
+                phone_country_code: response.data.settings.phone_country_code ?? null,
+                phone_national_number: response.data.settings.phone_national_number ?? null,
+                distance_km: response.data.settings.distance_km ?? null,
+                age_min: response.data.settings.age_min ?? null,
+                age_max: response.data.settings.age_max ?? null,
+                gender_preference: response.data.settings.gender_preference ?? null,
+                notifications_enabled: response.data.settings.notifications_enabled ?? null,
+              }
+            : null,
         };
       })
-      .catch(() => ({
-        profile: null,
-        settings: null,
-      }))
+      .catch((error) => Promise.reject(error))
       .then((payload) => withLatency(payload));
   },
 

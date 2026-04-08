@@ -19,6 +19,7 @@ type OnboardingDraftPayload = {
 type OnboardingProfileSnapshot = {
   firstName?: string;
   city?: string;
+  bio?: string;
   intent?: string;
   interests?: string[];
   birthDate?: string;
@@ -91,6 +92,7 @@ export const getOnboardingProfileSnapshot = () => {
   return {
     firstName: safeTrim(snapshot.firstName),
     city: safeTrim(snapshot.city),
+    bio: safeTrim(snapshot.bio),
     intent: safeTrim(snapshot.intent),
     interests: safeStringArray(snapshot.interests),
     birthDate: safeTrim(snapshot.birthDate),
@@ -101,6 +103,7 @@ export const getOnboardingProfileSnapshot = () => {
 export const saveOnboardingProfileSnapshot = (payload: {
   firstName?: string;
   city?: string;
+  bio?: string;
   intent?: string;
   interests?: string[];
   birthDate?: string;
@@ -138,6 +141,7 @@ export const hydrateProfileSeed = (
   const city = safeTrim(apiProfile?.city) || safeTrim(snapshot?.city) || safeTrim(draft?.city);
   const bio =
     safeTrim(apiProfile?.bio) ||
+    safeTrim(snapshot?.bio) ||
     safeTrim(apiProfile?.intent) ||
     safeTrim(snapshot?.intent) ||
     safeTrim(draft?.intent);

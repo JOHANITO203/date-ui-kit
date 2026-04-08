@@ -19,7 +19,8 @@ type UploadedPhoto = {
   created_at: string;
 };
 
-const PHOTO_SLOTS = 6;
+const PHOTO_SLOTS = 5;
+const MAX_INTERESTS = 5;
 
 const EditProfileScreen = () => {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ const EditProfileScreen = () => {
   const [city, setCity] = useState('');
   const [about, setAbout] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
+  const [interestDraft, setInterestDraft] = useState('');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -81,7 +83,7 @@ const EditProfileScreen = () => {
         }
       } catch {
         if (!isCancelled) {
-          setErrorText('Unable to load profile data.');
+          setErrorText(t('editProfile.loadError'));
         }
       } finally {
         if (!isCancelled) {
@@ -95,7 +97,7 @@ const EditProfileScreen = () => {
     return () => {
       isCancelled = true;
     };
-  }, [user?.profile]);
+  }, [t, user?.profile]);
 
   const saveProfile = async () => {
     setIsSaving(true);
@@ -106,20 +108,21 @@ const EditProfileScreen = () => {
         first_name: firstName.trim(),
         city: city.trim(),
         bio: about.trim(),
+        interests,
       });
       if (!response.ok) {
-        setErrorText(response.message || 'Unable to save profile.');
+        setErrorText(response.message || t('editProfile.saveError'));
         return;
       }
       saveOnboardingProfileSnapshot({
         firstName: firstName.trim(),
         city: city.trim(),
-        intent: about.trim(),
+        bio: about.trim(),
         interests,
       });
-      setSuccessText('Profile updated.');
+      setSuccessText(t('editProfile.saved'));
     } catch {
-      setErrorText('Unable to save profile.');
+      setErrorText(t('editProfile.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -129,7 +132,7 @@ const EditProfileScreen = () => {
     setErrorText('');
     const response = await authApi.uploadProfilePhoto(file);
     if (!response.ok || !response.data?.photo) {
-      setErrorText(response.message || 'Unable to upload photo.');
+      setErrorText(response.message || t('editProfile.uploadError'));
       return;
     }
     setPhotos((prev) => [...prev, response.data!.photo].sort((a, b) => a.sort_order - b.sort_order));
@@ -147,13 +150,29 @@ const EditProfileScreen = () => {
     try {
       const response = await authApi.deleteProfilePhoto(photoId);
       if (!response.ok) {
-        setErrorText(response.message || 'Unable to remove photo.');
+        setErrorText(response.message || t('editProfile.removeError'));
         return;
       }
       setPhotos((prev) => prev.filter((photo) => photo.id !== photoId));
     } catch {
-      setErrorText('Unable to remove photo.');
+      setErrorText(t('editProfile.removeError'));
     }
+  };
+
+  const addInterest = () => {
+    const normalized = interestDraft.trim();
+    if (!normalized) return;
+    if (interests.some((entry) => entry.toLowerCase() === normalized.toLowerCase())) {
+      setInterestDraft('');
+      return;
+    }
+    if (interests.length >= MAX_INTERESTS) return;
+    setInterests((prev) => [...prev, normalized]);
+    setInterestDraft('');
+  };
+
+  const removeInterest = (value: string) => {
+    setInterests((prev) => prev.filter((entry) => entry !== value));
   };
 
   return (
@@ -185,7 +204,7 @@ const EditProfileScreen = () => {
           disabled={isSaving || isLoading}
           className="py-3 px-8 rounded-2xl text-xs font-black uppercase tracking-widest bg-pink-500 text-white border-none disabled:opacity-60"
         >
-          {isSaving ? 'Saving...' : t('editProfile.save')}
+          {isSaving ? t('editProfile.saving') : t('editProfile.save')}
         </GlassButton>
       </header>
 
@@ -257,7 +276,7 @@ const EditProfileScreen = () => {
           </section>
 
           <section className="space-y-4">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">First name</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">{t('editProfile.firstName')}</label>
             <div className="glass rounded-[20px] p-4 border border-white/10">
               <input
                 className="w-full bg-transparent outline-none text-sm"
@@ -268,7 +287,7 @@ const EditProfileScreen = () => {
           </section>
 
           <section className="space-y-4">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">City</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">{t('editProfile.city')}</label>
             <div className="glass rounded-[20px] p-4 border border-white/10">
               <input
                 className="w-full bg-transparent outline-none text-sm"
@@ -280,14 +299,36 @@ const EditProfileScreen = () => {
 
           <section className="space-y-4">
             <label className="text-[10px] uppercase tracking-[0.2em] text-secondary font-black px-2 block">{t('editProfile.interests')}</label>
+            <div className="flex gap-3">
+              <input
+                className="flex-1 bg-transparent glass rounded-[14px] border border-white/10 px-4 py-3 text-sm outline-none focus:border-pink-500/40"
+                value={interestDraft}
+                onChange={(event) => setInterestDraft(event.target.value)}
+                placeholder={t('editProfile.interestPlaceholder')}
+                maxLength={40}
+              />
+              <GlassButton
+                onClick={addInterest}
+                disabled={interests.length >= MAX_INTERESTS}
+                className="px-4 py-3 rounded-[14px] text-[10px] uppercase tracking-[0.14em] font-black disabled:opacity-50"
+              >
+                {t('editProfile.addInterest')}
+              </GlassButton>
+            </div>
             <div className="flex flex-wrap gap-3">
               {interests.map((tag) => (
-                <div key={tag} className="px-5 py-3 rounded-2xl glass border border-white/5 text-xs font-bold flex items-center gap-3">
+                <button
+                  type="button"
+                  key={tag}
+                  onClick={() => removeInterest(tag)}
+                  className="px-5 py-3 rounded-2xl glass border border-white/5 text-xs font-bold flex items-center gap-3 hover:border-pink-400/35"
+                >
                   {tag}
-                </div>
+                  <Trash2 size={14} />
+                </button>
               ))}
               {interests.length === 0 && (
-                <span className="text-xs text-white/50">No interests saved yet.</span>
+                <span className="text-xs text-white/50">{t('editProfile.noInterests')}</span>
               )}
             </div>
           </section>
