@@ -61,10 +61,11 @@ const normalizeCityLabel = (value: string, t: (key: string) => string) => {
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
-  const { isDesktop, isTablet, isTouch } = useDevice();
+  const { isDesktop, isTouch } = useDevice();
   const { t } = useI18n();
   const { user } = useAuth();
-  const isLarge = isDesktop || isTablet;
+  const isLarge = isDesktop;
+  const showDesktopRail = isDesktop && !isTouch;
   const previewPlan = useRuntimeSelector((payload) => payload.planTier);
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const balances = useRuntimeSelector((payload) => ({
@@ -348,7 +349,7 @@ const ProfileScreen = () => {
 
   useEffect(() => {
     const node = scrollRef.current;
-    if (!isLarge || !node) return;
+    if (!showDesktopRail || !node) return;
 
     const updateScroll = () => {
       const max = node.scrollHeight - node.clientHeight;
@@ -366,7 +367,7 @@ const ProfileScreen = () => {
       node.removeEventListener('scroll', updateScroll);
       window.removeEventListener('resize', updateScroll);
     };
-  }, [isLarge]);
+  }, [showDesktopRail]);
 
   const jumpToSection = (index: number) => {
     const node = sectionRefs.current[index];
@@ -524,7 +525,7 @@ const ProfileScreen = () => {
             ref={(el) => {
               sectionRefs.current[2] = el;
             }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]"
+            className={`grid gap-[var(--grid-gap)] ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}
           >
             <div
               className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-blue-400/35 transition-colors"
@@ -608,7 +609,7 @@ const ProfileScreen = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid gap-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <div className="rounded-2xl glass-panel-soft p-4 space-y-4 hover:border-pink-400/25 transition-colors">
                 <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.privacyLabel')}</div>
                 <div className="flex items-center justify-between">
@@ -783,7 +784,7 @@ const ProfileScreen = () => {
       </div>
       </div>
 
-      {isLarge && (
+      {showDesktopRail && (
         <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
           <div className="group/profile-rail h-full w-full flex items-center justify-center pointer-events-auto">
             <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/profile:opacity-100 group-focus-within/profile:opacity-100 group-hover/profile-rail:opacity-100">

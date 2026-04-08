@@ -25,6 +25,7 @@ const MessagesScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const showDesktopRail = isDesktop && !isTouch;
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [conversationItems, setConversationItems] = useState<ConversationSummary[]>([]);
@@ -121,7 +122,7 @@ const MessagesScreen = () => {
   useEffect(() => {
     const matchesNode = matchesRef.current;
     const convNode = conversationsRef.current;
-    if (!isLarge || !matchesNode || !convNode) return;
+    if (!showDesktopRail || !matchesNode || !convNode) return;
 
     const updateMatches = () => {
       const max = matchesNode.scrollWidth - matchesNode.clientWidth;
@@ -152,10 +153,10 @@ const MessagesScreen = () => {
       window.removeEventListener('resize', updateMatches);
       window.removeEventListener('resize', updateConversations);
     };
-  }, [isLarge]);
+  }, [showDesktopRail]);
 
   useEffect(() => {
-    if (!isLarge) return;
+    if (!showDesktopRail) return;
     const matchesNode = matchesRef.current;
     const convNode = conversationsRef.current;
     if (!matchesNode || !convNode) return;
@@ -170,14 +171,14 @@ const MessagesScreen = () => {
     const convSize = convNode.scrollHeight <= 0 ? 100 : (convNode.clientHeight / convNode.scrollHeight) * 100;
     setConversationsProgress(Math.min(1, Math.max(0, convValue)));
     setConversationsThumb(Math.max(20, Math.min(100, convSize)));
-  }, [isLarge, isLoading]);
+  }, [showDesktopRail, isLoading]);
 
   useEffect(() => {
     const node = matchesRef.current;
     if (!node) return;
 
     const onWheel = (event: WheelEvent) => {
-      if (!isLarge) return;
+      if (!showDesktopRail) return;
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       if (node.scrollWidth <= node.clientWidth) return;
       event.preventDefault();
@@ -186,7 +187,7 @@ const MessagesScreen = () => {
 
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
-  }, [isLarge]);
+  }, [showDesktopRail]);
 
   const handleUserSelect = (id: string) => {
     if (isLarge) {
@@ -347,7 +348,7 @@ const MessagesScreen = () => {
             ))}
           </div>
           )}
-          {isLarge && showContent && hasMatches && (
+          {showDesktopRail && showContent && hasMatches && (
             <div className="mt-3 px-1 h-4">
               <div className="rounded-full p-[1px] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-blue-500/90 shadow-[0_0_12px_rgba(236,72,153,0.3)] opacity-0 transition-opacity duration-200 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
                 <div className="relative h-2.5 rounded-full bg-[#09090c]/95 overflow-hidden">
@@ -523,7 +524,7 @@ const MessagesScreen = () => {
           </div>
           )}
           </div>
-          {isLarge && !isTouch && showContent && hasConversations && (
+          {showDesktopRail && showContent && hasConversations && (
             <div className="absolute right-1 top-8 bottom-0 w-11 z-20 pointer-events-none">
               <div className="group/messages-rail h-full w-full flex items-center justify-center pointer-events-auto opacity-0 transition-opacity duration-300 group-hover/messages-pane:opacity-100 group-hover/messages-rail:opacity-100">
               <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.25)]">

@@ -11,6 +11,7 @@ const MatchesScreen: React.FC = () => {
   const { isDesktop, isTablet } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
+  const showDesktopRail = isLarge && isDesktop;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLElement | null>>([]);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -114,7 +115,7 @@ const MatchesScreen: React.FC = () => {
 
   useEffect(() => {
     const node = scrollRef.current;
-    if (!isLarge || !node) return;
+    if (!showDesktopRail || !node) return;
 
     const updateScroll = () => {
       const max = node.scrollHeight - node.clientHeight;
@@ -132,7 +133,7 @@ const MatchesScreen: React.FC = () => {
       node.removeEventListener('scroll', updateScroll);
       window.removeEventListener('resize', updateScroll);
     };
-  }, [isLarge]);
+  }, [showDesktopRail]);
 
   const jumpToSection = (index: number) => {
     const node = sectionRefs.current[index];
@@ -424,7 +425,7 @@ const MatchesScreen: React.FC = () => {
           </section>
         )}
       </div>
-      {isLarge && (
+      {showDesktopRail && (
         <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">
           <div className="group/likes-rail h-full w-full flex items-center justify-center pointer-events-auto">
             <div className="flex items-center opacity-0 transition-opacity duration-300 group-hover/likes-rail:opacity-100">
