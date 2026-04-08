@@ -9,6 +9,7 @@ Date: 2026-03-30
 - `docs/sources_of_truth/SOT_STATES.md`
 - `docs/sources_of_truth/SOT_BUSINESS_LOGIC.md`
 - `docs/sources_of_truth/SOT_ALGORITHM.md`
+- `docs/sources_of_truth/SOT_ALGORITHM_CALIBRATION_V1.md`
 
 ## Dettes
 - `docs/debt/DEBT_DESIGN.md`

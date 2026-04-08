@@ -36,6 +36,7 @@ Source normative: Master Spec + decisions produit recentes validees en execution
 
 ## 4) Pages coeur alignees
 - Discover: boost stateful + gate tokens.
+- Discover: qualite feed influencee par onboarding (langues, ville de lancement, nationalite, intentions/preferences).
 - Messages/Chat: etats relationnels et blocage/unblocage coherents.
 - Boost: offres, bundles et terminologie harmonisees.
 - Profile: heritage statut + quick actions.
@@ -65,6 +66,7 @@ Source normative: Master Spec + decisions produit recentes validees en execution
 - Les packs/bundles qui incluent Travel Pass gardent la priorite entitlement (`bundle_included` / `plan_included`) sans regression UX.
 - `SHADOWGHOST` devient monétisable en mode temporaire (24h) pour users free/gold/essential; plan `platinum` et `elite` restent inclusifs.
 - Nomenclature commerciale unifiee en MAJUSCULE sur les items/packs/bundles modifies.
+- Le ranking feed favorise la circulation internationale (notamment russe <-> non-russe) tout en gardant une priorite locale via la ville de lancement.
 
 ## 7) Divergences restantes (a monitorer)
 - Validation i18n RU (mojibake historique) a finaliser proprement.
