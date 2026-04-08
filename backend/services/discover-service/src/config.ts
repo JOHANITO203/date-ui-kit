@@ -7,6 +7,7 @@ const envSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:3000"),
   API_HOST: z.string().min(1).default("0.0.0.0"),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(8788),
+  INTERNAL_JWT_SECRET: z.string().min(16),
 });
 
 const parsed = envSchema.safeParse(process.env);

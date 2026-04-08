@@ -74,6 +74,7 @@ const defaultSettings: UserSettings = {
     visibility: 'public',
     hideAge: false,
     hideDistance: false,
+    preciseLocation: false,
     shadowGhost: false,
     incognito: false,
     readReceipts: true,

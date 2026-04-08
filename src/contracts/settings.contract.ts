@@ -12,6 +12,7 @@ export interface PrivacySettings {
   visibility: ProfileVisibilityState;
   hideAge: boolean;
   hideDistance: boolean;
+  preciseLocation: boolean;
   shadowGhost: boolean;
   incognito: boolean;
   readReceipts: boolean;

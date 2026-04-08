@@ -8,7 +8,11 @@ Domain ownership:
 Implemented endpoints:
 - `GET /discover/feed`
 - `POST /discover/swipe`
+- `POST /discover/rewind`
 - `GET /health`
+
+Security:
+- internal service JWT required on Discover endpoints (`Authorization: Bearer <token>`)
 
 Runtime:
 - `API_PORT` default `8788`

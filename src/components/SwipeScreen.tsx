@@ -42,7 +42,10 @@ const SwipeScreen = () => {
   const [isFiltering, setIsFiltering] = useState(false);
   const [feedStatus, setFeedStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [feedCandidates, setFeedCandidates] = useState<FeedCandidate[]>([]);
+  const [feedCursor, setFeedCursor] = useState('');
+  const [dismissedCandidates, setDismissedCandidates] = useState<FeedCandidate[]>([]);
   const [isSwipePending, setIsSwipePending] = useState(false);
+  const [swipeError, setSwipeError] = useState(false);
   const quickFilters = [
     { id: 'all', labelKey: 'discover.quickFilters.all' },
     { id: 'nearby', labelKey: 'discover.quickFilters.nearby' },
@@ -57,10 +60,10 @@ const SwipeScreen = () => {
       ...candidate,
       verified: candidate.flags.verifiedIdentity,
       premiumTier: resolveDisplayPremiumTier(candidate.flags.premiumTier, candidate.flags.shortPassTier),
-      ageMasked: candidate.age <= 0,
-      distanceMasked: candidate.distanceKm < 0,
+      ageMasked: candidate.flags.hideAge,
+      distanceMasked: candidate.flags.hideDistance,
       distanceLabel:
-        candidate.distanceKm < 0
+        candidate.flags.hideDistance || candidate.distanceKm < 0
           ? t('discover.hiddenDistance')
           : t('discover.distanceKm', { value: candidate.distanceKm }),
     }));
@@ -74,6 +77,9 @@ const SwipeScreen = () => {
       .then((response) => {
         if (isCancelled) return;
         setFeedCandidates(response.window.candidates);
+        setFeedCursor(response.window.cursor);
+        setDismissedCandidates([]);
+        setSwipeError(false);
         setFeedStatus('success');
       })
       .catch(() => {
@@ -168,26 +174,34 @@ const SwipeScreen = () => {
     const decision: SwipeDecision =
       dir === 'left' ? 'dislike' : dir === 'right' ? 'like' : 'superlike';
 
-    window.setTimeout(() => {
-      void appApi
-        .swipe(user.id, decision)
-        .then((response) => {
-          if (response.matched) setShowMatch(true);
-        })
-        .finally(() => {
-          setCurrentIndex((prev) => prev + 1);
-          setPhotoIndex(0);
-          x.set(0);
-          y.set(0);
-          setIsSwipePending(false);
-        });
-    }, 100);
+    void appApi
+      .swipe(user.id, decision, feedCursor)
+      .then((response) => {
+        if (response.matched) setShowMatch(true);
+        setDismissedCandidates((prev) => [...prev, user]);
+        setFeedCandidates((prev) => prev.filter((candidate) => candidate.id !== user.id));
+        setCurrentIndex(0);
+        setPhotoIndex(0);
+        setSwipeError(false);
+        x.set(0);
+        y.set(0);
+      })
+      .catch(() => {
+        setSwipeError(true);
+      })
+      .finally(() => {
+        setIsSwipePending(false);
+      });
   };
 
   const rewindLastSwipe = () => {
-    void appApi.rewind().then((response) => {
+    void appApi.rewind(feedCursor).then((response) => {
       if (!response.restoredProfileId) return;
-      setCurrentIndex((prev) => Math.max(0, prev - 1));
+      const lastDismissed = dismissedCandidates[dismissedCandidates.length - 1];
+      if (!lastDismissed || lastDismissed.id !== response.restoredProfileId) return;
+      setDismissedCandidates((prev) => prev.slice(0, -1));
+      setFeedCandidates((prev) => [lastDismissed, ...prev]);
+      setCurrentIndex(0);
       setPhotoIndex(0);
       x.set(0);
       y.set(0);
@@ -390,6 +404,11 @@ const SwipeScreen = () => {
       </div>
 
       <div className="px-[var(--page-x)] pb-2 shrink-0">
+        {swipeError && (
+          <div className="mb-2 rounded-xl border border-red-400/35 bg-red-500/10 px-3 py-2 text-[11px] font-bold text-red-100">
+            {t('discover.errorSubtitle')}
+          </div>
+        )}
         <div className="pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
           <span className="px-2.5 py-1 rounded-full border border-pink-400/30 bg-pink-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-pink-200">
             S {balances.superlikesLeft}

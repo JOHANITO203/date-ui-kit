@@ -71,6 +71,18 @@ let cachedInternalToken: { value: string; fetchedAt: number } | null = null;
 let pendingInternalTokenPromise: Promise<string> | null = null;
 const INTERNAL_TOKEN_CACHE_TTL_MS = 30 * 1000;
 
+const invalidateFeedSignalsCache = () => {
+  cachedFeedSignals = {
+    intent: null,
+    interests: [],
+    preciseLocationEnabled: null,
+    launchCity: null,
+    originCountry: null,
+    userLanguages: [],
+  };
+  cachedFeedSignalsFetchedAt = 0;
+};
+
 const getFeedSignals = async (): Promise<FeedSignals> => {
   const now = Date.now();
   if (cachedFeedSignalsFetchedAt > 0 && now - cachedFeedSignalsFetchedAt < FEED_SIGNALS_CACHE_TTL_MS) {
@@ -163,16 +175,21 @@ const getPreciseGeoPoint = async (enabled: boolean): Promise<{ lat: number; lng:
 };
 
 const discoverRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const internalToken = await resolveInternalToken();
   const response = await fetch(`${DISCOVER_API_URL}${path}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${internalToken}`,
       ...(init?.headers ?? {}),
     },
     ...init,
   });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      cachedInternalToken = null;
+    }
     throw new Error(`discover_request_failed_${response.status}`);
   }
 
@@ -347,6 +364,12 @@ const syncRuntimeSettingsFromAuthProfile = (
       hideDistance: payload.settings.hide_distance,
     };
   }
+  if (typeof payload.settings?.precise_location_enabled === 'boolean') {
+    nextPatch.privacy = {
+      ...(nextPatch.privacy ?? {}),
+      preciseLocation: payload.settings.precise_location_enabled,
+    };
+  }
   if (typeof payload.settings?.incognito === 'boolean') {
     nextPatch.privacy = {
       ...(nextPatch.privacy ?? {}),
@@ -382,6 +405,7 @@ const syncRuntimeSettingsFromAuthProfile = (
 
   if (Object.keys(nextPatch).length > 0) {
     runtimeApi.patchSettings({ patch: nextPatch });
+    invalidateFeedSignalsCache();
   }
 };
 
@@ -441,7 +465,7 @@ export const appApi = {
     runtimeApi.markProfileImpression(profileId);
   },
 
-  async swipe(profileId: string, decision: SwipeDecision): Promise<SwipeResponse> {
+  async swipe(profileId: string, decision: SwipeDecision, feedCursor?: string): Promise<SwipeResponse> {
     if (DISCOVER_API_URL) {
       try {
         return await discoverRequest<SwipeResponse>('/discover/swipe', {
@@ -449,6 +473,7 @@ export const appApi = {
           body: JSON.stringify({
             profileId,
             decision,
+            feedCursor: feedCursor ?? `feed-${Date.now()}`,
           }),
         });
       } catch (error) {
@@ -459,7 +484,20 @@ export const appApi = {
     return withLatency(runtimeApi.swipe(profileId, decision), 80);
   },
 
-  rewind(): Promise<RewindResponse> {
+  rewind(feedCursor?: string): Promise<RewindResponse> {
+    if (DISCOVER_API_URL) {
+      return discoverRequest<RewindResponse>('/discover/rewind', {
+        method: 'POST',
+        body: JSON.stringify({
+          feedCursor: feedCursor ?? `feed-${Date.now()}`,
+        }),
+      }).catch((error) => {
+        if (!shouldFallbackToRuntime(error)) {
+          return Promise.reject(error);
+        }
+        return withLatency(runtimeApi.rewind(), 80);
+      });
+    }
     return withLatency(runtimeApi.rewind(), 80);
   },
 
@@ -593,6 +631,7 @@ export const appApi = {
 
   patchSettings(request: PatchSettingsRequest): Promise<SettingsEnvelope> {
     const localEnvelope = runtimeApi.patchSettings(request);
+    invalidateFeedSignalsCache();
 
     const settingsPatch: {
       language?: 'en' | 'ru';
@@ -603,6 +642,7 @@ export const appApi = {
       visibility?: 'public' | 'limited' | 'hidden';
       hideAge?: boolean;
       hideDistance?: boolean;
+      preciseLocationEnabled?: boolean;
       incognito?: boolean;
       readReceipts?: boolean;
       shadowGhost?: boolean;
@@ -637,6 +677,7 @@ export const appApi = {
     if (request.patch.privacy?.visibility) settingsPatch.visibility = request.patch.privacy.visibility;
     if (typeof request.patch.privacy?.hideAge === 'boolean') settingsPatch.hideAge = request.patch.privacy.hideAge;
     if (typeof request.patch.privacy?.hideDistance === 'boolean') settingsPatch.hideDistance = request.patch.privacy.hideDistance;
+    if (typeof request.patch.privacy?.preciseLocation === 'boolean') settingsPatch.preciseLocationEnabled = request.patch.privacy.preciseLocation;
     if (typeof request.patch.privacy?.incognito === 'boolean') settingsPatch.incognito = request.patch.privacy.incognito;
     if (typeof request.patch.privacy?.readReceipts === 'boolean') settingsPatch.readReceipts = request.patch.privacy.readReceipts;
     if (typeof request.patch.privacy?.shadowGhost === 'boolean') settingsPatch.shadowGhost = request.patch.privacy.shadowGhost;
@@ -652,6 +693,7 @@ export const appApi = {
       .then((response) => {
         if (response.ok) {
           syncRuntimeSettingsFromAuthProfile(response.data);
+          invalidateFeedSignalsCache();
         }
         return runtimeApi.getSettingsEnvelope();
       })
@@ -660,6 +702,7 @@ export const appApi = {
           const latest = await authApi.getProfileMe();
           if (latest.ok) {
             syncRuntimeSettingsFromAuthProfile(latest.data);
+            invalidateFeedSignalsCache();
           }
         } catch {
           // Keep last known runtime state if refresh fails.
@@ -751,6 +794,7 @@ export const appApi = {
   },
 
   patchProfileMe(payload: PatchProfileMeRequest): Promise<ProfileMeData> {
+    invalidateFeedSignalsCache();
     if (PROFILE_API_URL) {
       return profileRequest<{
         userId: string;
@@ -790,6 +834,7 @@ export const appApi = {
         }),
       })
         .then((response) => {
+          invalidateFeedSignalsCache();
           runtimeApi.patchSettings({
             patch: {
               account: {
@@ -879,6 +924,7 @@ export const appApi = {
         }
 
         syncRuntimeSettingsFromAuthProfile(response.data);
+        invalidateFeedSignalsCache();
         return {
           profile: response.data?.profile
             ? {

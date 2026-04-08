@@ -16,6 +16,15 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
+const RUNTIME_TRANSLATION_OVERRIDES: Partial<Record<Locale, Record<string, string>>> = {
+  ru: {
+    'discover.hiddenDistance': 'Расстояние скрыто',
+    'discover.distanceKm': '{value} км',
+    'discover.errorSubtitle': 'Повтори чуть позже, чтобы загрузить анкеты Discover.',
+    'discover.retry': 'Повторить',
+  },
+};
+
 const resolve = (obj: Record<string, any>, path: string): string | undefined => {
   return path.split('.').reduce<any>((acc, part) => {
     if (acc && typeof acc === 'object') return acc[part];
@@ -124,7 +133,8 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const t = (key: string, params?: Params) => {
-    const raw = resolve(translations[locale], key) ?? resolve(translations.en, key) ?? key;
+    const override = RUNTIME_TRANSLATION_OVERRIDES[locale]?.[key];
+    const raw = override ?? resolve(translations[locale], key) ?? resolve(translations.en, key) ?? key;
     if (typeof raw !== 'string') return key;
     return interpolate(raw, params);
   };
