@@ -6,7 +6,9 @@ import ChatScreen from './ChatScreen';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, subscribeConversationRelationChange } from '../services';
+import { useRuntimeSelector } from '../state';
 import type { ConversationSummary, PlanTier } from '../contracts';
+import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
@@ -18,6 +20,9 @@ const resolvePhotoUrl = (photos: string[] | undefined): string => {
   const direct = photos.find((entry) => typeof entry === 'string' && entry.trim().length > 0);
   return direct ?? '/placeholder.svg';
 };
+
+const isShadowGhostConversation = (conversation: ConversationSummary) =>
+  Boolean(conversation.shadowGhostMasked || conversation.peer.flags.shadowGhost);
 
 type AvatarImageProps = {
   src: string;
@@ -56,7 +61,9 @@ const MessagesScreen = () => {
   const { userId: urlUserId } = useParams();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
+  const planTier = useRuntimeSelector((payload) => payload.planTier);
   const isLarge = isDesktop || isTablet;
+  const canSeeOnlinePresence = hasSubscriptionBenefit(planTier, 'messages_see_online');
   const showDesktopRail =
     isDesktop &&
     !isTablet &&
@@ -394,14 +401,17 @@ const MessagesScreen = () => {
               >
                 <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
                   <AvatarImage
-                    src={resolvePhotoUrl(conversation.peer.photos)}
-                    name={conversation.peer.name}
+                    src={isShadowGhostConversation(conversation) ? '/placeholder.svg' : resolvePhotoUrl(conversation.peer.photos)}
+                    name={isShadowGhostConversation(conversation) ? t('likes.shadowGhostMaskedName') : conversation.peer.name}
                     className="w-full h-full rounded-full"
                     imgClassName="w-full h-full object-cover object-[center_22%]"
                   />
                 </div>
-                <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider">
-                  {conversation.peer.name}, {conversation.peer.age}
+                <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider inline-flex items-center gap-1.5">
+                  {isShadowGhostConversation(conversation)
+                    ? t('likes.shadowGhostMaskedName')
+                    : `${conversation.peer.name}, ${conversation.peer.age}`}
+                  {isShadowGhostConversation(conversation) && <ICONS.Ghost size={11} className="text-fuchsia-200" />}
                 </span>
               </div>
             ))}
@@ -488,21 +498,33 @@ const MessagesScreen = () => {
                   >
                     <div className="relative shrink-0">
                       <AvatarImage
-                        src={resolvePhotoUrl(conversation.peer.photos)}
-                        name={conversation.peer.name}
+                        src={
+                          isShadowGhostConversation(conversation)
+                            ? '/placeholder.svg'
+                            : resolvePhotoUrl(conversation.peer.photos)
+                        }
+                        name={
+                          isShadowGhostConversation(conversation)
+                            ? t('likes.shadowGhostMaskedName')
+                            : conversation.peer.name
+                        }
                         className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'}`}
                         imgClassName="w-full h-full object-cover object-[center_20%]"
                       />
-                      {conversation.online && (
+                      {canSeeOnlinePresence && conversation.online && (
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1 flex items-start justify-between gap-[var(--messages-conv-header-gap)]">
                         <NameWithBadge
-                          name={conversation.peer.name}
+                          name={
+                            isShadowGhostConversation(conversation)
+                              ? t('likes.shadowGhostMaskedName')
+                              : conversation.peer.name
+                          }
                           age={conversation.peer.age}
-                          ageMasked={conversation.peer.flags.hideAge}
+                          ageMasked={isShadowGhostConversation(conversation) || conversation.peer.flags.hideAge}
                           verified={conversation.peer.flags.verifiedIdentity}
                           premiumTier={resolveDisplayPremiumTier(
                             conversation.peer.flags.premiumTier,
@@ -514,6 +536,9 @@ const MessagesScreen = () => {
                           premiumBadgeMode="dense"
                           badgeClassName={isTablet ? 'scale-90' : ''}
                         />
+                        {isShadowGhostConversation(conversation) && (
+                          <ICONS.Ghost size={12} className="mt-1 text-fuchsia-200 shrink-0" />
+                        )}
                         <span className="min-w-[var(--messages-conv-time-min-w)] pt-0.5 text-right text-[10px] leading-none text-secondary font-bold shrink-0">
                           {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
                             hour: '2-digit',

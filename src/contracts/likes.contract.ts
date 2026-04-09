@@ -14,8 +14,9 @@ export interface ReceivedLike {
 
 export interface IceBreakerState {
   eligibleLikesHiddenCount: number;
-  activeUntilIso?: string;
-  consumed: boolean;
+  ownedCount: number;
+  canUse: boolean;
+  unlockedCount: number;
 }
 
 export interface LikesInventory {
@@ -42,6 +43,12 @@ export interface DecideIncomingLikeResponse {
   matched: boolean;
   conversationId?: string;
   peerOnline?: boolean;
+}
+
+export interface UseIceBreakerResponse {
+  ok: boolean;
+  state: LikesScreenState;
+  inventory: LikesInventory;
 }
 
 export interface PaywallClickRequest {

@@ -40,8 +40,13 @@ const MatchesScreen: React.FC = () => {
   >([]);
   const [hiddenLikesCount, setHiddenLikesCount] = useState(0);
   const [iceBreakerEligibleCount, setIceBreakerEligibleCount] = useState(0);
+  const [iceBreakerOwnedCount, setIceBreakerOwnedCount] = useState(0);
+  const [iceBreakerUnlockedCount, setIceBreakerUnlockedCount] = useState(0);
+  const [iceBreakerCanUse, setIceBreakerCanUse] = useState(false);
   const [isPremiumPreviewUnlocked, setIsPremiumPreviewUnlocked] = useState(false);
   const [actionLikeId, setActionLikeId] = useState<string | null>(null);
+  const [iceBreakerBusy, setIceBreakerBusy] = useState(false);
+  const [iceBreakerFeedback, setIceBreakerFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -52,6 +57,9 @@ const MatchesScreen: React.FC = () => {
         setRemoteState(response.state);
         setHiddenLikesCount(response.inventory.hiddenCount);
         setIceBreakerEligibleCount(response.inventory.iceBreaker.eligibleLikesHiddenCount);
+        setIceBreakerOwnedCount(response.inventory.iceBreaker.ownedCount);
+        setIceBreakerCanUse(response.inventory.iceBreaker.canUse);
+        setIceBreakerUnlockedCount(response.inventory.iceBreaker.unlockedCount);
         setLikesCards(
           response.inventory.visibleLikes.map((entry) => ({
             id: entry.id,
@@ -93,6 +101,9 @@ const MatchesScreen: React.FC = () => {
         setRemoteState(response.state);
         setHiddenLikesCount(response.inventory.hiddenCount);
         setIceBreakerEligibleCount(response.inventory.iceBreaker.eligibleLikesHiddenCount);
+        setIceBreakerOwnedCount(response.inventory.iceBreaker.ownedCount);
+        setIceBreakerCanUse(response.inventory.iceBreaker.canUse);
+        setIceBreakerUnlockedCount(response.inventory.iceBreaker.unlockedCount);
         setLikesCards(
           response.inventory.visibleLikes.map((entry) => ({
             id: entry.id,
@@ -198,6 +209,42 @@ const MatchesScreen: React.FC = () => {
     }
   };
 
+  const handleUseIceBreaker = async (likeId: string) => {
+    if (iceBreakerBusy || !iceBreakerCanUse) return;
+    setIceBreakerBusy(true);
+    setIceBreakerFeedback(null);
+    try {
+      const response = await appApi.useLikesIceBreaker(likeId);
+      setRemoteState(response.state === 'error' ? 'locked' : response.state);
+      setHiddenLikesCount(response.inventory.hiddenCount);
+      setIceBreakerEligibleCount(response.inventory.iceBreaker.eligibleLikesHiddenCount);
+      setIceBreakerOwnedCount(response.inventory.iceBreaker.ownedCount);
+      setIceBreakerCanUse(response.inventory.iceBreaker.canUse);
+      setIceBreakerUnlockedCount(response.inventory.iceBreaker.unlockedCount);
+      setLikesCards(
+        response.inventory.visibleLikes.map((entry) => ({
+          id: entry.id,
+          profileId: entry.profile.id,
+          name: entry.profile.name,
+          age: entry.profile.age,
+          ageMasked: entry.profile.flags.hideAge,
+          city: entry.profile.city,
+          photo: entry.profile.photos[0] ?? '',
+          wasSuperLike: entry.wasSuperLike,
+          state: entry.state,
+          hiddenByShadowGhost: entry.hiddenByShadowGhost,
+          blurredLocked: entry.blurredLocked,
+          online: entry.profile.online,
+        })),
+      );
+      setIceBreakerFeedback(t('likes.iceBreakerActivated'));
+    } catch {
+      setIceBreakerFeedback(t('chat.actionFailed'));
+    } finally {
+      setIceBreakerBusy(false);
+    }
+  };
+
   const renderCardContent = (like: (typeof likesCards)[number], compact = false) => {
     const isBusy = actionLikeId === like.id;
     const senderIdentityMasked = like.hiddenByShadowGhost;
@@ -293,6 +340,19 @@ const MatchesScreen: React.FC = () => {
             {t('likes.unlock.city', { city: like.city })}
           </p>
         </div>
+        {!like.hiddenByShadowGhost && (
+          <div className="absolute left-3 right-3 bottom-10">
+            <button
+              disabled={iceBreakerBusy || !like.blurredLocked || iceBreakerOwnedCount <= 0}
+              onClick={() => {
+                void handleUseIceBreaker(like.id);
+              }}
+              className="w-full h-8 rounded-lg border border-cyan-300/35 bg-cyan-500/15 text-cyan-100 text-[10px] font-black uppercase tracking-[0.12em] disabled:opacity-50"
+            >
+              {t('likes.iceBreakerUse')} x{iceBreakerOwnedCount}
+            </button>
+          </div>
+        )}
 
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
           <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>
@@ -325,10 +385,44 @@ const MatchesScreen: React.FC = () => {
           </div>
         </header>
 
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/75">
-          <span className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-          <span>{t(`likes.states.${screenState}`)}</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/75">
+            <span className="w-1.5 h-1.5 rounded-full bg-pink-400" />
+            <span>{t(`likes.states.${screenState}`)}</span>
+          </div>
+          <button
+            onClick={() => {
+              const firstLockedLike = likesCards.find(
+                (entry) => entry.blurredLocked && !entry.hiddenByShadowGhost,
+              );
+              if (iceBreakerCanUse && firstLockedLike) {
+                void handleUseIceBreaker(firstLockedLike.id);
+                return;
+              }
+              if (iceBreakerOwnedCount <= 0) {
+                appApi.clickLikesPaywall();
+                navigate('/boost');
+              }
+            }}
+            disabled={iceBreakerBusy || (iceBreakerOwnedCount <= 0 && screenState !== 'locked')}
+            className={`h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-[0.12em] inline-flex items-center gap-1.5 transition-colors ${
+              iceBreakerCanUse
+                ? 'border-cyan-300/35 bg-cyan-500/15 text-cyan-100'
+                : 'border-white/20 bg-white/5 text-white/70'
+            } disabled:opacity-60`}
+          >
+            <Star size={12} className="text-cyan-200" />
+            <span>{t('likes.iceBreakerTitle')}</span>
+            <span className="text-white/85">x{iceBreakerOwnedCount}</span>
+            {iceBreakerUnlockedCount > 0 && (
+              <span className="text-cyan-200">+{iceBreakerUnlockedCount}</span>
+            )}
+          </button>
         </div>
+
+        {iceBreakerFeedback && (
+          <p className="text-xs text-cyan-200 font-bold">{iceBreakerFeedback}</p>
+        )}
 
         {screenState === 'loading' && (
           <section className="glass-panel rounded-[var(--card-radius)] p-7 text-center">
@@ -480,12 +574,19 @@ const MatchesScreen: React.FC = () => {
             </div>
             <button
               onClick={() => {
+                const firstLockedLike = likesCards.find(
+                  (entry) => entry.blurredLocked && !entry.hiddenByShadowGhost,
+                );
+                if (iceBreakerCanUse && firstLockedLike) {
+                  void handleUseIceBreaker(firstLockedLike.id);
+                  return;
+                }
                 appApi.clickLikesPaywall();
                 navigate('/boost');
               }}
               className="h-10 px-4 rounded-xl border border-fuchsia-300/35 bg-fuchsia-500/15 text-fuchsia-100 text-[10px] font-black uppercase tracking-[0.14em]"
             >
-              {t('likes.iceBreakerCta')}
+              {iceBreakerCanUse ? t('likes.iceBreakerUse') : t('likes.iceBreakerCta')}
             </button>
           </section>
         )}

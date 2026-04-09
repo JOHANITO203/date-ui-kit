@@ -34,6 +34,10 @@ export interface CreateCheckoutResponse {
   qrPayload?: string;
   offer: OfferItem;
   message?: string;
+  status?: CheckoutStatus;
+  attributed?: boolean;
+  entitlementSnapshot?: EntitlementSnapshot;
+  effectiveBenefits?: EffectiveBenefitsSnapshot;
 }
 
 export type CheckoutStatus = 'pending' | 'paid' | 'failed' | 'not_found';
@@ -45,6 +49,7 @@ export interface EntitlementSnapshot {
     boostsLeft?: number;
     superlikesLeft?: number;
     rewindsLeft?: number;
+    icebreakersLeft?: number;
   };
   travelPass?: {
     source: 'travel_pass' | 'bundle_included';
@@ -57,6 +62,48 @@ export interface EntitlementSnapshot {
   };
 }
 
+export interface EffectiveBenefitsByPage {
+  discover: {
+    discoverAdvancedFilters: boolean;
+  };
+  boost: {
+    likesIdentityUnlocked: boolean;
+    discoverAdvancedFilters: boolean;
+    profileHideAgeDistance: boolean;
+    messagesTranslation: boolean;
+    messagesSeeOnline: boolean;
+    travelPassIncluded: boolean;
+    shadowGhostIncluded: boolean;
+    premiumBadge: boolean;
+  };
+  profile: {
+    profileHideAgeDistance: boolean;
+    travelPassIncluded: boolean;
+    shadowGhostIncluded: boolean;
+    premiumBadge: boolean;
+  };
+  messages: {
+    messagesTranslation: boolean;
+    messagesSeeOnline: boolean;
+    premiumBadge: boolean;
+  };
+}
+
+export interface EffectiveBenefitsSnapshot {
+  planTier: 'free' | 'essential' | 'gold' | 'platinum' | 'elite';
+  flags: {
+    likes_identity_unlocked: boolean;
+    discover_advanced_filters: boolean;
+    profile_hide_age_distance: boolean;
+    messages_translation: boolean;
+    messages_see_online: boolean;
+    travel_pass_included: boolean;
+    shadowghost_included: boolean;
+    premium_badge: boolean;
+  };
+  byPage: EffectiveBenefitsByPage;
+}
+
 export interface GetCheckoutStatusRequest {
   checkoutId: string;
   userId: string;
@@ -67,4 +114,11 @@ export interface GetCheckoutStatusResponse {
   status: CheckoutStatus;
   attributed: boolean;
   entitlementSnapshot?: EntitlementSnapshot;
+  effectiveBenefits?: EffectiveBenefitsSnapshot;
+}
+
+export interface GetEntitlementsResponse {
+  userId: string;
+  entitlementSnapshot: EntitlementSnapshot | null;
+  effectiveBenefits: EffectiveBenefitsSnapshot;
 }

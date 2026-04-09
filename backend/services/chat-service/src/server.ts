@@ -539,6 +539,23 @@ export const buildServer = () => {
         (entry): entry is string => typeof entry === "string" && entry.length > 0,
       );
       const peerMap = await loadPeerProfiles(peerIds);
+      let shadowGhostPeerSet = new Set<string>();
+      if (peerIds.length > 0) {
+        const shadowGhostResult = await supabaseServiceClient
+          .from("discover_likes")
+          .select("liker_user_id")
+          .eq("liked_user_id", userId)
+          .eq("hidden_by_shadowghost", true)
+          .in("status", ["pending", "matched"])
+          .in("liker_user_id", peerIds);
+        if (!shadowGhostResult.error) {
+          shadowGhostPeerSet = new Set(
+            (shadowGhostResult.data ?? [])
+              .map((row) => (row as { liker_user_id?: unknown }).liker_user_id)
+              .filter((value): value is string => typeof value === "string" && value.length > 0),
+          );
+        }
+      }
       let blockedByMeSet = new Set<string>();
       const blockedResult = await supabaseServiceClient
         .from("safety_blocks")
@@ -556,6 +573,7 @@ export const buildServer = () => {
         .map((row) => {
           const peer = peerMap.get(row.peer_profile_id) ?? null;
           if (!peer) return null;
+          const shadowGhostMasked = shadowGhostPeerSet.has(row.peer_profile_id);
           let relationState = normalizeRelationState(row.relation_state);
           if (relationState === "blocked_by_me" && !blockedByMeSet.has(row.peer_profile_id)) {
             relationState = "active";
@@ -563,7 +581,14 @@ export const buildServer = () => {
 
           return {
             id: row.conversation_id,
-            peer,
+            peer: {
+              ...peer,
+              flags: {
+                ...peer.flags,
+                shadowGhost: shadowGhostMasked || peer.flags.shadowGhost,
+              },
+            },
+            shadowGhostMasked,
             unreadCount: row.unread_count ?? 0,
             lastMessagePreview: row.last_message_preview ?? "",
             lastMessageAtIso: row.last_message_at ?? new Date().toISOString(),

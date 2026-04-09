@@ -163,12 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const payload = await appApi.getEntitlements();
         if (cancelled) return;
-        if (payload.entitlementSnapshot) {
-          const signature = JSON.stringify(payload.entitlementSnapshot);
-          if (signature !== entitlementSignatureRef.current) {
-            await appApi.applyEntitlementSnapshot(payload.entitlementSnapshot);
-            entitlementSignatureRef.current = signature;
-          }
+        const signature = JSON.stringify(payload.entitlementSnapshot ?? null);
+        if (signature !== entitlementSignatureRef.current) {
+          await appApi.applyEntitlementSnapshot(payload.entitlementSnapshot ?? null);
+          entitlementSignatureRef.current = signature;
         }
       } catch {
         // Non-blocking: boost UI still works with runtime state.

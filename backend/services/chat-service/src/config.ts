@@ -9,7 +9,7 @@ const serviceDir = path.resolve(__dirname, "..");
 const rootDir = path.resolve(__dirname, "../../../../");
 
 loadEnv({ path: path.join(rootDir, ".env") });
-loadEnv({ path: path.join(serviceDir, ".env") });
+loadEnv({ path: path.join(serviceDir, ".env"), override: true });
 loadEnv();
 
 const envSchema = z.object({
@@ -27,7 +27,7 @@ const envSchema = z.object({
   ACTOR_ENGINE_ACTOR_EMAIL_REGEX: z
     .string()
     .optional()
-    .default("^seed\\.(moscow|saint-petersburg|voronezh|sochi)\\.\\d+@exotic\\.local$"),
+    .default("^seed\\..+@exotic\\.local$"),
   ACTOR_ENGINE_MESSAGE_RATE: z.coerce.number().min(0).max(1).default(0.6),
   ACTOR_ENGINE_LIKE_RATE: z.coerce.number().min(0).max(1).default(0.25),
   ACTOR_ENGINE_SUPERLIKE_RATE: z.coerce.number().min(0).max(1).default(0.1),

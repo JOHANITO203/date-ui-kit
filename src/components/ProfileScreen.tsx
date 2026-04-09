@@ -13,6 +13,7 @@ import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { useAuth } from '../auth/AuthProvider';
 import { getOnboardingProfileSnapshot, hydrateProfileSeed } from '../domain/profileHydration';
 import { computeVisibilityScore } from '../domain/visibilityScore';
+import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
 const calculateAge = (birthDateIso: string | null | undefined) => {
   if (!birthDateIso) return undefined;
@@ -72,6 +73,7 @@ const ProfileScreen = () => {
     superlikes: payload.balances.superlikesLeft,
     boosts: payload.balances.boostsLeft,
     rewinds: payload.balances.rewindsLeft,
+    icebreakers: payload.balances.icebreakersLeft,
   }));
   const settings = useRuntimeSelector((payload) => payload.settings);
   const [onlineOnly, setOnlineOnly] = useState(false);
@@ -130,6 +132,7 @@ const ProfileScreen = () => {
   const planSubtitle = previewPlan === 'free' ? t('profile.premiumSubtitle') : t('profile.planGoldSubtitle');
   const hideAge = settings.privacy.hideAge;
   const hideDistance = settings.privacy.hideDistance;
+  const canManagePrivacyControls = hasSubscriptionBenefit(previewPlan, 'profile_hide_age_distance');
   const travelPassServerAccess = resolveTravelPassServerAccess({
     planTier: previewPlan,
     entitlementSource: settings.preferences.travelPassEntitlementSource,
@@ -488,13 +491,45 @@ const ProfileScreen = () => {
               <h4 className="font-black italic tracking-tighter text-[clamp(2rem,3vw,2.6rem)] leading-[0.92] text-white mb-2">{planTitle}</h4>
               <p className="text-secondary text-sm leading-relaxed mb-5">{planSubtitle}</p>
 
-              <div className="grid grid-cols-3 gap-2 mb-5">
+              <div className="grid grid-cols-4 gap-2 mb-5">
                 {([
-                  { id: 'superlikes', label: t('settings.tokens.superlikes'), value: balances.superlikes, glow: 'rgb(var(--glow-pink) / 0.18)' },
-                  { id: 'boosts', label: t('settings.tokens.boosts'), value: balances.boosts, glow: 'rgb(var(--glow-gold) / 0.18)' },
-                  { id: 'rewinds', label: t('settings.tokens.rewinds'), value: balances.rewinds, glow: 'rgb(var(--glow-blue) / 0.18)' },
+                  {
+                    id: 'superlikes',
+                    label: t('settings.tokens.superlikes'),
+                    value: balances.superlikes,
+                    glow: 'rgb(var(--glow-pink) / 0.18)',
+                    Icon: ICONS.Heart,
+                    iconClass: 'text-pink-300',
+                  },
+                  {
+                    id: 'boosts',
+                    label: t('settings.tokens.boosts'),
+                    value: balances.boosts,
+                    glow: 'rgb(var(--glow-gold) / 0.18)',
+                    Icon: ICONS.Zap,
+                    iconClass: 'text-amber-300',
+                  },
+                  {
+                    id: 'rewinds',
+                    label: t('settings.tokens.rewinds'),
+                    value: balances.rewinds,
+                    glow: 'rgb(var(--glow-blue) / 0.18)',
+                    Icon: ICONS.Rewind,
+                    iconClass: 'text-blue-300',
+                  },
+                  {
+                    id: 'icebreakers',
+                    label: t('likes.iceBreakerTitle'),
+                    value: balances.icebreakers,
+                    glow: 'rgb(var(--glow-cyan) / 0.18)',
+                    Icon: ICONS.Star,
+                    iconClass: 'text-cyan-300',
+                  },
                 ] as const).map((item) => (
                   <div key={item.id} className="rounded-xl glass-panel-soft p-2 text-center" style={{ boxShadow: `0 0 16px ${item.glow}` }}>
+                    <div className={`mx-auto mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/5 ${item.iconClass}`}>
+                      <item.Icon size={12} />
+                    </div>
                     <motion.div
                       key={`${item.id}-${item.value}`}
                       initial={{ opacity: 0, y: -4 }}
@@ -616,6 +651,10 @@ const ProfileScreen = () => {
                   <span className="text-sm font-bold">{t('settings.items.hideAge')}</span>
                   <button
                     onClick={() => {
+                      if (!canManagePrivacyControls) {
+                        navigate('/boost');
+                        return;
+                      }
                       void appApi.patchSettings({
                         patch: {
                           privacy: {
@@ -636,6 +675,10 @@ const ProfileScreen = () => {
                   <span className="text-sm font-bold">{t('settings.items.hideDistance')}</span>
                   <button
                     onClick={() => {
+                      if (!canManagePrivacyControls) {
+                        navigate('/boost');
+                        return;
+                      }
                       void appApi.patchSettings({
                         patch: {
                           privacy: {
@@ -654,8 +697,9 @@ const ProfileScreen = () => {
                 </div>
                 <button
                   onClick={() => navigate('/settings/privacy')}
-                  className="w-full mt-2 py-2.5 rounded-xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black hover:border-pink-400/35 hover:shadow-[0_0_14px_rgba(236,72,153,0.2)] transition-all"
+                  className="w-full mt-2 py-2.5 rounded-xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black hover:border-pink-400/35 hover:shadow-[0_0_14px_rgba(236,72,153,0.2)] transition-all inline-flex items-center justify-center gap-1.5"
                 >
+                  {!canManagePrivacyControls && <ICONS.Lock size={12} className="text-amber-300" />}
                   {t('settings.sections.privacy')}
                 </button>
               </div>

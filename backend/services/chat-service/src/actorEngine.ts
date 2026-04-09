@@ -8,6 +8,13 @@ type Participant = {
   email: string;
 };
 
+type AuthUserLike = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+  app_metadata?: Record<string, unknown> | null;
+};
+
 type ProfileRow = {
   user_id: string;
   first_name: string | null;
@@ -54,6 +61,28 @@ const normalize = (value: string) => value.trim().toLowerCase();
 const hasCyrillic = (value: string) => /[\u0400-\u04FF]/.test(value);
 const nowIso = () => new Date().toISOString();
 const addHoursIso = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+
+const toBool = (value: unknown) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true" || value === "1";
+  return false;
+};
+
+const isActorUser = (user: AuthUserLike, actorRegex: RegExp) => {
+  const email = typeof user.email === "string" ? user.email : "";
+  if (actorRegex.test(email)) return true;
+
+  const metadata = user.user_metadata ?? {};
+  const appMetadata = user.app_metadata ?? {};
+
+  const source = typeof metadata.source === "string" ? metadata.source.toLowerCase() : "";
+  if (source.startsWith("seed_")) return true;
+
+  if (toBool(metadata.actor) || toBool(metadata.is_actor)) return true;
+  if (toBool(appMetadata.actor) || toBool(appMetadata.is_actor)) return true;
+
+  return false;
+};
 
 const actorMaxEntitlement = (): EntitlementSnapshot => ({
   planTier: "elite",
@@ -102,7 +131,20 @@ const pickAction = (): ActionType => {
 };
 
 export const startActorEngine = (logger: FastifyBaseLogger) => {
-  if (!env.actorEngineEnabled || !supabaseServiceClient) return null;
+  const autoEnableInDev =
+    process.env.NODE_ENV !== "production" && process.env.ACTOR_ENGINE_AUTO_ENABLE_DEV !== "0";
+  const enabled = env.actorEngineEnabled || autoEnableInDev;
+  if (!enabled || !supabaseServiceClient) {
+    logger.info(
+      {
+        actorEngineEnabledEnv: env.actorEngineEnabled,
+        autoEnableInDev,
+        hasSupabase: Boolean(supabaseServiceClient),
+      },
+      "actor_engine_disabled",
+    );
+    return null;
+  }
   const client = supabaseServiceClient;
 
   const actorRegex = new RegExp(env.ACTOR_ENGINE_ACTOR_EMAIL_REGEX, "i");
@@ -132,7 +174,7 @@ export const startActorEngine = (logger: FastifyBaseLogger) => {
   };
 
   const loadParticipants = async () => {
-    const allUsers: Array<{ id: string; email?: string }> = [];
+    const allUsers: AuthUserLike[] = [];
     let page = 1;
     const perPage = 200;
 
@@ -140,23 +182,36 @@ export const startActorEngine = (logger: FastifyBaseLogger) => {
       const result = await client.auth.admin.listUsers({ page, perPage });
       if (result.error) throw result.error;
       const users = result.data.users ?? [];
-      allUsers.push(...users.map((user) => ({ id: user.id, email: user.email ?? undefined })));
+      allUsers.push(
+        ...users.map((user) => ({
+          id: user.id,
+          email: user.email ?? undefined,
+          user_metadata:
+            user.user_metadata && typeof user.user_metadata === "object"
+              ? (user.user_metadata as Record<string, unknown>)
+              : null,
+          app_metadata:
+            user.app_metadata && typeof user.app_metadata === "object"
+              ? (user.app_metadata as Record<string, unknown>)
+              : null,
+        })),
+      );
       if (users.length < perPage) break;
       page += 1;
     }
 
     actors = allUsers
-      .filter((entry) => typeof entry.email === "string" && actorRegex.test(entry.email))
+      .filter((entry) => isActorUser(entry, actorRegex))
       .map((entry) => ({
         userId: entry.id,
-        email: entry.email!,
+        email: typeof entry.email === "string" && entry.email.length > 0 ? entry.email : `actor+${entry.id}@local`,
       }));
 
     const actorIds = new Set(actors.map((entry) => entry.userId));
     const allNonActorParticipants = allUsers
       .filter(
-        (entry): entry is { id: string; email: string } =>
-          typeof entry.email === "string" && !actorIds.has(entry.id),
+        (entry): entry is AuthUserLike & { email: string } =>
+          typeof entry.email === "string" && entry.email.length > 0 && !actorIds.has(entry.id),
       )
       .map((entry) => ({ userId: entry.id, email: entry.email }));
 
@@ -348,23 +403,10 @@ export const startActorEngine = (logger: FastifyBaseLogger) => {
       const templates = hasCyrillic(actorName) ? RU_MESSAGES : EN_MESSAGES;
       const text = `${chooseRandom(templates)} (${actorName})`;
       const createdAtIso = nowIso();
-      const messageResult = await client.from("chat_messages").upsert(
-        {
-          user_id: target.userId,
-          message_id: `live-msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          conversation_id: conversationId,
-          sender_user_id: actor.userId,
-          direction: "incoming",
-          original_text: text,
-          translated: false,
-          created_at: createdAtIso,
-        },
-        { onConflict: "user_id,message_id" },
-      );
-      if (messageResult.error) throw messageResult.error;
-
       const unreadCount = Math.max(1, Number(conversationResult.data?.unread_count ?? 0) + 1);
-      const convoUpdate = await client
+
+      // Keep FK order deterministic: conversation row must exist before inserting messages.
+      const convoUpsert = await client
         .from("chat_conversations")
         .upsert(
           {
@@ -379,7 +421,22 @@ export const startActorEngine = (logger: FastifyBaseLogger) => {
           },
           { onConflict: "user_id,conversation_id" },
         );
-      if (convoUpdate.error) throw convoUpdate.error;
+      if (convoUpsert.error) throw convoUpsert.error;
+
+      const messageResult = await client.from("chat_messages").upsert(
+        {
+          user_id: target.userId,
+          message_id: `live-msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          conversation_id: conversationId,
+          sender_user_id: actor.userId,
+          direction: "incoming",
+          original_text: text,
+          translated: false,
+          created_at: createdAtIso,
+        },
+        { onConflict: "user_id,message_id" },
+      );
+      if (messageResult.error) throw messageResult.error;
     } catch (error) {
       logger.warn({ err: error }, "actor_engine_tick_failed");
     } finally {

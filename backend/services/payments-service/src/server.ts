@@ -6,8 +6,11 @@ import { z } from "zod";
 import { env } from "./config.js";
 import { offerSchema, offersCatalog, resolveOffer, type Offer } from "./catalog.js";
 import {
+  hasMeaningfulEntitlementEffect,
+  listOfferEffectsAudit,
   mergeEntitlementSnapshots,
   resolveEntitlementSnapshot,
+  resolveEffectiveBenefitsSnapshot,
   sanitizeEntitlementSnapshot,
   type EntitlementSnapshot,
 } from "./entitlements.js";
@@ -374,8 +377,14 @@ export const buildServer = () => {
     const offer = await getOfferById(checkout.offer_id);
     if (!offer) return checkout;
 
-    const snapshot = sanitizeEntitlementSnapshot(resolveEntitlementSnapshot(offer));
-    if (!snapshot) return checkout;
+    const resolvedSnapshot = resolveEntitlementSnapshot(offer);
+    if (!hasMeaningfulEntitlementEffect(resolvedSnapshot)) {
+      throw new Error(`offer_effect_missing:${offer.id}`);
+    }
+    const snapshot = sanitizeEntitlementSnapshot(resolvedSnapshot);
+    if (!snapshot) {
+      throw new Error(`offer_effect_sanitized_empty:${offer.id}`);
+    }
     const currentEntitlement = await getEntitlement(checkout.user_id);
     const mergedSnapshot = mergeEntitlementSnapshots(currentEntitlement, snapshot);
 
@@ -402,6 +411,10 @@ export const buildServer = () => {
     timestamp: new Date().toISOString(),
   }));
 
+  app.get("/payments/effects/audit", async () => ({
+    offers: listOfferEffectsAudit(),
+  }));
+
   app.get("/payments/catalog", async () => {
     const offers = await getCatalog();
     return {
@@ -426,6 +439,7 @@ export const buildServer = () => {
       return {
         userId,
         entitlementSnapshot: snapshot,
+        effectiveBenefits: resolveEffectiveBenefitsSnapshot(snapshot),
       };
     } catch {
       reply.status(500);
@@ -487,6 +501,7 @@ export const buildServer = () => {
         status: checkout.status,
         attributed: checkout.attributed,
         entitlementSnapshot: checkout.entitlement_snapshot ?? undefined,
+        effectiveBenefits: resolveEffectiveBenefitsSnapshot(checkout.entitlement_snapshot),
         message: "DEV auto-grant mode enabled: purchase was instantly attributed.",
       };
     }
@@ -597,6 +612,7 @@ export const buildServer = () => {
         status: attributed.status,
         attributed: attributed.attributed,
         entitlementSnapshot: attributed.entitlement_snapshot ?? undefined,
+        effectiveBenefits: resolveEffectiveBenefitsSnapshot(attributed.entitlement_snapshot),
       };
     }
 
@@ -627,6 +643,7 @@ export const buildServer = () => {
       status: attributed.status,
       attributed: attributed.attributed,
       entitlementSnapshot: attributed.entitlement_snapshot ?? undefined,
+      effectiveBenefits: resolveEffectiveBenefitsSnapshot(attributed.entitlement_snapshot),
     };
   });
 

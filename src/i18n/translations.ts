@@ -107,6 +107,8 @@ export const translations: Record<Locale, Dictionary> = {
       iceBreakerTitle: 'IceBreaker available',
       iceBreakerSubtitle: '{count} hidden likes can unlock with IceBreaker.',
       iceBreakerCta: 'Open IceBreaker',
+      iceBreakerUse: 'Use IceBreaker',
+      iceBreakerActivated: 'IceBreaker activated: hidden likes unlocked.',
       goMessages: 'Go to messages',
       jumpSection: 'Jump to likes section {index}',
       unlock: {
@@ -825,6 +827,8 @@ export const translations: Record<Locale, Dictionary> = {
       iceBreakerTitle: 'IceBreaker доступен',
       iceBreakerSubtitle: '{count} скрытых лайков можно открыть через IceBreaker.',
       iceBreakerCta: 'Открыть IceBreaker',
+      iceBreakerUse: 'Использовать IceBreaker',
+      iceBreakerActivated: 'IceBreaker активирован: скрытые лайки открыты.',
       goMessages: 'К сообщениям',
       jumpSection: 'Перейти к секции лайков {index}',
       unlock: {

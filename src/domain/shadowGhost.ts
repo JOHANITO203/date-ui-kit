@@ -1,5 +1,6 @@
 import type { PlanTier } from '../contracts';
 import type { ShadowGhostEntitlementSource } from '../contracts/settings.contract';
+import { hasSubscriptionBenefit } from './subscriptionBenefits';
 
 type ResolveShadowGhostAccessInput = {
   planTier: PlanTier;
@@ -23,7 +24,7 @@ export const resolveShadowGhostAccess = ({
   entitlementSource = 'none',
   entitlementExpiresAtIso,
 }: ResolveShadowGhostAccessInput): ShadowGhostAccess => {
-  if (planTier === 'platinum' || planTier === 'elite') {
+  if (hasSubscriptionBenefit(planTier, 'shadowghost_included')) {
     return {
       canUse: true,
       source: 'plan_included',
@@ -43,4 +44,3 @@ export const resolveShadowGhostAccess = ({
     source: 'none',
   };
 };
-

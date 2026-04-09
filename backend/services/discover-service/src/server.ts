@@ -46,6 +46,12 @@ type UserSettingsRow = {
 type EntitlementSnapshot = {
   planTier?: "free" | "essential" | "gold" | "platinum" | "elite";
   planExpiresAtIso?: string;
+  balancesDelta?: {
+    boostsLeft?: number;
+    superlikesLeft?: number;
+    rewindsLeft?: number;
+    icebreakersLeft?: number;
+  };
   shadowGhost?: {
     source: "shadowghost_item";
     expiresAtIso: string;
@@ -61,6 +67,13 @@ type InternalJwtPayload = {
   sub: string;
   email?: string;
   role?: string;
+};
+
+type AuthUserLike = {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+  app_metadata?: Record<string, unknown> | null;
 };
 
 const verifyInternalToken = createVerifier({
@@ -159,19 +172,58 @@ const getUserShadowGhostState = async (userId: string): Promise<boolean> => {
   return canUseShadowGhost(settings, entitlement);
 };
 
-const getUserPlanTier = async (userId: string): Promise<"free" | "essential" | "gold" | "platinum" | "elite"> => {
-  if (!supabaseAdminClient) return "free";
-  const entitlementResult = await supabaseAdminClient
+const getUserEntitlementSnapshot = async (userId: string): Promise<EntitlementSnapshot | null> => {
+  if (!supabaseAdminClient) return null;
+  const result = await supabaseAdminClient
     .from("user_entitlements")
     .select("entitlement_snapshot")
     .eq("user_id", userId)
     .maybeSingle();
-  const entitlement = (entitlementResult.data ?? null) as UserEntitlementRow | null;
-  return resolveEntitlementPlanTier(entitlement?.entitlement_snapshot);
+  if (result.error) throw result.error;
+  const row = (result.data ?? null) as UserEntitlementRow | null;
+  return row?.entitlement_snapshot ?? null;
 };
+
+const saveUserEntitlementSnapshot = async (userId: string, snapshot: EntitlementSnapshot) => {
+  if (!supabaseAdminClient) return;
+  const { error } = await supabaseAdminClient.from("user_entitlements").upsert(
+    {
+      user_id: userId,
+      entitlement_snapshot: snapshot,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) throw error;
+};
+
+const getIceBreakersLeft = (snapshot: EntitlementSnapshot | null | undefined) =>
+  Math.max(0, snapshot?.balancesDelta?.icebreakersLeft ?? 0);
 
 const stableScore = (seed: string) =>
   [...seed].reduce((acc, char, index) => (acc + char.charCodeAt(0) * (index + 1)) % 1000, 0) % 100;
+
+const toBool = (value: unknown) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true" || value === "1";
+  return false;
+};
+
+const isActorUser = (user: AuthUserLike, actorRegex: RegExp) => {
+  const email = typeof user.email === "string" ? user.email : "";
+  if (actorRegex.test(email)) return true;
+
+  const metadata = user.user_metadata ?? {};
+  const appMetadata = user.app_metadata ?? {};
+
+  const source = typeof metadata.source === "string" ? metadata.source.toLowerCase() : "";
+  if (source.startsWith("seed_")) return true;
+
+  if (toBool(metadata.actor) || toBool(metadata.is_actor)) return true;
+  if (toBool(appMetadata.actor) || toBool(appMetadata.is_actor)) return true;
+
+  return false;
+};
 
 const refreshActorIdsCache = async (logger: ReturnType<typeof Fastify>["log"]) => {
   if (!supabaseAdminClient) return;
@@ -189,7 +241,23 @@ const refreshActorIdsCache = async (logger: ReturnType<typeof Fastify>["log"]) =
     if (result.error) throw result.error;
     const users = result.data.users ?? [];
     for (const user of users) {
-      if (typeof user.email === "string" && actorRegex.test(user.email)) {
+      if (
+        isActorUser(
+          {
+            id: user.id,
+            email: user.email ?? undefined,
+            user_metadata:
+              user.user_metadata && typeof user.user_metadata === "object"
+                ? (user.user_metadata as Record<string, unknown>)
+                : null,
+            app_metadata:
+              user.app_metadata && typeof user.app_metadata === "object"
+                ? (user.app_metadata as Record<string, unknown>)
+                : null,
+          },
+          actorRegex,
+        )
+      ) {
         actorIds.add(user.id);
       }
     }
@@ -403,6 +471,34 @@ const readLikeRow = async (input: {
   return (result.data ?? null) as DiscoverLikeRow | null;
 };
 
+const isMissingDiscoverLikeUnlocksTableError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+  const message =
+    "message" in error ? String((error as { message?: unknown }).message ?? "").toLowerCase() : "";
+  return code === "PGRST205" || code === "42P01" || message.includes("discover_like_unlocks");
+};
+
+const loadIceBreakerUnlockedLikeIds = async (userId: string): Promise<Set<string>> => {
+  if (!supabaseAdminClient) return new Set<string>();
+  const result = await supabaseAdminClient
+    .from("discover_like_unlocks")
+    .select("like_id")
+    .eq("user_id", userId)
+    .limit(1000);
+  if (result.error) {
+    if (isMissingDiscoverLikeUnlocksTableError(result.error)) {
+      return new Set<string>();
+    }
+    throw result.error;
+  }
+  return new Set(
+    (result.data ?? [])
+      .map((row) => (row as { like_id?: unknown }).like_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0),
+  );
+};
+
 export const buildServer = () => {
   const app = Fastify({ logger: true });
 
@@ -433,13 +529,18 @@ export const buildServer = () => {
           visibleLikes: [],
           iceBreaker: {
             eligibleLikesHiddenCount: 0,
-            consumed: false,
+            ownedCount: 0,
+            canUse: false,
+            unlockedCount: 0,
           },
         },
       };
     }
 
     try {
+      const entitlementSnapshot = await getUserEntitlementSnapshot(userId);
+      const planTier = resolveEntitlementPlanTier(entitlementSnapshot);
+      const ownedIceBreakers = getIceBreakersLeft(entitlementSnapshot);
       const likesResult = await supabaseAdminClient
         .from("discover_likes")
         .select("*")
@@ -458,12 +559,16 @@ export const buildServer = () => {
             visibleLikes: [],
             iceBreaker: {
               eligibleLikesHiddenCount: 0,
-              consumed: false,
+              ownedCount: getIceBreakersLeft(entitlementSnapshot),
+              canUse: false,
+              unlockedCount: 0,
             },
           },
         };
       }
 
+      const unlockedByIceBreaker = await loadIceBreakerUnlockedLikeIds(userId);
+      const unlockedByPlan = planTier !== "free";
       const senderIds = [...new Set(likesRows.map((row) => row.liker_user_id))];
       const senderCards = await loadCandidatesByProfileIds({
         profileIds: senderIds,
@@ -471,12 +576,13 @@ export const buildServer = () => {
         logger: app.log,
       });
       const senderMap = new Map(senderCards.map((entry) => [entry.id, entry]));
-      const planTier = await getUserPlanTier(userId);
-      const unlocked = planTier !== "free";
-      const visibleSlice = unlocked ? likesRows : likesRows.slice(0, 4);
+      const visibleSlice = likesRows;
 
       const visibleLikes = visibleSlice.map((row) => {
         const sender = senderMap.get(row.liker_user_id);
+        const hiddenByShadowGhost = Boolean(row.hidden_by_shadowghost);
+        const unlockedByItem = unlockedByIceBreaker.has(row.id);
+        const blurredLocked = hiddenByShadowGhost ? false : !(unlockedByPlan || unlockedByItem);
         const profile = sender
           ? {
               id: sender.id,
@@ -519,20 +625,24 @@ export const buildServer = () => {
           receivedAtIso: row.created_at,
           wasSuperLike: Boolean(row.was_superlike),
           state: row.status === "matched" ? "matched" : "pending_incoming_like",
-          hiddenByShadowGhost: Boolean(row.hidden_by_shadowghost),
-          blurredLocked: !unlocked,
+          hiddenByShadowGhost,
+          blurredLocked,
         };
       });
+      const hiddenCount = visibleLikes.filter((entry) => entry.blurredLocked).length;
+      const unlocked = hiddenCount === 0;
 
       return {
         state: unlocked ? "unlocked" : "locked",
         inventory: {
           unlocked,
-          hiddenCount: unlocked ? 0 : Math.max(0, likesRows.length - visibleSlice.length),
+          hiddenCount,
           visibleLikes,
           iceBreaker: {
-            eligibleLikesHiddenCount: unlocked ? 0 : Math.max(0, likesRows.length - visibleSlice.length),
-            consumed: false,
+            eligibleLikesHiddenCount: hiddenCount,
+            ownedCount: ownedIceBreakers,
+            canUse: ownedIceBreakers > 0 && hiddenCount > 0,
+            unlockedCount: unlockedByIceBreaker.size,
           },
         },
       };
@@ -541,6 +651,139 @@ export const buildServer = () => {
       reply.status(500);
       return {
         code: "LIKES_INCOMING_FAILED",
+      };
+    }
+  });
+
+  app.post("/discover/likes/:likeId/icebreaker/use", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+    if (!supabaseAdminClient) {
+      reply.status(503);
+      return { code: "DISCOVER_LIKES_UNAVAILABLE" };
+    }
+
+    const likeId = (request.params as { likeId?: string }).likeId?.trim();
+    if (!likeId) {
+      reply.status(400);
+      return { code: "INVALID_PARAMS" };
+    }
+
+    try {
+      const entitlementSnapshot = (await getUserEntitlementSnapshot(userId)) ?? {};
+      const currentLeft = getIceBreakersLeft(entitlementSnapshot);
+      const planTier = resolveEntitlementPlanTier(entitlementSnapshot);
+
+      const targetLikeResult = await supabaseAdminClient
+        .from("discover_likes")
+        .select("id,hidden_by_shadowghost,status")
+        .eq("id", likeId)
+        .eq("liked_user_id", userId)
+        .in("status", ["pending", "matched"])
+        .maybeSingle();
+      if (targetLikeResult.error) throw targetLikeResult.error;
+      const targetLike = targetLikeResult.data as
+        | { id: string; hidden_by_shadowghost: boolean | null; status: DiscoverLikeStatus }
+        | null;
+      if (!targetLike) {
+        reply.status(404);
+        return { code: "LIKE_NOT_FOUND" };
+      }
+
+      if (Boolean(targetLike.hidden_by_shadowghost)) {
+        reply.status(409);
+        return { code: "ICEBREAKER_NOT_APPLICABLE_SHADOWGHOST" };
+      }
+
+      if (planTier !== "free") {
+        reply.status(409);
+        return { code: "ICEBREAKER_NOT_REQUIRED_PLAN_UNLOCKED" };
+      }
+
+      const existingUnlockResult = await supabaseAdminClient
+        .from("discover_like_unlocks")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("like_id", likeId)
+        .maybeSingle();
+      if (existingUnlockResult.error) {
+        if (isMissingDiscoverLikeUnlocksTableError(existingUnlockResult.error)) {
+          reply.status(503);
+          return { code: "ICEBREAKER_UNLOCKS_TABLE_MISSING" };
+        }
+        throw existingUnlockResult.error;
+      }
+      if (existingUnlockResult.data?.id) {
+        reply.status(409);
+        return { code: "ICEBREAKER_ALREADY_UNLOCKED" };
+      }
+
+      if (currentLeft <= 0) {
+        reply.status(409);
+        return { code: "ICEBREAKER_EMPTY" };
+      }
+
+      const unlockInsert = await supabaseAdminClient.from("discover_like_unlocks").insert({
+        user_id: userId,
+        like_id: likeId,
+        unlock_method: "icebreaker",
+        consumed_item_id: "instant-icebreaker",
+      });
+      if (unlockInsert.error) {
+        if (isMissingDiscoverLikeUnlocksTableError(unlockInsert.error)) {
+          reply.status(503);
+          return { code: "ICEBREAKER_UNLOCKS_TABLE_MISSING" };
+        }
+        throw unlockInsert.error;
+      }
+
+      const nextSnapshot: EntitlementSnapshot = {
+        ...entitlementSnapshot,
+        balancesDelta: {
+          ...(entitlementSnapshot.balancesDelta ?? {}),
+          icebreakersLeft: Math.max(0, currentLeft - 1),
+        },
+      };
+      await saveUserEntitlementSnapshot(userId, nextSnapshot);
+
+      const likesPayload = await app.inject({
+        method: "GET",
+        url: "/discover/likes/incoming",
+        headers: {
+          authorization: request.headers.authorization ?? "",
+        },
+      });
+      if (likesPayload.statusCode >= 400) {
+        reply.status(500);
+        return { code: "ICEBREAKER_REFRESH_FAILED" };
+      }
+      const parsedPayload = JSON.parse(likesPayload.payload) as {
+        state: "loading" | "empty" | "locked" | "unlocked" | "error";
+        inventory: {
+          unlocked: boolean;
+          hiddenCount: number;
+          visibleLikes: unknown[];
+          iceBreaker: {
+            eligibleLikesHiddenCount: number;
+            ownedCount: number;
+            canUse: boolean;
+            unlockedCount: number;
+          };
+        };
+      };
+
+      return {
+        ok: true,
+        state: parsedPayload.state,
+        inventory: parsedPayload.inventory,
+      };
+    } catch (error) {
+      app.log.error({ err: error, userId }, "discover.likes_icebreaker_use_failed");
+      reply.status(500);
+      return {
+        code: "ICEBREAKER_USE_FAILED",
       };
     }
   });

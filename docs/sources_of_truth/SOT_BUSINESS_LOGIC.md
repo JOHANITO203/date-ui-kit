@@ -52,6 +52,60 @@ Date de verrouillage: 2026-03-30
   - `like_back`: cree un match bilateral et ouvre/alimente la conversation match des deux cotes.
   - `pass`: refuse le like (pas de match).
 - `ShadowGhost`:
-  - si l'expediteur a un ShadowGhost actif, l'identite est masquee sur Likes selon la logique de visibilite.
+  - si l'expediteur a un ShadowGhost actif, l'identite reste masquee.
+  - un indicateur ghost est visible sur Likes et Messages/Chat.
 - Etat premium/lock:
   - user `free` sans mecanisme de deblocage actif conserve l'affichage floute des profils entrants.
+- Hierarchie officielle de visibilite Likes:
+  1. exception `ShadowGhost`,
+  2. entitlement abonnement (unlock permanent),
+  3. unlock ponctuel par IceBreaker,
+  4. lock free par defaut.
+
+## 9) Items / inventaire / consommation
+- Source de verite item: `user_entitlements.entitlement_snapshot` + `in_app_offers`.
+- Achat item:
+  - un checkout `paid` attribue l'entitlement et retourne un feedback de succes.
+  - l'inventaire frontend est mis a jour immediatement (sans attendre un refresh manuel).
+- Inventaire Profile:
+  - la carte plan affiche les items possedes avec compteur exact (superlikes, boosts, rewinds, icebreakers).
+- Visibilite par page:
+  - Likes: IceBreaker est l'item utilitaire principal expose en haut a droite.
+  - Discover: Boost/Rewind/SuperLike restent actives selon les regles existantes.
+- IceBreaker (regle officielle):
+  - condition d'usage: stock `icebreakersLeft > 0`, like cible locke, user free.
+  - consommation: `1 IceBreaker = 1 like/conversation debloque`.
+  - effet: deblocage unitaire persistant via `discover_like_unlocks` (pas de fenetre globale 24h).
+  - non-applicable sur une ligne `ShadowGhost` (l'identite reste masquee).
+  - etat UI: compteur mis a jour immediatement + like debloque immediatement.
+- ShadowGhost et IceBreaker coexistent:
+  - IceBreaker debloque la vue des likes caches.
+  - ShadowGhost continue de masquer l'identite de l'expediteur quand applicable.
+
+## 10) Boutique / creditation post-achat (verrouille)
+- Source de verite boutique:
+  - catalogue: `backend/services/payments-service/src/catalog.ts`
+  - mapping effet metier: `backend/services/payments-service/src/entitlements.ts`
+- Chaine obligatoire pour tout produit:
+  - `product definition -> payment success -> post-purchase validation -> crediting -> persistence -> activation -> UI reflection -> real effect`.
+- Regle anti-faux-succes:
+  - un produit paye sans effet metier explicite est invalide et doit echouer explicitement (pas de succes silencieux).
+- Abonnements mensuels:
+  - definissent un `planTier` + expiration + avantages quantifiables credites.
+  - les acces derives (likes unlock, badges premium, shadow/travel inclus selon plan) restent appliques via les deriveurs metier existants.
+
+## 11) Mapping avantages abonnements par page (verrouille)
+- Source frontend unique: `src/domain/subscriptionBenefits.ts`.
+- Tier -> benefices:
+  - `free`: aucun benefice abonnement.
+  - `essential`: `likes_identity_unlocked`, `messages_translation`, `premium_badge`.
+  - `gold`: `essential` + `discover_advanced_filters`, `profile_hide_age_distance`.
+  - `platinum`: `gold` + `messages_see_online`, `travel_pass_included`, `shadowghost_included`.
+  - `elite`: meme couverture fonctionnelle que `platinum` + statut premium superieur.
+- Application par page:
+  - Discover: filtres avances (hors `all`) conditionnes par `discover_advanced_filters`.
+  - Boost: affichage explicite ON/OFF des avantages par tier pour eviter les promesses non branchees.
+  - Profile: toggles `hide age/distance` conditionnes par `profile_hide_age_distance`.
+  - Messages/Chat: presence online conditionnee par `messages_see_online`, traduction conditionnee par `messages_translation`.
+- Audit runtime:
+  - `GET /entitlements/me` expose aussi `effectiveBenefits` (flags + mapping par page) pour verifier la propagation serveur -> UI.

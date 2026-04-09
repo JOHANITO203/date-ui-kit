@@ -11,6 +11,7 @@ export interface TokenBalance {
   superlikesLeft: number;
   boostsLeft: number;
   rewindsLeft: number;
+  icebreakersLeft: number;
 }
 
 export interface ProfileFlags {

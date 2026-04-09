@@ -1,6 +1,83 @@
 import type { Offer } from "./catalog";
 
 export type PlanTier = "free" | "essential" | "gold" | "platinum" | "elite";
+export type SubscriptionBenefitKey =
+  | "likes_identity_unlocked"
+  | "discover_advanced_filters"
+  | "profile_hide_age_distance"
+  | "messages_translation"
+  | "messages_see_online"
+  | "travel_pass_included"
+  | "shadowghost_included"
+  | "premium_badge";
+
+export type EffectiveBenefitsByPage = {
+  discover: {
+    discoverAdvancedFilters: boolean;
+  };
+  boost: {
+    likesIdentityUnlocked: boolean;
+    discoverAdvancedFilters: boolean;
+    profileHideAgeDistance: boolean;
+    messagesTranslation: boolean;
+    messagesSeeOnline: boolean;
+    travelPassIncluded: boolean;
+    shadowGhostIncluded: boolean;
+    premiumBadge: boolean;
+  };
+  profile: {
+    profileHideAgeDistance: boolean;
+    travelPassIncluded: boolean;
+    shadowGhostIncluded: boolean;
+    premiumBadge: boolean;
+  };
+  messages: {
+    messagesTranslation: boolean;
+    messagesSeeOnline: boolean;
+    premiumBadge: boolean;
+  };
+};
+
+export type EffectiveBenefitsSnapshot = {
+  planTier: PlanTier;
+  flags: Record<SubscriptionBenefitKey, boolean>;
+  byPage: EffectiveBenefitsByPage;
+};
+
+const planBenefits: Record<PlanTier, SubscriptionBenefitKey[]> = {
+  free: [],
+  essential: ["likes_identity_unlocked", "messages_translation", "premium_badge"],
+  gold: [
+    "likes_identity_unlocked",
+    "messages_translation",
+    "premium_badge",
+    "discover_advanced_filters",
+    "profile_hide_age_distance",
+  ],
+  platinum: [
+    "likes_identity_unlocked",
+    "messages_translation",
+    "premium_badge",
+    "discover_advanced_filters",
+    "profile_hide_age_distance",
+    "messages_see_online",
+    "travel_pass_included",
+    "shadowghost_included",
+  ],
+  elite: [
+    "likes_identity_unlocked",
+    "messages_translation",
+    "premium_badge",
+    "discover_advanced_filters",
+    "profile_hide_age_distance",
+    "messages_see_online",
+    "travel_pass_included",
+    "shadowghost_included",
+  ],
+};
+
+const hasPlanBenefit = (planTier: PlanTier, benefit: SubscriptionBenefitKey) =>
+  planBenefits[planTier].includes(benefit);
 
 export type EntitlementSnapshot = {
   planTier?: PlanTier;
@@ -9,6 +86,7 @@ export type EntitlementSnapshot = {
     boostsLeft?: number;
     superlikesLeft?: number;
     rewindsLeft?: number;
+    icebreakersLeft?: number;
   };
   travelPass?: {
     source: "travel_pass" | "bundle_included";
@@ -19,6 +97,11 @@ export type EntitlementSnapshot = {
     expiresAtIso: string;
     enablePrivacy: boolean;
   };
+};
+
+type OfferEffectDefinition = {
+  snapshot: EntitlementSnapshot;
+  summary: string;
 };
 
 const computeExpiry = (durationHours: number) =>
@@ -54,7 +137,6 @@ export const sanitizeEntitlementSnapshot = (
   if (snapshot.shadowGhost && isIsoActive(snapshot.shadowGhost.expiresAtIso)) {
     next.shadowGhost = snapshot.shadowGhost;
   }
-
   const hasAny =
     Boolean(next.planTier) ||
     Boolean(next.balancesDelta) ||
@@ -79,12 +161,16 @@ export const mergeEntitlementSnapshots = (
       (nextIncoming.balancesDelta?.superlikesLeft ?? 0),
     rewindsLeft:
       (base.balancesDelta?.rewindsLeft ?? 0) + (nextIncoming.balancesDelta?.rewindsLeft ?? 0),
+    icebreakersLeft:
+      (base.balancesDelta?.icebreakersLeft ?? 0) +
+      (nextIncoming.balancesDelta?.icebreakersLeft ?? 0),
   };
 
   const hasBalances =
     mergedBalances.boostsLeft > 0 ||
     mergedBalances.superlikesLeft > 0 ||
-    mergedBalances.rewindsLeft > 0;
+    mergedBalances.rewindsLeft > 0 ||
+    mergedBalances.icebreakersLeft > 0;
 
   return {
     planTier: nextIncoming.planTier ?? base.planTier,
@@ -95,76 +181,202 @@ export const mergeEntitlementSnapshots = (
   };
 };
 
-export const resolveEntitlementSnapshot = (offer: Offer): EntitlementSnapshot => {
-  switch (offer.id) {
-    case "tier-essential-month":
-      return { planTier: "essential", planExpiresAtIso: computeExpiry(24 * 30) };
-    case "tier-gold-month":
-      return { planTier: "gold", planExpiresAtIso: computeExpiry(24 * 30) };
-    case "tier-platinum-month":
-      return { planTier: "platinum", planExpiresAtIso: computeExpiry(24 * 30) };
-    case "tier-elite-month":
-      return { planTier: "elite", planExpiresAtIso: computeExpiry(24 * 30) };
-    case "instant-boost":
-      return { balancesDelta: { boostsLeft: 1 } };
-    case "instant-superlike":
-      return { balancesDelta: { superlikesLeft: 5 } };
-    case "instant-rewind-x10":
-      return { balancesDelta: { rewindsLeft: 10 } };
-    case "instant-travel-pass":
-      return {
-        travelPass: {
-          source: "travel_pass",
-          expiresAtIso: computeExpiry(24),
-        },
-      };
-    case "pass-travel-pass-plus":
-      return {
-        planTier: "essential",
-        planExpiresAtIso: computeExpiry(24 * 7),
-        travelPass: {
-          source: "travel_pass",
-          expiresAtIso: computeExpiry(24 * 7),
-        },
-      };
-    case "instant-shadowghost":
-      return {
-        shadowGhost: {
-          source: "shadowghost_item",
-          expiresAtIso: computeExpiry(24),
-          enablePrivacy: true,
-        },
-      };
-    case "pass-day":
-      return { planTier: "essential", planExpiresAtIso: computeExpiry(24) };
-    case "pass-week":
-      return { planTier: "essential", planExpiresAtIso: computeExpiry(24 * 7) };
-    case "pass-month":
-      return { planTier: "essential", planExpiresAtIso: computeExpiry(24 * 30) };
-    case "bundle-starter":
-      return {
-        balancesDelta: { boostsLeft: 1, superlikesLeft: 5 },
-      };
-    case "bundle-dating-pro":
-      return {
-        balancesDelta: { boostsLeft: 5, superlikesLeft: 20, rewindsLeft: 10 },
-        travelPass: {
-          source: "bundle_included",
-          expiresAtIso: computeExpiry(24 * 30),
-        },
-      };
-    case "bundle-premium-plus":
-      return {
-        planTier: "elite",
-        planExpiresAtIso: computeExpiry(24 * 30),
-        balancesDelta: { boostsLeft: 4, superlikesLeft: 20, rewindsLeft: 10 },
-        travelPass: {
-          source: "bundle_included",
-          expiresAtIso: computeExpiry(24 * 30),
-        },
-      };
-    default:
-      return {};
-  }
+const MONTH_HOURS = 24 * 30;
+
+const offerEffectsById: Record<string, OfferEffectDefinition> = {
+  "tier-essential-month": {
+    snapshot: {
+      planTier: "essential",
+      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      balancesDelta: { superlikesLeft: 5 },
+    },
+    summary: "Essential monthly plan + starter superlikes allocation",
+  },
+  "tier-gold-month": {
+    snapshot: {
+      planTier: "gold",
+      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      balancesDelta: { superlikesLeft: 10, boostsLeft: 4, rewindsLeft: 12 },
+    },
+    summary: "Gold monthly plan + included boosts/superlikes/rewinds allocation",
+  },
+  "tier-platinum-month": {
+    snapshot: {
+      planTier: "platinum",
+      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      balancesDelta: { superlikesLeft: 20, boostsLeft: 30, rewindsLeft: 30 },
+    },
+    summary: "Platinum monthly plan + high included token allocation",
+  },
+  "tier-elite-month": {
+    snapshot: {
+      planTier: "elite",
+      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      balancesDelta: { superlikesLeft: 30, boostsLeft: 45, rewindsLeft: 45, icebreakersLeft: 5 },
+    },
+    summary: "Elite monthly plan + top included token allocation",
+  },
+
+  "instant-boost": {
+    snapshot: { balancesDelta: { boostsLeft: 1 } },
+    summary: "Single boost token",
+  },
+  "instant-superlike": {
+    snapshot: { balancesDelta: { superlikesLeft: 5 } },
+    summary: "SuperLike token pack",
+  },
+  "instant-icebreaker": {
+    snapshot: { balancesDelta: { icebreakersLeft: 1 } },
+    summary: "Single IceBreaker item",
+  },
+  "instant-rewind-x10": {
+    snapshot: { balancesDelta: { rewindsLeft: 10 } },
+    summary: "Rewind x10 token pack",
+  },
+  "instant-travel-pass": {
+    snapshot: {
+      travelPass: {
+        source: "travel_pass",
+        expiresAtIso: computeExpiry(24),
+      },
+    },
+    summary: "Travel Pass access for 24h",
+  },
+  "instant-shadowghost": {
+    snapshot: {
+      shadowGhost: {
+        source: "shadowghost_item",
+        expiresAtIso: computeExpiry(24),
+        enablePrivacy: true,
+      },
+    },
+    summary: "ShadowGhost privacy access for 24h",
+  },
+
+  "pass-day": {
+    snapshot: { planTier: "essential", planExpiresAtIso: computeExpiry(24) },
+    summary: "Essential short pass (24h)",
+  },
+  "pass-week": {
+    snapshot: { planTier: "essential", planExpiresAtIso: computeExpiry(24 * 7) },
+    summary: "Essential short pass (7d)",
+  },
+  "pass-month": {
+    snapshot: {
+      planTier: "essential",
+      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      balancesDelta: { superlikesLeft: 5 },
+    },
+    summary: "Essential monthly pass + starter superlikes allocation",
+  },
+  "pass-travel-pass-plus": {
+    snapshot: {
+      planTier: "essential",
+      planExpiresAtIso: computeExpiry(24 * 7),
+      travelPass: {
+        source: "travel_pass",
+        expiresAtIso: computeExpiry(24 * 7),
+      },
+    },
+    summary: "Essential weekly pass + Travel Pass+ access",
+  },
+
+  "bundle-starter": {
+    snapshot: {
+      balancesDelta: { boostsLeft: 1, superlikesLeft: 5 },
+    },
+    summary: "Starter bundle token credits",
+  },
+  "bundle-dating-pro": {
+    snapshot: {
+      balancesDelta: { boostsLeft: 5, superlikesLeft: 20, rewindsLeft: 10, icebreakersLeft: 2 },
+      travelPass: {
+        source: "bundle_included",
+        expiresAtIso: computeExpiry(MONTH_HOURS),
+      },
+    },
+    summary: "Dating Pro bundle credits + Travel Pass entitlement",
+  },
+  "bundle-premium-plus": {
+    snapshot: {
+      planTier: "elite",
+      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      balancesDelta: { boostsLeft: 4, superlikesLeft: 20, rewindsLeft: 10, icebreakersLeft: 3 },
+      travelPass: {
+        source: "bundle_included",
+        expiresAtIso: computeExpiry(MONTH_HOURS),
+      },
+    },
+    summary: "Premium+ bundle with elite plan + credits + travel pass",
+  },
 };
 
+export const hasMeaningfulEntitlementEffect = (
+  snapshot: EntitlementSnapshot | null | undefined,
+): boolean => {
+  const sanitized = sanitizeEntitlementSnapshot(snapshot);
+  return Boolean(sanitized);
+};
+
+export const listOfferEffectsAudit = (): Array<{
+  offerId: string;
+  summary: string;
+  hasEffect: boolean;
+}> =>
+  Object.entries(offerEffectsById).map(([offerId, effect]) => ({
+    offerId,
+    summary: effect.summary,
+    hasEffect: hasMeaningfulEntitlementEffect(effect.snapshot),
+  }));
+
+export const resolveEntitlementSnapshot = (offer: Offer): EntitlementSnapshot => {
+  return offerEffectsById[offer.id]?.snapshot ?? {};
+};
+
+export const resolveEffectiveBenefitsSnapshot = (
+  entitlementSnapshot: EntitlementSnapshot | null | undefined,
+): EffectiveBenefitsSnapshot => {
+  const sanitized = sanitizeEntitlementSnapshot(entitlementSnapshot);
+  const planTier = sanitized?.planTier ?? "free";
+  const flags: Record<SubscriptionBenefitKey, boolean> = {
+    likes_identity_unlocked: hasPlanBenefit(planTier, "likes_identity_unlocked"),
+    discover_advanced_filters: hasPlanBenefit(planTier, "discover_advanced_filters"),
+    profile_hide_age_distance: hasPlanBenefit(planTier, "profile_hide_age_distance"),
+    messages_translation: hasPlanBenefit(planTier, "messages_translation"),
+    messages_see_online: hasPlanBenefit(planTier, "messages_see_online"),
+    travel_pass_included: hasPlanBenefit(planTier, "travel_pass_included"),
+    shadowghost_included: hasPlanBenefit(planTier, "shadowghost_included"),
+    premium_badge: hasPlanBenefit(planTier, "premium_badge"),
+  };
+
+  return {
+    planTier,
+    flags,
+    byPage: {
+      discover: {
+        discoverAdvancedFilters: flags.discover_advanced_filters,
+      },
+      boost: {
+        likesIdentityUnlocked: flags.likes_identity_unlocked,
+        discoverAdvancedFilters: flags.discover_advanced_filters,
+        profileHideAgeDistance: flags.profile_hide_age_distance,
+        messagesTranslation: flags.messages_translation,
+        messagesSeeOnline: flags.messages_see_online,
+        travelPassIncluded: flags.travel_pass_included,
+        shadowGhostIncluded: flags.shadowghost_included,
+        premiumBadge: flags.premium_badge,
+      },
+      profile: {
+        profileHideAgeDistance: flags.profile_hide_age_distance,
+        travelPassIncluded: flags.travel_pass_included,
+        shadowGhostIncluded: flags.shadowghost_included,
+        premiumBadge: flags.premium_badge,
+      },
+      messages: {
+        messagesTranslation: flags.messages_translation,
+        messagesSeeOnline: flags.messages_see_online,
+        premiumBadge: flags.premium_badge,
+      },
+    },
+  };
+};

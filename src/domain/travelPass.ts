@@ -1,5 +1,6 @@
 import type { PlanTier } from '../contracts';
 import type { TravelPassEntitlementSource, TravelPassServerAccessSource } from '../contracts/settings.contract';
+import { hasSubscriptionBenefit } from './subscriptionBenefits';
 
 type ResolveTravelPassServerAccessInput = {
   planTier: PlanTier;
@@ -23,7 +24,7 @@ export const resolveTravelPassServerAccess = ({
   entitlementSource = 'none',
   entitlementExpiresAtIso,
 }: ResolveTravelPassServerAccessInput): TravelPassServerAccess => {
-  if (planTier === 'platinum' || planTier === 'elite') {
+  if (hasSubscriptionBenefit(planTier, 'travel_pass_included')) {
     return {
       canChangeServer: true,
       source: 'plan_included',

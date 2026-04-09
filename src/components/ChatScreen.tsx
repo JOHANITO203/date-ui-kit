@@ -7,7 +7,9 @@ import NameWithBadge from './ui/NameWithBadge';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, subscribeConversationRelationChange } from '../services';
+import { useRuntimeSelector } from '../state';
 import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
+import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
 interface ChatScreenProps {
   embedded?: boolean;
@@ -31,6 +33,9 @@ const resolvePhotoUrl = (photos: string[] | undefined): string => {
   return direct ?? '/placeholder.svg';
 };
 
+const isShadowGhostConversation = (conversation: ConversationSummary | null | undefined) =>
+  Boolean(conversation?.shadowGhostMasked || conversation?.peer.flags.shadowGhost);
+
 const resolveChatTargetLocale = (
   targetLang: string | null | undefined,
   fallbackLocale: string,
@@ -48,6 +53,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const { userId: routeUserId } = useParams();
   const navigate = useNavigate();
   const { locale, t } = useI18n();
+  const planTier = useRuntimeSelector((payload) => payload.planTier);
   const { isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const [showTranslation, setShowTranslation] = useState(false);
@@ -65,6 +71,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     locale === 'ru' ? 'ru' : 'en',
   );
   const userId = propUserId || routeUserId;
+  const canUseChatTranslation = hasSubscriptionBenefit(planTier, 'messages_translation');
 
   const containerProps = embedded
     ? {
@@ -229,6 +236,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   }, []);
 
   const activePeer = conversation?.peer;
+  const shadowGhostMasked = isShadowGhostConversation(conversation);
   const relationState = conversation?.relationState ?? 'active';
   const isConversationRestricted = relationState !== 'active';
   const canToggleBlock = relationState === 'active' || relationState === 'blocked_by_me';
@@ -242,6 +250,10 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   );
 
   const handleToggleTranslation = () => {
+    if (!canUseChatTranslation) {
+      navigate('/boost');
+      return;
+    }
     if (!conversationId) return;
     const next = !showTranslation;
     setShowTranslation(next);
@@ -390,7 +402,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           )}
           <div className="relative">
             <img
-              src={resolvePhotoUrl(activePeer.photos)}
+              src={shadowGhostMasked ? '/placeholder.svg' : resolvePhotoUrl(activePeer.photos)}
               className="w-10 h-10 rounded-[14px] object-cover"
               alt={activePeer.name}
               referrerPolicy="no-referrer"
@@ -401,9 +413,9 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </div>
           <div className="flex flex-col items-start gap-0.5">
             <NameWithBadge
-              name={activePeer.name}
+              name={shadowGhostMasked ? t('likes.shadowGhostMaskedName') : activePeer.name}
               age={activePeer.age}
-              ageMasked={activePeer.flags.hideAge}
+              ageMasked={shadowGhostMasked || activePeer.flags.hideAge}
               verified={activePeer.flags.verifiedIdentity}
               premiumTier={resolveDisplayPremiumTier(
                 activePeer.flags.premiumTier,
@@ -413,6 +425,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               premiumBadgeMode="dense"
               className="w-fit"
             />
+            {shadowGhostMasked && <ICONS.Ghost size={12} className="text-fuchsia-200" />}
             <span
               className={`pl-0.5 text-[9px] uppercase font-black tracking-widest ${
                 relationState === 'active'
@@ -489,11 +502,12 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </div>
           <button
             onClick={handleToggleTranslation}
+            disabled={!canUseChatTranslation}
             className={`w-11 h-11 rounded-full transition-all flex items-center justify-center ${
               showTranslation
                 ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/30'
                 : 'glass text-secondary hover:text-white'
-            }`}
+            } ${!canUseChatTranslation ? 'opacity-55 cursor-not-allowed' : ''}`}
           >
             <ICONS.Languages size={18} />
           </button>
@@ -556,7 +570,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             return (
               <div key={message.id} className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
                 <img
-                  src={resolvePhotoUrl(activePeer.photos)}
+                  src={shadowGhostMasked ? '/placeholder.svg' : resolvePhotoUrl(activePeer.photos)}
                   className="w-8 h-8 rounded-xl object-cover self-end shrink-0"
                   alt=""
                   referrerPolicy="no-referrer"

@@ -29,6 +29,7 @@ import type {
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
 import { resolveTravelPassServerAccess } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
+import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
 const STORAGE_KEY = 'exotic.runtime.settings.v1';
 const BOOST_DURATION_SECONDS = 30 * 60;
@@ -40,9 +41,13 @@ type RuntimeState = {
     superlikesLeft: number;
     boostsLeft: number;
     rewindsLeft: number;
+    icebreakersLeft: number;
   };
   boost: {
     activeUntilIso: string | null;
+  };
+  iceBreaker: {
+    unlockedLikeIds: string[];
   };
   settings: UserSettings;
   feedSource: ProfileCard[];
@@ -133,9 +138,13 @@ const createInitialState = (): RuntimeState => ({
     superlikesLeft: 5,
     boostsLeft: 1,
     rewindsLeft: 3,
+    icebreakersLeft: 0,
   },
   boost: {
     activeUntilIso: null,
+  },
+  iceBreaker: {
+    unlockedLikeIds: [],
   },
   settings: readPersistedSettings() ?? defaultSettings,
   feedSource: [],
@@ -209,7 +218,8 @@ const applyFeedFilters = (profiles: ProfileCard[], filters: FeedQuickFilter[]) =
   });
 };
 
-const canUnlockLikes = (planTier: PlanTier) => planTier !== 'free';
+const canUnlockLikes = (planTier: PlanTier) =>
+  hasSubscriptionBenefit(planTier, 'likes_identity_unlocked');
 
 const ensureConversationForProfile = (profileId: string, fromSuperLike = false): string => {
   const id = toConversationId(profileId);
@@ -487,27 +497,35 @@ export const runtimeApi = {
   },
 
   getLikes(): GetReceivedLikesResponse {
-    const unlocked = state.likesUnlocked || canUnlockLikes(state.planTier);
-    const hiddenCount = unlocked ? 0 : state.likes.length;
-    const visibleLikes = (unlocked ? state.likes : state.likes.slice(0, 4)).map((entry) => ({
+    const entitlementUnlocked = state.likesUnlocked || canUnlockLikes(state.planTier);
+    const unlockedLikeSet = new Set(state.iceBreaker.unlockedLikeIds);
+    const visibleLikes = state.likes.map((entry) => ({
       ...entry,
       state: 'pending_incoming_like' as const,
       hiddenByShadowGhost: false,
-      blurredLocked: !unlocked,
+      blurredLocked: !(entitlementUnlocked || unlockedLikeSet.has(entry.id)),
     }));
+    const hiddenCount = visibleLikes.filter((entry) => entry.blurredLocked).length;
 
     const inventory: LikesInventory = {
-      unlocked,
+      unlocked: entitlementUnlocked || hiddenCount === 0,
       hiddenCount,
       visibleLikes,
       iceBreaker: {
         eligibleLikesHiddenCount: hiddenCount,
-        consumed: false,
+        ownedCount: state.balances.icebreakersLeft,
+        canUse: state.balances.icebreakersLeft > 0 && hiddenCount > 0,
+        unlockedCount: state.iceBreaker.unlockedLikeIds.length,
       },
     };
 
     return {
-      state: state.likes.length === 0 ? 'empty' : unlocked ? 'unlocked' : 'locked',
+      state:
+        state.likes.length === 0
+          ? 'empty'
+          : entitlementUnlocked || hiddenCount === 0
+            ? 'unlocked'
+            : 'locked',
       inventory,
     };
   },
@@ -530,6 +548,59 @@ export const runtimeApi = {
 
   unlockLikesPreview() {
     setState((prev) => ({ ...prev, likesUnlocked: true }));
+  },
+
+  consumeLikesIceBreaker(likeId: string) {
+    const hasStock = state.balances.icebreakersLeft > 0;
+    if (!hasStock) {
+      return {
+        ok: false as const,
+        state: this.getLikes().state,
+        inventory: this.getLikes().inventory,
+      };
+    }
+
+    if (canUnlockLikes(state.planTier) || state.likesUnlocked) {
+      return {
+        ok: false as const,
+        state: this.getLikes().state,
+        inventory: this.getLikes().inventory,
+      };
+    }
+
+    const exists = state.likes.some((entry) => entry.id === likeId);
+    if (!exists) {
+      return {
+        ok: false as const,
+        state: this.getLikes().state,
+        inventory: this.getLikes().inventory,
+      };
+    }
+    if (state.iceBreaker.unlockedLikeIds.includes(likeId)) {
+      return {
+        ok: false as const,
+        state: this.getLikes().state,
+        inventory: this.getLikes().inventory,
+      };
+    }
+
+    setState((prev) => ({
+      ...prev,
+      balances: {
+        ...prev.balances,
+        icebreakersLeft: Math.max(0, prev.balances.icebreakersLeft - 1),
+      },
+      iceBreaker: {
+        unlockedLikeIds: [...prev.iceBreaker.unlockedLikeIds, likeId],
+      },
+    }));
+
+    const likes = this.getLikes();
+    return {
+      ok: true as const,
+      state: likes.state,
+      inventory: likes.inventory,
+    };
   },
 
   getConversations() {
@@ -733,14 +804,14 @@ export const runtimeApi = {
     return this.getSettingsEnvelope();
   },
 
-  applyEntitlementSnapshot(snapshot: EntitlementSnapshot) {
+  applyEntitlementSnapshot(snapshot: EntitlementSnapshot | null) {
     setState((prev) => {
-      const nextPlanTier = snapshot.planTier ?? prev.planTier;
+      const nextPlanTier = snapshot?.planTier ?? 'free';
       const nextBalances = {
-        superlikesLeft:
-          prev.balances.superlikesLeft + (snapshot.balancesDelta?.superlikesLeft ?? 0),
-        boostsLeft: prev.balances.boostsLeft + (snapshot.balancesDelta?.boostsLeft ?? 0),
-        rewindsLeft: prev.balances.rewindsLeft + (snapshot.balancesDelta?.rewindsLeft ?? 0),
+        superlikesLeft: Math.max(0, snapshot?.balancesDelta?.superlikesLeft ?? 0),
+        boostsLeft: Math.max(0, snapshot?.balancesDelta?.boostsLeft ?? 0),
+        rewindsLeft: Math.max(0, snapshot?.balancesDelta?.rewindsLeft ?? 0),
+        icebreakersLeft: Math.max(0, snapshot?.balancesDelta?.icebreakersLeft ?? 0),
       };
 
       const nextSettings = {
@@ -748,18 +819,18 @@ export const runtimeApi = {
         preferences: {
           ...prev.settings.preferences,
           travelPassEntitlementSource:
-            snapshot.travelPass?.source ?? prev.settings.preferences.travelPassEntitlementSource,
+            snapshot?.travelPass?.source ?? 'none',
           travelPassEntitlementExpiresAtIso:
-            snapshot.travelPass?.expiresAtIso ?? prev.settings.preferences.travelPassEntitlementExpiresAtIso,
+            snapshot?.travelPass?.expiresAtIso ?? undefined,
           shadowGhostEntitlementSource:
-            snapshot.shadowGhost?.source ?? prev.settings.preferences.shadowGhostEntitlementSource,
+            snapshot?.shadowGhost?.source ?? 'none',
           shadowGhostEntitlementExpiresAtIso:
-            snapshot.shadowGhost?.expiresAtIso ?? prev.settings.preferences.shadowGhostEntitlementExpiresAtIso,
+            snapshot?.shadowGhost?.expiresAtIso ?? undefined,
         },
         privacy: {
           ...prev.settings.privacy,
           shadowGhost:
-            snapshot.shadowGhost?.enablePrivacy === true ? true : prev.settings.privacy.shadowGhost,
+            snapshot?.shadowGhost?.enablePrivacy === true ? true : prev.settings.privacy.shadowGhost,
         },
       };
 
@@ -767,6 +838,9 @@ export const runtimeApi = {
         ...prev,
         planTier: nextPlanTier,
         balances: nextBalances,
+        iceBreaker: {
+          unlockedLikeIds: prev.iceBreaker.unlockedLikeIds,
+        },
         settings: nextSettings,
       };
     });

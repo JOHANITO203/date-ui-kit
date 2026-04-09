@@ -10,6 +10,7 @@ import Logo from './ui/Logo';
 import { appApi, authApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { FeedCandidate, FeedQuickFilter, PlanTier, SwipeDecision } from '../contracts';
+import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
@@ -51,6 +52,7 @@ const SwipeScreen = () => {
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
   const balances = useRuntimeSelector((payload) => payload.balances);
+  const planTier = useRuntimeSelector((payload) => payload.planTier);
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const likedCount = useRuntimeSelector((payload) => payload.likedProfileIds.length);
   const matchCount = useRuntimeSelector((payload) => payload.conversations.length);
@@ -77,6 +79,7 @@ const SwipeScreen = () => {
     { id: 'verified', labelKey: 'discover.quickFilters.verified' },
   ] as const;
   const [activeFilterIds, setActiveFilterIds] = useState<FeedQuickFilter[]>(['all']);
+  const hasAdvancedFilters = hasSubscriptionBenefit(planTier, 'discover_advanced_filters');
 
   const filteredUsers = useMemo(() => {
     return feedCandidates.map((candidate) => ({
@@ -295,6 +298,10 @@ const SwipeScreen = () => {
   };
 
   const toggleFilter = (id: FeedQuickFilter) => {
+    if (!hasAdvancedFilters && id !== 'all') {
+      navigate('/boost');
+      return;
+    }
     setIsFiltering(true);
     setActiveFilterIds((prev) => {
       if (id === 'all') return ['all'];
@@ -515,11 +522,12 @@ const SwipeScreen = () => {
             <button
               key={`filter-${filter.id}`}
               onClick={() => toggleFilter(filter.id)}
+              disabled={!hasAdvancedFilters && filter.id !== 'all'}
               className={`shrink-0 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.14em] whitespace-nowrap transition-all ${
                 activeFilterIds.includes(filter.id)
                   ? 'bg-white text-[#090909] border border-white shadow-[0_8px_24px_rgba(255,255,255,0.16)]'
                   : 'bg-[#0E1116]/90 border border-white/10 text-white/68 hover:text-white hover:border-white/25'
-              }`}
+              } ${!hasAdvancedFilters && filter.id !== 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {t(filter.labelKey)}
             </button>

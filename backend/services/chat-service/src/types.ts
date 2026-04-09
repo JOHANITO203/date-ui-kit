@@ -27,6 +27,7 @@ export type ConversationRelationState = "active" | "blocked_by_me" | "blocked_me
 export interface ConversationSummary {
   id: string;
   peer: ProfileCard;
+  shadowGhostMasked?: boolean;
   unreadCount: number;
   lastMessagePreview: string;
   lastMessageAtIso: string;

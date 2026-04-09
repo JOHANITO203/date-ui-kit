@@ -10,6 +10,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { OfferItem } from '../contracts';
+import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
 type CatalogView = 'instant' | 'passes' | 'bundles';
 type TierId = 'essential' | 'gold' | 'platinum' | 'elite';
@@ -272,6 +273,12 @@ const bundleLabelById: Record<string, string> = {
   datingpro: 'DATING PRO',
   premiumplus: 'PREMIUM+',
 };
+const tierBenefitFlags = (tier: TierId) => ({
+  discover: hasSubscriptionBenefit(tier, 'discover_advanced_filters'),
+  profile: hasSubscriptionBenefit(tier, 'profile_hide_age_distance'),
+  messages: hasSubscriptionBenefit(tier, 'messages_translation'),
+  online: hasSubscriptionBenefit(tier, 'messages_see_online'),
+});
 const ruOfferLabelOverrides: Record<string, string> = {
   'instant-shadowghost': 'ТЕНЕВОЙ РЕЖИМ',
   'instant-travel-pass': 'ТРЕВЕЛ ПАСС',
@@ -665,6 +672,14 @@ const BoostScreen = () => {
         return;
       }
 
+      if (response.status === 'paid' && response.entitlementSnapshot) {
+        await appApi.applyEntitlementSnapshot(response.entitlementSnapshot);
+        setPaymentFeedback(t('boost.checkout.paid'));
+        setCheckoutStatus('success');
+        setPollingStatus('idle');
+        return;
+      }
+
       startCheckoutPolling(response.checkoutId, userId);
     } catch {
       setPaymentFeedback(t('boost.checkout.checkoutFailed'));
@@ -874,6 +889,41 @@ const BoostScreen = () => {
                         </li>
                       ))}
                     </ul>
+                    <div className="mt-auto pt-3 flex flex-wrap gap-1.5">
+                      {(() => {
+                        const benefits = tierBenefitFlags(tier.id);
+                        const chips = [
+                          {
+                            label: t('discover.title'),
+                            enabled: benefits.discover,
+                          },
+                          {
+                            label: t('profile.title'),
+                            enabled: benefits.profile,
+                          },
+                          {
+                            label: t('messages.title'),
+                            enabled: benefits.messages,
+                          },
+                          {
+                            label: t('chat.online'),
+                            enabled: benefits.online,
+                          },
+                        ];
+                        return chips.map((chip) => (
+                          <span
+                            key={`${tier.id}-${chip.label}`}
+                            className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] border ${
+                              chip.enabled
+                                ? 'border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
+                                : 'border-white/12 bg-white/5 text-white/45'
+                            }`}
+                          >
+                            {chip.enabled ? 'ON' : 'OFF'} {chip.label}
+                          </span>
+                        ));
+                      })()}
+                    </div>
                   </div>
                 </motion.button>
               );

@@ -19,6 +19,7 @@ export interface ChatMessage {
 export interface ConversationSummary {
   id: string;
   peer: ProfileCard;
+  shadowGhostMasked?: boolean;
   unreadCount: number;
   lastMessagePreview: string;
   lastMessageAtIso: string;

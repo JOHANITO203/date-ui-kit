@@ -2,6 +2,7 @@ import type {
   FeedQuickFilter,
   DecideIncomingLikeRequest,
   DecideIncomingLikeResponse,
+  UseIceBreakerResponse,
   GetFeedResponse,
   GetReceivedLikesResponse,
   ActivateBoostResponse,
@@ -24,6 +25,7 @@ import type {
   CreateCheckoutResponse,
   GetCheckoutStatusRequest,
   GetCheckoutStatusResponse,
+  GetEntitlementsResponse,
   EntitlementSnapshot,
   ProfileMeData,
   PatchProfileMeRequest,
@@ -541,6 +543,16 @@ export const appApi = {
     });
   },
 
+  useLikesIceBreaker(likeId: string): Promise<UseIceBreakerResponse> {
+    if (DISCOVER_API_URL) {
+      return discoverRequest<UseIceBreakerResponse>(`/discover/likes/${likeId}/icebreaker/use`, {
+        method: 'POST',
+        body: JSON.stringify({ consume: true }),
+      });
+    }
+    return withLatency(runtimeApi.consumeLikesIceBreaker(likeId));
+  },
+
   trackLikesPaywallView(): void {
     runtimeApi.trackLikesPaywallView();
   },
@@ -973,19 +985,56 @@ export const appApi = {
     });
   },
 
-  getEntitlements(): Promise<{ userId: string; entitlementSnapshot: EntitlementSnapshot | null }> {
+  getEntitlements(): Promise<GetEntitlementsResponse> {
     if (!PAYMENTS_API_URL) {
       return Promise.resolve({
         userId: 'me',
         entitlementSnapshot: null,
+        effectiveBenefits: {
+          planTier: 'free',
+          flags: {
+            likes_identity_unlocked: false,
+            discover_advanced_filters: false,
+            profile_hide_age_distance: false,
+            messages_translation: false,
+            messages_see_online: false,
+            travel_pass_included: false,
+            shadowghost_included: false,
+            premium_badge: false,
+          },
+          byPage: {
+            discover: { discoverAdvancedFilters: false },
+            boost: {
+              likesIdentityUnlocked: false,
+              discoverAdvancedFilters: false,
+              profileHideAgeDistance: false,
+              messagesTranslation: false,
+              messagesSeeOnline: false,
+              travelPassIncluded: false,
+              shadowGhostIncluded: false,
+              premiumBadge: false,
+            },
+            profile: {
+              profileHideAgeDistance: false,
+              travelPassIncluded: false,
+              shadowGhostIncluded: false,
+              premiumBadge: false,
+            },
+            messages: {
+              messagesTranslation: false,
+              messagesSeeOnline: false,
+              premiumBadge: false,
+            },
+          },
+        },
       });
     }
-    return paymentsRequest<{ userId: string; entitlementSnapshot: EntitlementSnapshot | null }>(
+    return paymentsRequest<GetEntitlementsResponse>(
       '/entitlements/me',
     );
   },
 
-  applyEntitlementSnapshot(snapshot: EntitlementSnapshot): Promise<SettingsEnvelope> {
+  applyEntitlementSnapshot(snapshot: EntitlementSnapshot | null): Promise<SettingsEnvelope> {
     return withLatency(runtimeApi.applyEntitlementSnapshot(snapshot), 40);
   },
 };

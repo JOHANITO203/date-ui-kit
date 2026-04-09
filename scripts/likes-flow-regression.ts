@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 type LikeStatus = 'pending' | 'matched' | 'passed';
 
 type LikeRow = {
+  id: string;
   liker: string;
   liked: string;
   status: LikeStatus;
@@ -11,6 +12,8 @@ type LikeRow = {
 };
 
 const rows: LikeRow[] = [];
+const unlockedByUser = new Map<string, Set<string>>();
+const inventoryByUser = new Map<string, { icebreakersLeft: number; planTier: 'free' | 'essential' | 'gold' | 'platinum' | 'elite' }>();
 
 const upsertLike = (input: {
   liker: string;
@@ -20,6 +23,7 @@ const upsertLike = (input: {
 }) => {
   const idx = rows.findIndex((row) => row.liker === input.liker && row.liked === input.liked);
   const next: LikeRow = {
+    id: `${input.liker}->${input.liked}`,
     liker: input.liker,
     liked: input.liked,
     status: 'pending',
@@ -50,6 +54,43 @@ const decideIncoming = (likedUser: string, likerUser: string, action: 'like_back
 };
 
 const incomingFor = (userId: string) => rows.filter((row) => row.liked === userId);
+const hiddenIncomingFor = (userId: string) => incomingFor(userId).filter((row) => row.hiddenByShadowGhost);
+
+const seedInventory = (userId: string, icebreakersLeft: number) => {
+  inventoryByUser.set(userId, { icebreakersLeft, planTier: 'free' });
+};
+
+const setPlanTier = (userId: string, planTier: 'free' | 'essential' | 'gold' | 'platinum' | 'elite') => {
+  const current = inventoryByUser.get(userId) ?? { icebreakersLeft: 0, planTier: 'free' as const };
+  inventoryByUser.set(userId, { ...current, planTier });
+};
+
+const getInventory = (userId: string) => inventoryByUser.get(userId) ?? { icebreakersLeft: 0, planTier: 'free' as const };
+
+const getVisibility = (userId: string, like: LikeRow) => {
+  if (like.hiddenByShadowGhost) return { hiddenByShadowGhost: true, blurredLocked: false };
+  const inv = getInventory(userId);
+  if (inv.planTier !== 'free') return { hiddenByShadowGhost: false, blurredLocked: false };
+  const unlocked = unlockedByUser.get(userId)?.has(like.id) ?? false;
+  return { hiddenByShadowGhost: false, blurredLocked: !unlocked };
+};
+
+const useIceBreaker = (userId: string, likeId: string) => {
+  const inventory = getInventory(userId);
+  if (inventory.planTier !== 'free') return { ok: false, code: 'not_required' as const };
+  if (inventory.icebreakersLeft <= 0) return { ok: false, code: 'empty' as const };
+  const like = incomingFor(userId).find((entry) => entry.id === likeId);
+  if (!like) return { ok: false, code: 'missing' as const };
+  if (like.hiddenByShadowGhost) return { ok: false, code: 'shadowghost' as const };
+  const currentUnlocked = unlockedByUser.get(userId) ?? new Set<string>();
+  if (currentUnlocked.has(likeId)) return { ok: false, code: 'already_unlocked' as const };
+
+  currentUnlocked.add(likeId);
+  unlockedByUser.set(userId, currentUnlocked);
+  const next = { ...inventory, icebreakersLeft: inventory.icebreakersLeft - 1 };
+  inventoryByUser.set(userId, next);
+  return { ok: true, inventory: next, unlockedCount: currentUnlocked.size };
+};
 
 const run = () => {
   // Case 1: A like B -> B sees incoming like.
@@ -82,6 +123,32 @@ const run = () => {
   // Invariant: incoming likes stay pending until explicit decision.
   upsertLike({ liker: 'I', liked: 'J' });
   assert.equal(rows.find((row) => row.liker === 'I' && row.liked === 'J')?.status, 'pending');
+
+  // Case 7: IceBreaker unitary unlock + no useless consumption on plan unlock.
+  seedInventory('J', 2);
+  const targetLike = rows.find((row) => row.liker === 'I' && row.liked === 'J');
+  assert.ok(targetLike);
+  assert.equal(getVisibility('J', targetLike!).blurredLocked, true);
+  const used = useIceBreaker('J', targetLike!.id);
+  assert.equal(used.ok, true);
+  assert.equal(getInventory('J').icebreakersLeft, 1);
+  assert.equal(getVisibility('J', targetLike!).blurredLocked, false);
+  const usedAgain = useIceBreaker('J', targetLike!.id);
+  assert.equal(usedAgain.ok, false);
+  setPlanTier('J', 'essential');
+  const beforePlanStock = getInventory('J').icebreakersLeft;
+  const usedWithPlan = useIceBreaker('J', targetLike!.id);
+  assert.equal(usedWithPlan.ok, false);
+  assert.equal(getInventory('J').icebreakersLeft, beforePlanStock);
+
+  // Case 8: ShadowGhost incoming can exist while identity remains hidden and cannot be unlocked.
+  upsertLike({ liker: 'K', liked: 'J', hiddenByShadowGhost: true });
+  const shadowLike = hiddenIncomingFor('J')[0];
+  assert.ok(shadowLike);
+  assert.equal(getVisibility('J', shadowLike).hiddenByShadowGhost, true);
+  assert.equal(getVisibility('J', shadowLike).blurredLocked, false);
+  const shadowUse = useIceBreaker('J', shadowLike.id);
+  assert.equal(shadowUse.ok, false);
 
   // eslint-disable-next-line no-console
   console.log('[likes-flow-regression] ok');
