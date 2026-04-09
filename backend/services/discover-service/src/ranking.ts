@@ -312,6 +312,16 @@ export const applyFiltersAndRank = (
       const nationalityDelta = getNationalityScoreDelta(candidate, preferences.originCountry);
       const languageDelta = getLanguageScoreDelta(candidate, preferences.userLanguages);
       const delta = intentDelta + interestDelta + launchCityDelta + nationalityDelta + languageDelta;
+      const compatibilityDelta =
+        intentDelta * 1.2 +
+        interestDelta * 1.5 +
+        launchCityDelta * 1.1 +
+        nationalityDelta * 0.8 +
+        languageDelta * 1.0;
+      const compatibility = Math.max(
+        55,
+        Math.min(85, Math.round(candidate.compatibility + compatibilityDelta)),
+      );
       const reasonSuffix = [
         intentDelta > 0 && preferences.intent ? `intent_${preferences.intent}` : null,
         interestDelta > 0 ? "interest_match" : null,
@@ -326,6 +336,7 @@ export const applyFiltersAndRank = (
         ...candidate,
         age: candidate.flags.hideAge ? 0 : candidate.age,
         distanceKm: candidate.flags.hideDistance ? -1 : effectiveDistanceKm,
+        compatibility,
         rankScore: candidate.rankScore + delta,
         scoreReason: delta === 0 ? candidate.scoreReason : `${candidate.scoreReason}_${reasonSuffix}`,
       };
