@@ -20,6 +20,12 @@ const clampQuality = (value: number) => Math.max(45, Math.min(90, Math.round(val
 const isTransformableSupabaseUrl = (url: URL) =>
   url.pathname.includes('/storage/v1/object/sign/') || url.pathname.includes('/storage/v1/object/public/');
 
+const isImageOptimizationDisabled = () => {
+  if (typeof window === 'undefined') return false;
+  const param = new URLSearchParams(window.location.search).get('imgOpt');
+  return param?.toLowerCase() === 'off';
+};
+
 const withSupabaseTransform = (input: URL, options: ImageOptions) => {
   const url = new URL(input.toString());
   url.searchParams.set('width', String(clampWidth(options.width)));
@@ -50,6 +56,7 @@ export const buildOptimizedImageUrl = (
     width: clampWidth(overrides?.width ?? base.width),
     quality: clampQuality(overrides?.quality ?? base.quality),
   };
+  if (isImageOptimizationDisabled()) return normalized;
 
   try {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
@@ -71,6 +78,14 @@ export const buildResponsiveImageAttrs = (
   variant: ImageVariant,
   sizes: string,
 ) => {
+  if (isImageOptimizationDisabled()) {
+    const normalized = typeof rawUrl === 'string' && rawUrl.trim().length > 0 ? rawUrl.trim() : PLACEHOLDER_SRC;
+    return {
+      src: normalized,
+      srcSet: undefined,
+      sizes,
+    };
+  }
   const base = VARIANT_OPTIONS[variant];
   const src1x = buildOptimizedImageUrl(rawUrl, variant, { width: base.width });
   const src2x = buildOptimizedImageUrl(rawUrl, variant, { width: base.width * 2 });

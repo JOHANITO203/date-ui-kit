@@ -581,9 +581,11 @@ export const buildServer = () => {
 
       const visibleLikes = visibleSlice.map((row) => {
         const sender = senderMap.get(row.liker_user_id);
-        const hiddenByShadowGhost = Boolean(row.hidden_by_shadowghost);
+        const hiddenByShadowGhost =
+          Boolean(row.hidden_by_shadowghost) &&
+          (sender ? Boolean(sender.flags.shadowGhost) : true);
         const unlockedByItem = unlockedByIceBreaker.has(row.id);
-        const blurredLocked = hiddenByShadowGhost ? false : !(unlockedByPlan || unlockedByItem);
+        const blurredLocked = !(unlockedByPlan || unlockedByItem);
         const profile = sender
           ? {
               id: sender.id,
@@ -691,11 +693,6 @@ export const buildServer = () => {
       if (!targetLike) {
         reply.status(404);
         return { code: "LIKE_NOT_FOUND" };
-      }
-
-      if (Boolean(targetLike.hidden_by_shadowghost)) {
-        reply.status(409);
-        return { code: "ICEBREAKER_NOT_APPLICABLE_SHADOWGHOST" };
       }
 
       if (planTier !== "free") {

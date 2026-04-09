@@ -10,6 +10,8 @@ import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
 type CardVariant =
   | 'locked_standard'
   | 'locked_ghost'
+  | 'unlockable_ghost'
+  | 'visible_ghost'
   | 'unlockable_icebreaker'
   | 'unlocked'
   | 'visible_by_entitlement';
@@ -203,7 +205,11 @@ const MatchesScreen: React.FC = () => {
   const summaryLine = `${totalLikesCount} ${t('likes.title').toLowerCase()} • ${unlockedCardsCount} ${t('likes.unlocked').toLowerCase()} • ${ghostCardsCount} ${t('likes.shadowGhostTag').toLowerCase()}`;
 
   const resolveCardVariant = (like: (typeof likesCards)[number]): CardVariant => {
-    if (like.hiddenByShadowGhost) return 'locked_ghost';
+    if (like.hiddenByShadowGhost) {
+      if (!like.blurredLocked) return 'visible_ghost';
+      if (iceBreakerOwnedCount > 0) return 'unlockable_ghost';
+      return 'locked_ghost';
+    }
     if (!like.blurredLocked) {
       return remoteState === 'unlocked' ? 'visible_by_entitlement' : 'unlocked';
     }
@@ -280,15 +286,16 @@ const MatchesScreen: React.FC = () => {
     const isBusy = actionLikeId === like.id;
     const isIceBreakerBusyForCard = iceBreakerBusyLikeId === like.id;
     const variant = resolveCardVariant(like);
-    const senderIdentityMasked = variant === 'locked_ghost';
+    const senderIdentityMasked = like.hiddenByShadowGhost;
     const displayName = senderIdentityMasked ? t('likes.shadowGhostMaskedName') : like.name;
     const displayAgeMasked = senderIdentityMasked ? true : like.ageMasked;
     const showIdentity = variant === 'unlocked' || variant === 'visible_by_entitlement';
-    const showUnlockAction = variant === 'unlockable_icebreaker';
+    const showGhostActions = variant === 'visible_ghost';
+    const showUnlockAction = variant === 'unlockable_icebreaker' || variant === 'unlockable_ghost';
     const badgeToneClass =
       variant === 'locked_ghost'
         ? 'text-fuchsia-100 border-fuchsia-300/35 bg-fuchsia-500/12'
-        : variant === 'unlockable_icebreaker'
+        : variant === 'unlockable_icebreaker' || variant === 'unlockable_ghost'
           ? 'text-cyan-100 border-cyan-300/35 bg-cyan-500/12'
           : variant === 'locked_standard'
             ? 'text-white/82 border-white/20 bg-white/8'
@@ -296,7 +303,7 @@ const MatchesScreen: React.FC = () => {
     const badgeLabel =
       variant === 'locked_ghost'
         ? t('likes.shadowGhostTag')
-        : variant === 'unlockable_icebreaker' || variant === 'locked_standard'
+        : variant === 'unlockable_icebreaker' || variant === 'unlockable_ghost' || variant === 'locked_standard'
           ? t('likes.unlock.locked')
           : variant === 'visible_by_entitlement'
             ? t('likes.states.unlocked')
@@ -373,6 +380,61 @@ const MatchesScreen: React.FC = () => {
       );
     }
 
+    if (showGhostActions) {
+      return (
+        <>
+          <div className="absolute inset-0 bg-black/36" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/48 to-black/20" />
+          <div
+            className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
+          >
+            <Ghost size={10} />
+            <span>{badgeLabel}</span>
+          </div>
+          <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
+            <div className="flex items-center justify-between">
+              <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white/90`}>
+                {displayName}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-100/80">
+                {t('likes.shadowGhostTag')}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                disabled={isBusy || like.state === 'matched'}
+                onClick={() => {
+                  void handleLikeDecision(like, 'like_back');
+                }}
+                className="h-8 rounded-lg gradient-premium text-white inline-flex items-center justify-center gap-1 disabled:opacity-50"
+                aria-label={t('likes.likeBack')}
+              >
+                {like.state === 'matched' ? (
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em]">{t('likes.matched')}</span>
+                ) : (
+                  <>
+                    <Heart size={14} />
+                    <span className="sr-only">{t('likes.likeBack')}</span>
+                  </>
+                )}
+              </button>
+              <button
+                disabled={isBusy || like.state === 'matched'}
+                onClick={() => {
+                  void handleLikeDecision(like, 'pass');
+                }}
+                className="h-8 rounded-lg border border-white/20 bg-black/35 text-white/80 inline-flex items-center justify-center disabled:opacity-50"
+                aria-label={t('likes.pass')}
+              >
+                <X size={14} />
+                <span className="sr-only">{t('likes.pass')}</span>
+              </button>
+            </div>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
         <div className="absolute inset-0 bg-black/44" />
@@ -381,7 +443,7 @@ const MatchesScreen: React.FC = () => {
         <div
           className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
         >
-          {variant === 'locked_ghost' ? <Ghost size={10} /> : null}
+          {variant === 'locked_ghost' || variant === 'unlockable_ghost' ? <Ghost size={10} /> : null}
           <span>{badgeLabel}</span>
         </div>
         {showUnlockAction && (
@@ -437,7 +499,7 @@ const MatchesScreen: React.FC = () => {
           <button
             onClick={() => {
               const firstLockedLike = likesCards.find(
-                (entry) => entry.blurredLocked && !entry.hiddenByShadowGhost,
+                (entry) => entry.blurredLocked,
               );
               if (iceBreakerCanUse && firstLockedLike) {
                 void handleUseIceBreaker(firstLockedLike.id);

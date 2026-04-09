@@ -502,7 +502,7 @@ export const runtimeApi = {
     const visibleLikes = state.likes.map((entry) => ({
       ...entry,
       state: 'pending_incoming_like' as const,
-      hiddenByShadowGhost: false,
+      hiddenByShadowGhost: Boolean(entry.profile.flags.shadowGhost),
       blurredLocked: !(entitlementUnlocked || unlockedLikeSet.has(entry.id)),
     }));
     const hiddenCount = visibleLikes.filter((entry) => entry.blurredLocked).length;

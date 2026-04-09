@@ -68,8 +68,11 @@ const setPlanTier = (userId: string, planTier: 'free' | 'essential' | 'gold' | '
 const getInventory = (userId: string) => inventoryByUser.get(userId) ?? { icebreakersLeft: 0, planTier: 'free' as const };
 
 const getVisibility = (userId: string, like: LikeRow) => {
-  if (like.hiddenByShadowGhost) return { hiddenByShadowGhost: true, blurredLocked: false };
   const inv = getInventory(userId);
+  if (like.hiddenByShadowGhost) {
+    const unlocked = inv.planTier !== 'free' || (unlockedByUser.get(userId)?.has(like.id) ?? false);
+    return { hiddenByShadowGhost: true, blurredLocked: !unlocked };
+  }
   if (inv.planTier !== 'free') return { hiddenByShadowGhost: false, blurredLocked: false };
   const unlocked = unlockedByUser.get(userId)?.has(like.id) ?? false;
   return { hiddenByShadowGhost: false, blurredLocked: !unlocked };
@@ -81,7 +84,6 @@ const useIceBreaker = (userId: string, likeId: string) => {
   if (inventory.icebreakersLeft <= 0) return { ok: false, code: 'empty' as const };
   const like = incomingFor(userId).find((entry) => entry.id === likeId);
   if (!like) return { ok: false, code: 'missing' as const };
-  if (like.hiddenByShadowGhost) return { ok: false, code: 'shadowghost' as const };
   const currentUnlocked = unlockedByUser.get(userId) ?? new Set<string>();
   if (currentUnlocked.has(likeId)) return { ok: false, code: 'already_unlocked' as const };
 
@@ -150,14 +152,17 @@ const run = () => {
   assert.equal(usedWithPlan.ok, false);
   assert.equal(getInventory('J').icebreakersLeft, beforePlanStock);
 
-  // Case 8: ShadowGhost incoming can exist while identity remains hidden and cannot be unlocked.
+  // Case 8: ShadowGhost incoming can exist while identity remains hidden and can be unlocked unitary.
+  setPlanTier('J', 'free');
   upsertLike({ liker: 'K', liked: 'J', hiddenByShadowGhost: true });
   const shadowLike = hiddenIncomingFor('J')[0];
   assert.ok(shadowLike);
   assert.equal(getVisibility('J', shadowLike).hiddenByShadowGhost, true);
-  assert.equal(getVisibility('J', shadowLike).blurredLocked, false);
+  assert.equal(getVisibility('J', shadowLike).blurredLocked, true);
   const shadowUse = useIceBreaker('J', shadowLike.id);
-  assert.equal(shadowUse.ok, false);
+  assert.equal(shadowUse.ok, true);
+  assert.equal(getVisibility('J', shadowLike).blurredLocked, false);
+  assert.equal(getInventory('J').icebreakersLeft, 0);
 
   // Case 9: after one card is unlocked, new incoming likes must not relock or "remove" it logically.
   setPlanTier('J', 'free');
