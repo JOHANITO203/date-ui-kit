@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
@@ -46,6 +46,7 @@ const SwipeScreen = () => {
   const [dismissedCandidates, setDismissedCandidates] = useState<FeedCandidate[]>([]);
   const [isSwipePending, setIsSwipePending] = useState(false);
   const [swipeError, setSwipeError] = useState(false);
+  const imagePreloadCacheRef = useRef<Set<string>>(new Set());
   const quickFilters = [
     { id: 'all', labelKey: 'discover.quickFilters.all' },
     { id: 'nearby', labelKey: 'discover.quickFilters.nearby' },
@@ -68,6 +69,17 @@ const SwipeScreen = () => {
           : t('discover.distanceKm', { value: candidate.distanceKm }),
     }));
   }, [feedCandidates, t]);
+
+  const preloadImage = (url: string | undefined | null) => {
+    if (!url || typeof url !== 'string') return;
+    const normalized = url.trim();
+    if (!normalized || imagePreloadCacheRef.current.has(normalized)) return;
+    imagePreloadCacheRef.current.add(normalized);
+    const image = new Image();
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.src = normalized;
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -122,6 +134,23 @@ const SwipeScreen = () => {
   const hasUsers = filteredUsers.length > 0;
   const user = hasUsers ? filteredUsers[currentIndex % filteredUsers.length] : null;
   const nextUser = hasUsers ? filteredUsers[(currentIndex + 1) % filteredUsers.length] : null;
+
+  useEffect(() => {
+    if (!hasUsers) return;
+    const warmup = filteredUsers.slice(0, 4);
+    for (const candidate of warmup) {
+      preloadImage(candidate.photos?.[0]);
+    }
+  }, [filteredUsers, hasUsers]);
+
+  useEffect(() => {
+    if (!user) return;
+    preloadImage(user.photos?.[photoIndex]);
+    preloadImage(user.photos?.[photoIndex + 1]);
+    preloadImage(user.photos?.[photoIndex - 1]);
+    preloadImage(user.photos?.[0]);
+    preloadImage(nextUser?.photos?.[0]);
+  }, [nextUser?.id, photoIndex, user?.id]);
   const boostRemainingSeconds = useMemo(() => {
     if (!boostActiveUntilIso) return 0;
     return Math.max(0, Math.ceil((new Date(boostActiveUntilIso).getTime() - boostTick) / 1000));
@@ -520,7 +549,13 @@ const SwipeScreen = () => {
                   className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
                   style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
                 >
-                  <img src={nextUser.photos[0]} className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]" alt="next" referrerPolicy="no-referrer" />
+                  <img
+                    src={nextUser.photos[0]}
+                    className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]"
+                    alt="next"
+                    referrerPolicy="no-referrer"
+                    decoding="async"
+                  />
                 </motion.div>
               )}
 
@@ -544,6 +579,9 @@ const SwipeScreen = () => {
                   className="w-full h-full object-cover object-[center_22%] pointer-events-none"
                   alt={user.name}
                   referrerPolicy="no-referrer"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
                 />
               </AnimatePresence>
 
@@ -659,7 +697,13 @@ const SwipeScreen = () => {
                   className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
                   style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
                 >
-                  <img src={nextUser.photos[0]} className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]" alt="next" referrerPolicy="no-referrer" />
+                  <img
+                    src={nextUser.photos[0]}
+                    className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]"
+                    alt="next"
+                    referrerPolicy="no-referrer"
+                    decoding="async"
+                  />
                 </motion.div>
               )}
 
@@ -683,6 +727,9 @@ const SwipeScreen = () => {
                   className="w-full h-full object-cover object-[center_22%] pointer-events-none"
                   alt={user.name}
                   referrerPolicy="no-referrer"
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
                 />
               </AnimatePresence>
 

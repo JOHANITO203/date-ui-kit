@@ -607,10 +607,10 @@ const OnboardingScreen = () => {
 
   const onVerifySelfieSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const inputEl = event.currentTarget;
-    const file = Array.from(inputEl.files ?? []).find(
-      (item) => item instanceof File && item.type.startsWith('image/'),
-    );
-    if (!file) return;
+    const fileList = inputEl.files;
+    const fileCandidate = fileList?.item(0);
+    if (!(fileCandidate instanceof File) || !fileCandidate.type.startsWith('image/')) return;
+    const file = fileCandidate;
 
     setVerifySelfieStatus(verifySelfieStatus === 'error' ? 'retry' : 'loading');
     setVerifySelfieErrorMessage('');

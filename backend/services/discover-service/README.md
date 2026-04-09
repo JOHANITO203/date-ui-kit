@@ -17,3 +17,9 @@ Security:
 Runtime:
 - `API_PORT` default `8788`
 - CORS allows app URL from `.env` (`APP_URL`)
+- Supabase-backed candidate source (optional but recommended for real seeded users):
+  - static fallback disabled for production safety
+  - `SUPABASE_URL`
+  - `SUPABASE_SERVICE_ROLE`
+  - `STORAGE_PROFILE_PHOTOS_BUCKET` (default `profile-photos`)
+  - `STORAGE_SIGNED_URL_TTL_SEC` (default 7 days)

@@ -6,7 +6,12 @@
     "scripts": {
         "dev": "tsx watch src/index.ts",
         "start": "node dist/index.js",
-        "build": "tsc -p tsconfig.json"
+        "build": "tsc -p tsconfig.json",
+        "seed:assets:freepik": "tsx scripts/freepikFetchProfiles.ts",
+        "seed:profiles": "tsx scripts/seedProfiles.ts",
+        "seed:photos:retry": "tsx scripts/retrySeedPhotos.ts",
+        "seed:interactions": "tsx scripts/seedInteractions.ts",
+        "seed:cleanup": "tsx scripts/cleanupSeedProfiles.ts"
     },
     "dependencies": {
         "@fastify/cookie": "^9.0.0",

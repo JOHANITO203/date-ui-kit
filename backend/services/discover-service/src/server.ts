@@ -4,6 +4,7 @@ import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config";
 import { applyFiltersAndRank, buildRankingMetrics, parseFeedPreferences, parseUserGeoPoint } from "./ranking";
+import { loadCandidatesFromSupabase } from "./candidates";
 
 const filterSchema = z
   .array(z.enum(["all", "nearby", "new", "online", "verified"]))
@@ -92,7 +93,18 @@ export const buildServer = () => {
     const preferences = parseFeedPreferences(query);
     const userGeoPoint = parseUserGeoPoint(query);
     const dismissedProfileIds = new Set(dismissedByUser.get(userId) ?? []);
-    const candidates = applyFiltersAndRank(filters, preferences, userGeoPoint, dismissedProfileIds);
+    const candidatesSource = await loadCandidatesFromSupabase({
+      currentUserId: userId,
+      userGeoPoint,
+      logger: app.log,
+    });
+    const candidates = applyFiltersAndRank(
+      filters,
+      preferences,
+      userGeoPoint,
+      dismissedProfileIds,
+      candidatesSource,
+    );
 
     return {
       window: {
@@ -115,7 +127,18 @@ export const buildServer = () => {
     const preferences = parseFeedPreferences(query);
     const userGeoPoint = parseUserGeoPoint(query);
     const dismissedProfileIds = new Set(dismissedByUser.get(userId) ?? []);
-    const ranked = applyFiltersAndRank(filters, preferences, userGeoPoint, dismissedProfileIds);
+    const candidatesSource = await loadCandidatesFromSupabase({
+      currentUserId: userId,
+      userGeoPoint,
+      logger: app.log,
+    });
+    const ranked = applyFiltersAndRank(
+      filters,
+      preferences,
+      userGeoPoint,
+      dismissedProfileIds,
+      candidatesSource,
+    );
     const topN = Number(query.topN ?? "20");
     const metrics = buildRankingMetrics(ranked, preferences, Number.isFinite(topN) ? topN : 20);
 

@@ -4,12 +4,13 @@ import { motion } from 'motion/react';
 interface GlassButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
   className?: string;
   variant?: "glass" | "premium" | "boost";
   style?: React.CSSProperties;
 }
 
-const GlassButton = ({ children, onClick, className = "", variant = "glass", style }: GlassButtonProps) => {
+const GlassButton = ({ children, onClick, disabled = false, className = "", variant = "glass", style }: GlassButtonProps) => {
   const variants = {
     glass: "glass hover:bg-white/10",
     premium: "gradient-premium shadow-lg shadow-pink-500/20",
@@ -20,6 +21,7 @@ const GlassButton = ({ children, onClick, className = "", variant = "glass", sty
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
+      disabled={disabled}
       style={style}
       className={`px-6 py-4 rounded-[24px] transition-all duration-300 flex items-center justify-center gap-2 ${variants[variant]} ${className}`}
     >

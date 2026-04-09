@@ -9,6 +9,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { authApi } from '../services';
 import { useAuth } from '../auth/AuthProvider';
 import { hydrateProfileSeed, saveOnboardingProfileSnapshot } from '../domain/profileHydration';
+import type { AuthErrorResponse, AuthResponse } from '../contracts';
 
 type UploadedPhoto = {
   id: string;
@@ -21,6 +22,9 @@ type UploadedPhoto = {
 
 const PHOTO_SLOTS = 5;
 const MAX_INTERESTS = 5;
+
+const isAuthError = <T,>(payload: AuthResponse<T>): payload is AuthErrorResponse =>
+  payload.ok === false;
 
 const EditProfileScreen = () => {
   const navigate = useNavigate();
@@ -110,8 +114,8 @@ const EditProfileScreen = () => {
         bio: about.trim(),
         interests,
       });
-      if (!response.ok) {
-        setErrorText(response.message || t('editProfile.saveError'));
+      if (isAuthError(response)) {
+        setErrorText(response.message ?? t('editProfile.saveError'));
         return;
       }
       saveOnboardingProfileSnapshot({
@@ -131,8 +135,12 @@ const EditProfileScreen = () => {
   const uploadPhoto = async (file: File) => {
     setErrorText('');
     const response = await authApi.uploadProfilePhoto(file);
-    if (!response.ok || !response.data?.photo) {
-      setErrorText(response.message || t('editProfile.uploadError'));
+    if (isAuthError(response)) {
+      setErrorText(response.message ?? t('editProfile.uploadError'));
+      return;
+    }
+    if (!response.data?.photo) {
+      setErrorText(t('editProfile.uploadError'));
       return;
     }
     setPhotos((prev) => [...prev, response.data!.photo].sort((a, b) => a.sort_order - b.sort_order));
@@ -149,8 +157,8 @@ const EditProfileScreen = () => {
     setErrorText('');
     try {
       const response = await authApi.deleteProfilePhoto(photoId);
-      if (!response.ok) {
-        setErrorText(response.message || t('editProfile.removeError'));
+      if (isAuthError(response)) {
+        setErrorText(response.message ?? t('editProfile.removeError'));
         return;
       }
       setPhotos((prev) => prev.filter((photo) => photo.id !== photoId));

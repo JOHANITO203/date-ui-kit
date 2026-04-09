@@ -256,7 +256,7 @@ const ProfileScreen = () => {
         const fallbackMatches = trackedEvents.filter((event) => event.name === 'match_created').length;
         const matches =
           conversationsResult.status === 'fulfilled'
-            ? conversationsResult.value.items.filter((item) => item.relationState === 'active').length
+            ? conversationsResult.value.filter((item) => item.relationState === 'active').length
             : fallbackMatches;
         const viewedByOthers =
           likesResult.status === 'fulfilled'
