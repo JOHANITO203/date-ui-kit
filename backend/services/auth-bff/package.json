@@ -11,6 +11,7 @@
         "seed:profiles": "tsx scripts/seedProfiles.ts",
         "seed:photos:retry": "tsx scripts/retrySeedPhotos.ts",
         "seed:interactions": "tsx scripts/seedInteractions.ts",
+        "seed:actors:simulate": "tsx scripts/simulateActors.ts",
         "seed:cleanup": "tsx scripts/cleanupSeedProfiles.ts"
     },
     "dependencies": {

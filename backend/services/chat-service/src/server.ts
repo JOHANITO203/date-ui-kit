@@ -98,6 +98,54 @@ const toTranslationMapKey = (userId: string, conversationId: string) =>
   `${userId}:${conversationId}`;
 
 const translationSettingsByConversation = new Map<string, TranslationSetting>();
+const autoReplyStateByConversation = new Map<
+  string,
+  {
+    count: number;
+    actionDone: boolean;
+  }
+>();
+
+const AUTO_REPLY_MAX = 3;
+const AUTO_REPLY_ACTION_BLOCK_RATE = 0.35;
+
+const RU_REPLY_TEMPLATES = [
+  "Понял тебя, звучит интересно.",
+  "Хорошо, давай продолжим общение.",
+  "Отлично, я на связи позже сегодня.",
+  "Спасибо, мне нравится твой настрой.",
+];
+
+const EN_REPLY_TEMPLATES = [
+  "Got you, that sounds interesting.",
+  "Nice, let's keep talking.",
+  "Great, I will be online later today.",
+  "Thanks, I like your vibe.",
+];
+
+const hasCyrillic = (value: string) => /[\u0400-\u04FF]/.test(value);
+
+const resolveReplyLocale = (input: {
+  userText: string;
+  translationTargetLocale?: "en" | "ru";
+}): "en" | "ru" => {
+  if (hasCyrillic(input.userText)) return "ru";
+  if (input.translationTargetLocale === "ru") return "ru";
+  return "en";
+};
+
+const getReplyText = (input: {
+  userText: string;
+  replyIndex: number;
+  translationTargetLocale?: "en" | "ru";
+}) => {
+  const locale = resolveReplyLocale({
+    userText: input.userText,
+    translationTargetLocale: input.translationTargetLocale,
+  });
+  const templates = locale === "ru" ? RU_REPLY_TEMPLATES : EN_REPLY_TEMPLATES;
+  return templates[input.replyIndex % templates.length];
+};
 
 const getTranslationSetting = (userId: string, conversationId: string): TranslationSetting =>
   translationSettingsByConversation.get(toTranslationMapKey(userId, conversationId)) ?? {
@@ -129,19 +177,40 @@ export const buildServer = () => {
     userId: string;
     conversationId: string;
     peerProfileId: string;
+    userText: string;
   }) => {
+    const stateKey = toTranslationMapKey(input.userId, input.conversationId);
+    const existingReplyState = autoReplyStateByConversation.get(stateKey) ?? {
+      count: 0,
+      actionDone: false,
+    };
+    if (existingReplyState.count >= AUTO_REPLY_MAX) return;
+
     setTimeout(async () => {
-      const replyText = "Nice! I will answer soon.";
       const createdAtIso = new Date().toISOString();
       const translationSetting = getTranslationSetting(input.userId, input.conversationId);
+      const replyState = autoReplyStateByConversation.get(stateKey) ?? {
+        count: 0,
+        actionDone: false,
+      };
+      if (replyState.count >= AUTO_REPLY_MAX) return;
+
+      const replyText = getReplyText({
+        userText: input.userText,
+        replyIndex: replyState.count,
+        translationTargetLocale: translationSetting.targetLocale,
+      });
 
       if (supabaseServiceClient) {
         const unreadSnapshot = await supabaseServiceClient
           .from("chat_conversations")
-          .select("unread_count")
+          .select("unread_count,relation_state")
           .eq("user_id", input.userId)
           .eq("conversation_id", input.conversationId)
           .maybeSingle();
+        if (unreadSnapshot.error || !unreadSnapshot.data) return;
+        const relationState = normalizeRelationState(unreadSnapshot.data.relation_state);
+        if (relationState !== "active") return;
 
         const nextUnreadCount = Math.max(
           1,
@@ -152,7 +221,7 @@ export const buildServer = () => {
           supabaseServiceClient.from("chat_messages").upsert(
             {
               user_id: input.userId,
-              message_id: `m-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              message_id: `auto-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
               conversation_id: input.conversationId,
               sender_user_id: input.peerProfileId,
               direction: "incoming",
@@ -180,13 +249,44 @@ export const buildServer = () => {
             { conversationId: input.conversationId },
             "chat_auto_reply_supabase_failed",
           );
+          return;
+        }
+
+        const nextReplyState = {
+          count: replyState.count + 1,
+          actionDone: replyState.actionDone,
+        };
+        autoReplyStateByConversation.set(stateKey, nextReplyState);
+
+        const shouldBlockAfterReply =
+          !nextReplyState.actionDone &&
+          nextReplyState.count >= AUTO_REPLY_MAX &&
+          Math.random() < AUTO_REPLY_ACTION_BLOCK_RATE;
+
+        if (shouldBlockAfterReply) {
+          const blockedPreview = updateRelationPreview("blocked_me", replyText);
+          const blockResult = await supabaseServiceClient
+            .from("chat_conversations")
+            .update({
+              relation_state: "blocked_me",
+              relation_state_updated_at: new Date().toISOString(),
+              last_message_preview: blockedPreview,
+            })
+            .eq("user_id", input.userId)
+            .eq("conversation_id", input.conversationId);
+          if (!blockResult.error) {
+            autoReplyStateByConversation.set(stateKey, {
+              count: nextReplyState.count,
+              actionDone: true,
+            });
+          }
         }
 
         return;
       }
 
       const incoming: ChatMessage = {
-        id: `m-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: `auto-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         conversationId: input.conversationId,
         senderUserId: input.peerProfileId,
         direction: "incoming",
@@ -212,6 +312,33 @@ export const buildServer = () => {
             }
           : entry,
       );
+
+      const nextReplyState = {
+        count: replyState.count + 1,
+        actionDone: replyState.actionDone,
+      };
+      autoReplyStateByConversation.set(stateKey, nextReplyState);
+
+      const shouldBlockAfterReply =
+        !nextReplyState.actionDone &&
+        nextReplyState.count >= AUTO_REPLY_MAX &&
+        Math.random() < AUTO_REPLY_ACTION_BLOCK_RATE;
+      if (shouldBlockAfterReply) {
+        store.conversations = store.conversations.map((entry) =>
+          entry.id === input.conversationId
+            ? {
+                ...entry,
+                relationState: "blocked_me",
+                relationStateUpdatedAtIso: new Date().toISOString(),
+                lastMessagePreview: updateRelationPreview("blocked_me", entry.lastMessagePreview),
+              }
+            : entry,
+        );
+        autoReplyStateByConversation.set(stateKey, {
+          count: nextReplyState.count,
+          actionDone: true,
+        });
+      }
     }, 1200);
   };
 
@@ -622,6 +749,7 @@ export const buildServer = () => {
         userId,
         conversationId,
         peerProfileId: conversationResult.data.peer_profile_id,
+        userText: trimmed,
       });
 
       return {
@@ -675,6 +803,7 @@ export const buildServer = () => {
       userId,
       conversationId,
       peerProfileId: conversation.peer.id,
+      userText: trimmed,
     });
 
     return {

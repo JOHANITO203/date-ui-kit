@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "./config";
 import type { FeedCandidate } from "./data";
 import type { FastifyBaseLogger } from "fastify";
+import type { PlanTier, ShortPassTier } from "./data";
 
 type ProfileRow = {
   user_id: string;
@@ -21,6 +22,28 @@ type ProfilePhotoRow = {
   storage_path: string;
   sort_order: number | null;
   is_primary: boolean | null;
+};
+
+type SettingsRow = {
+  user_id: string;
+  hide_age: boolean | null;
+  hide_distance: boolean | null;
+  shadow_ghost: boolean | null;
+};
+
+type EntitlementSnapshot = {
+  planTier?: PlanTier;
+  planExpiresAtIso?: string;
+  shadowGhost?: {
+    source: "shadowghost_item";
+    expiresAtIso: string;
+    enablePrivacy: boolean;
+  };
+};
+
+type UserEntitlementRow = {
+  user_id: string;
+  entitlement_snapshot: EntitlementSnapshot | null;
 };
 
 const hasSupabase =
@@ -75,16 +98,58 @@ const computeAge = (birthDate: string | null): number => {
 const deterministicScore = (seed: string) =>
   [...seed].reduce((acc, ch, index) => (acc + ch.charCodeAt(0) * (index + 1)) % 1000, 0);
 
+const isIsoActive = (value?: string | null) => {
+  if (!value) return false;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) && ms > Date.now();
+};
+
+const resolveEntitlementPlanTier = (
+  snapshot: EntitlementSnapshot | null | undefined,
+): PlanTier => {
+  if (!snapshot?.planTier || !isIsoActive(snapshot.planExpiresAtIso)) return "free";
+  return snapshot.planTier;
+};
+
+const resolveShortPassTier = (
+  snapshot: EntitlementSnapshot | null | undefined,
+): ShortPassTier | undefined => {
+  if (!snapshot?.planExpiresAtIso || snapshot.planTier !== "essential") return undefined;
+  const expiresAtMs = new Date(snapshot.planExpiresAtIso).getTime();
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) return undefined;
+  const remainingHours = (expiresAtMs - Date.now()) / (1000 * 60 * 60);
+  if (remainingHours <= 36) return "day";
+  if (remainingHours <= 8 * 24) return "week";
+  return undefined;
+};
+
+const canUseShadowGhost = (snapshot: EntitlementSnapshot | null | undefined) => {
+  const planTier = resolveEntitlementPlanTier(snapshot);
+  if (planTier === "platinum" || planTier === "elite") return true;
+  if (
+    snapshot?.shadowGhost?.source === "shadowghost_item" &&
+    isIsoActive(snapshot.shadowGhost.expiresAtIso)
+  ) {
+    return true;
+  }
+  return false;
+};
+
 const mapProfileToCandidate = (
   profile: ProfileRow,
   photoUrls: string[],
   userGeoPoint: { lat: number; lng: number } | null,
+  settings: SettingsRow | undefined,
+  entitlement: UserEntitlementRow | undefined,
 ): FeedCandidate => {
   const city = profile.city?.trim() || "Moscow";
   const cityGeo = cityCoordinates[city];
   const effectiveDistanceKm =
     userGeoPoint && cityGeo ? Math.max(1, Math.round(haversineKm(userGeoPoint, cityGeo))) : 7;
   const scoreSeed = deterministicScore(profile.user_id);
+  const planTier = resolveEntitlementPlanTier(entitlement?.entitlement_snapshot);
+  const shortPassTier = resolveShortPassTier(entitlement?.entitlement_snapshot);
+  const shadowGhostEnabledByUser = Boolean(settings?.shadow_ghost);
 
   return {
     id: profile.user_id,
@@ -102,10 +167,11 @@ const mapProfileToCandidate = (
     online: scoreSeed % 3 !== 0,
     flags: {
       verifiedIdentity: Boolean(profile.verified_opt_in),
-      premiumTier: "free",
-      hideAge: false,
-      hideDistance: false,
-      shadowGhost: false,
+      premiumTier: planTier,
+      shortPassTier,
+      hideAge: Boolean(settings?.hide_age),
+      hideDistance: Boolean(settings?.hide_distance),
+      shadowGhost: shadowGhostEnabledByUser && canUseShadowGhost(entitlement?.entitlement_snapshot),
     },
     rankScore: 80 + (scoreSeed % 20),
     scoreReason: "supabase_seed",
@@ -154,12 +220,34 @@ export const loadCandidatesFromSupabase = async (input: {
       .limit(500);
     if (photosResult.error) throw photosResult.error;
 
+    const settingsResult = await supabase
+      .from("settings")
+      .select("user_id,hide_age,hide_distance,shadow_ghost")
+      .in("user_id", profileIds)
+      .limit(500);
+    if (settingsResult.error) throw settingsResult.error;
+
+    const entitlementResult = await supabase
+      .from("user_entitlements")
+      .select("user_id,entitlement_snapshot")
+      .in("user_id", profileIds)
+      .limit(500);
+    if (entitlementResult.error) throw entitlementResult.error;
+
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
     for (const row of (photosResult.data ?? []) as ProfilePhotoRow[]) {
       const bucketRows = photosByUser.get(row.user_id) ?? [];
       bucketRows.push(row);
       photosByUser.set(row.user_id, bucketRows);
     }
+
+    const settingsByUser = new Map(
+      ((settingsResult.data ?? []) as SettingsRow[]).map((row) => [row.user_id, row]),
+    );
+
+    const entitlementsByUser = new Map(
+      ((entitlementResult.data ?? []) as UserEntitlementRow[]).map((row) => [row.user_id, row]),
+    );
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
@@ -170,7 +258,15 @@ export const loadCandidatesFromSupabase = async (input: {
         const signed = await createSignedUrlForPath(photoRow.storage_path);
         if (signed) signedUrls.push(signed);
       }
-      candidates.push(mapProfileToCandidate(profile, signedUrls, input.userGeoPoint));
+      candidates.push(
+        mapProfileToCandidate(
+          profile,
+          signedUrls,
+          input.userGeoPoint,
+          settingsByUser.get(profile.user_id),
+          entitlementsByUser.get(profile.user_id),
+        ),
+      );
     }
 
     return candidates;
