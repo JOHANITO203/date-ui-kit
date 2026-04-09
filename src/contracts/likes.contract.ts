@@ -7,6 +7,9 @@ export interface ReceivedLike {
   profile: ProfileCard;
   receivedAtIso: string;
   wasSuperLike: boolean;
+  state: 'pending_incoming_like' | 'matched' | 'refused';
+  hiddenByShadowGhost: boolean;
+  blurredLocked: boolean;
 }
 
 export interface IceBreakerState {
@@ -25,6 +28,20 @@ export interface LikesInventory {
 export interface GetReceivedLikesResponse {
   state: LikesScreenState;
   inventory: LikesInventory;
+}
+
+export interface DecideIncomingLikeRequest {
+  likeId: string;
+  action: 'like_back' | 'pass';
+}
+
+export interface DecideIncomingLikeResponse {
+  ok: boolean;
+  likeId: string;
+  status: 'matched' | 'refused' | 'pending_incoming_like';
+  matched: boolean;
+  conversationId?: string;
+  peerOnline?: boolean;
 }
 
 export interface PaywallClickRequest {

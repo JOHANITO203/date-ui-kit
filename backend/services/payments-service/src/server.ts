@@ -173,6 +173,7 @@ export const buildServer = () => {
   app.register(formbody);
 
   const yookassa = env.hasYooKassaCredentials ? new YooKassaClient(env.YOOKASSA_BASE_URL) : null;
+  const devAutoGrantEnabled = Boolean(env.PAYMENTS_DEV_AUTO_GRANT);
   const checkoutsMemory = new Map<string, CheckoutRow>();
   const entitlementsMemory = new Map<string, EntitlementSnapshot>();
   let catalogCache: CatalogCache | null = null;
@@ -396,6 +397,7 @@ export const buildServer = () => {
     status: "ok",
     service: "payments-service",
     pspMode: yookassa ? "yookassa" : "mock",
+    devAutoGrant: devAutoGrantEnabled,
     persistence: supabaseServiceClient ? "supabase" : "memory",
     timestamp: new Date().toISOString(),
   }));
@@ -456,6 +458,38 @@ export const buildServer = () => {
     }
 
     const orderNumber = formatOrderNumber(offer.id, userId);
+
+    if (devAutoGrantEnabled) {
+      const checkoutId = `dev_${orderNumber}`;
+      let checkout: CheckoutRow = {
+        checkout_id: checkoutId,
+        yookassa_payment_id: null,
+        order_number: orderNumber,
+        user_id: userId,
+        offer_id: offer.id,
+        mode: "mock",
+        status: "paid",
+        attributed: false,
+        entitlement_snapshot: null,
+        provider_raw: {
+          mode: "dev_auto_grant",
+        },
+      };
+
+      await upsertCheckout(checkout);
+      checkout = await attributeCheckout(checkout);
+
+      return {
+        mode: "mock",
+        checkoutId,
+        orderNumber,
+        offer,
+        status: checkout.status,
+        attributed: checkout.attributed,
+        entitlementSnapshot: checkout.entitlement_snapshot ?? undefined,
+        message: "DEV auto-grant mode enabled: purchase was instantly attributed.",
+      };
+    }
 
     if (!yookassa) {
       const checkoutId = `mock_${orderNumber}`;

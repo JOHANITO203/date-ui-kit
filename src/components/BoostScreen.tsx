@@ -320,6 +320,38 @@ const BoostScreen = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const normalizeCurrencySpacing = (value: string) => value.replace(/\s+(?=[₽€$£¥₹₩₺])/gu, '');
+  const splitPriceParts = (value: string) => {
+    const trimmed = value.trim();
+    const amountToken = trimmed.match(/[\d][\d\s.,]*/u)?.[0]?.trim() ?? '';
+    if (amountToken) {
+      const currency = trimmed.replace(amountToken, '').replace(/\s+/gu, ' ').trim();
+      return {
+        amount: amountToken,
+        currency,
+      };
+    }
+
+    const withSpace = trimmed.match(/^(.+?)\s+([^\s]+)$/u);
+    if (withSpace && /\d/u.test(withSpace[1])) {
+      return {
+        amount: withSpace[1].trim(),
+        currency: withSpace[2].trim(),
+      };
+    }
+
+    const compact = trimmed.match(/^([\d\s.,]+)([^\d\s.,]+)$/u);
+    if (compact) {
+      return {
+        amount: compact[1].trim(),
+        currency: compact[2].trim(),
+      };
+    }
+
+    return {
+      amount: trimmed,
+      currency: '',
+    };
+  };
   const price = (key: string) => normalizeCurrencySpacing(t(key, { currency: t('boost.currency') }));
   const isLarge = isDesktop || isTablet;
   const showDesktopRail = isLarge && !isTouch;
@@ -362,6 +394,22 @@ const BoostScreen = () => {
     const offer = catalogById[offerId];
     if (!offer) return price(fallbackKey);
     return formatCatalogPrice(offer);
+  };
+  const resolvePricePartsByOfferId = (offerId: string, fallbackKey: string) => {
+    const offer = catalogById[offerId];
+    if (offer) {
+      const amount = offer.amountMinor / 100;
+      const locale = (typeof navigator !== 'undefined' && navigator.language) || 'ru-RU';
+      const amountFormatted = new Intl.NumberFormat(locale, {
+        minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+      return {
+        amount: amountFormatted,
+        currency: 'RUB',
+      };
+    }
+    return splitPriceParts(price(fallbackKey));
   };
   const resolveLabelByOfferId = (offerId: string, fallbackLabel: string) => {
     if (locale === 'ru' && ruOfferLabelOverrides[offerId]) {
@@ -740,6 +788,10 @@ const BoostScreen = () => {
               const isActive = tier.id === activeTier;
               const isPulse = glowPulseTier === tier.id;
               const hasLongTierName = tier.id === 'essential' || tier.id === 'platinum';
+              const { amount: tierAmount, currency: tierCurrency } = resolvePricePartsByOfferId(
+                offerIdByTierId[tier.id],
+                tier.priceKey,
+              );
               return (
                 <motion.button
                   key={tier.id}
@@ -793,14 +845,23 @@ const BoostScreen = () => {
                         {stripVibePrefix(t(tier.nameKey))}
                       </span>
                     </p>
-                    <div className="flex items-end gap-2 min-w-0 flex-wrap">
+                    <div className="flex items-end gap-2 min-w-0 max-w-full flex-wrap">
                       <p
-                        className={`font-mono text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter whitespace-nowrap ${
+                        className={`shrink-0 font-mono text-[length:var(--boost-tier-price-size)] leading-none font-black tracking-tighter whitespace-nowrap ${
                           isActive ? 'text-white' : 'text-white/78'
                         }`}
                       >
-                        {resolvePriceByOfferId(offerIdByTierId[tier.id], tier.priceKey)}
+                        {tierAmount}
                       </p>
+                      {tierCurrency ? (
+                        <p
+                          className={`shrink-0 pb-[0.13em] text-[length:var(--boost-tier-currency-size)] font-black uppercase tracking-[0.08em] leading-none ${
+                            isActive ? 'text-white/90' : 'text-white/62'
+                          }`}
+                        >
+                          {tierCurrency}
+                        </p>
+                      ) : null}
                       <p className="text-[length:var(--boost-tier-period-size)] font-black uppercase tracking-[0.1em] text-white/45 leading-none self-end pb-[0.15em]">
                         {t(tier.periodKey)}
                       </p>

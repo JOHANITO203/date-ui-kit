@@ -41,6 +41,9 @@ const resolveChatTargetLocale = (
   return 'en';
 };
 
+const looksLikeConversationId = (value: string) =>
+  value.startsWith('conv-') || value.startsWith('match-');
+
 const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const { userId: routeUserId } = useParams();
   const navigate = useNavigate();
@@ -110,13 +113,23 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
 
     const load = async () => {
       try {
-        const ensuredConversationId = await appApi.openChat(userId);
-        if (isCancelled) return;
-        const list = await appApi.getConversations();
-        if (isCancelled) return;
+        let list: ConversationSummary[] = [];
+        let ensuredConversationId: string;
+        if (looksLikeConversationId(userId)) {
+          ensuredConversationId = userId;
+          list = await appApi.getConversations();
+          if (isCancelled) return;
+        } else {
+          ensuredConversationId = await appApi.openChat(userId);
+          if (isCancelled) return;
+          list = await appApi.getConversations();
+          if (isCancelled) return;
+        }
         const selectedConversation =
           list.find((entry) => entry.id === ensuredConversationId) ??
-          list.find((entry) => entry.peer.id === userId);
+          list.find((entry) =>
+            looksLikeConversationId(userId) ? entry.id === userId : entry.peer.id === userId,
+          );
 
         if (!selectedConversation) {
           if (!embedded) navigate('/messages', { replace: true });
@@ -259,23 +272,36 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       try {
         if (nextState === 'blocked_by_me') {
           await appApi.blockUser(conversation.peer.id);
+          const response = await appApi.setConversationRelationState({
+            conversationId,
+            state: nextState,
+          });
+
+          setConversation((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  relationState: response.state,
+                }
+              : prev,
+          );
         } else {
-          await appApi.unblockUser(conversation.peer.id);
+          // UX-first unblock: keep chat state recoverable even if safety row is already missing.
+          const response = await appApi.setConversationRelationState({
+            conversationId,
+            state: nextState,
+          });
+
+          setConversation((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  relationState: response.state,
+                }
+              : prev,
+          );
+          await appApi.unblockUser(conversation.peer.id).catch(() => undefined);
         }
-
-        const response = await appApi.setConversationRelationState({
-          conversationId,
-          state: nextState,
-        });
-
-        setConversation((prev) =>
-          prev
-            ? {
-                ...prev,
-                relationState: response.state,
-              }
-            : prev,
-        );
       } catch {
         setSafetyFeedback(t('chat.actionFailed'));
       } finally {

@@ -26,6 +26,9 @@ Runtime:
 - works in two modes:
   - `mock` when YooKassa credentials are not set
   - `yookassa` when credentials are set
+- optional dev acceleration:
+  - `PAYMENTS_DEV_AUTO_GRANT=true` instantly marks checkout as paid and attributes entitlements
+  - disable with `PAYMENTS_DEV_AUTO_GRANT=false` to restore normal mock/YooKassa flow
 
 YooKassa setup:
 - fill `YOOKASSA_SHOP_ID` and `YOOKASSA_SECRET_KEY` in `backend/services/payments-service/.env`

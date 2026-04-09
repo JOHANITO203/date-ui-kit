@@ -489,11 +489,17 @@ export const runtimeApi = {
   getLikes(): GetReceivedLikesResponse {
     const unlocked = state.likesUnlocked || canUnlockLikes(state.planTier);
     const hiddenCount = unlocked ? 0 : state.likes.length;
+    const visibleLikes = (unlocked ? state.likes : state.likes.slice(0, 4)).map((entry) => ({
+      ...entry,
+      state: 'pending_incoming_like' as const,
+      hiddenByShadowGhost: false,
+      blurredLocked: !unlocked,
+    }));
 
     const inventory: LikesInventory = {
       unlocked,
       hiddenCount,
-      visibleLikes: unlocked ? state.likes : state.likes.slice(0, 4),
+      visibleLikes,
       iceBreaker: {
         eligibleLikesHiddenCount: hiddenCount,
         consumed: false,

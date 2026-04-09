@@ -1,5 +1,7 @@
 import type {
   FeedQuickFilter,
+  DecideIncomingLikeRequest,
+  DecideIncomingLikeResponse,
   GetFeedResponse,
   GetReceivedLikesResponse,
   ActivateBoostResponse,
@@ -181,13 +183,15 @@ const getPreciseGeoPoint = async (enabled: boolean): Promise<{ lat: number; lng:
 
 const discoverRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const internalToken = await resolveInternalToken();
+  const headers = new Headers(init?.headers ?? {});
+  headers.set('Authorization', `Bearer ${internalToken}`);
+  if (!(init?.body instanceof FormData) && init?.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   const response = await fetch(`${DISCOVER_API_URL}${path}`, {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${internalToken}`,
-      ...(init?.headers ?? {}),
-    },
+    headers,
     ...init,
   });
 
@@ -232,13 +236,15 @@ const resolveInternalToken = async (): Promise<string> => {
 
 const serviceRequest = async <T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> => {
   const internalToken = await resolveInternalToken();
+  const headers = new Headers(init?.headers ?? {});
+  headers.set('Authorization', `Bearer ${internalToken}`);
+  if (!(init?.body instanceof FormData) && init?.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   const response = await fetch(`${baseUrl}${path}`, {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${internalToken}`,
-      ...(init?.headers ?? {}),
-    },
+    headers,
     ...init,
   });
 
@@ -509,7 +515,30 @@ export const appApi = {
   },
 
   getLikes(): Promise<GetReceivedLikesResponse> {
+    if (DISCOVER_API_URL) {
+      return discoverRequest<GetReceivedLikesResponse>('/discover/likes/incoming').catch((error) => {
+        if (!shouldFallbackToRuntime(error)) {
+          return Promise.reject(error);
+        }
+        return withLatency(runtimeApi.getLikes());
+      });
+    }
     return withLatency(runtimeApi.getLikes());
+  },
+
+  decideIncomingLike(request: DecideIncomingLikeRequest): Promise<DecideIncomingLikeResponse> {
+    if (DISCOVER_API_URL) {
+      return discoverRequest<DecideIncomingLikeResponse>(`/discover/likes/${request.likeId}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ action: request.action }),
+      });
+    }
+    return withLatency({
+      ok: true,
+      likeId: request.likeId,
+      status: request.action === 'like_back' ? 'matched' : 'refused',
+      matched: request.action === 'like_back',
+    });
   },
 
   trackLikesPaywallView(): void {

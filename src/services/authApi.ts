@@ -1,8 +1,8 @@
 import type { AuthResponse, SessionPayload } from '../contracts';
 
 const AUTH_BFF_URL = (import.meta.env.VITE_AUTH_BFF_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787';
-const UPLOAD_IMAGE_MAX_EDGE = 1600;
-const UPLOAD_IMAGE_TARGET_MAX_BYTES = 2 * 1024 * 1024;
+const UPLOAD_IMAGE_MAX_EDGE = 1440;
+const UPLOAD_IMAGE_TARGET_MAX_BYTES = 1_200_000;
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -53,23 +53,37 @@ const optimizeImageForUpload = async (file: File): Promise<File> => {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return file;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, width, height);
 
-    const primaryMimeType = file.type === 'image/png' ? 'image/webp' : file.type;
-    const fallbackMimeType = file.type.startsWith('image/') ? 'image/jpeg' : 'application/octet-stream';
+    const fallbackMimeType = 'image/jpeg';
+    const preferredFormats = ['image/avif', 'image/webp', 'image/jpeg'];
+    const qualitySteps = [0.86, 0.8, 0.74, 0.68, 0.62];
 
-    const tryEncode = async (mimeType: string, quality: number) =>
-      (await canvasToBlob(canvas, mimeType, quality)) ?? (await canvasToBlob(canvas, fallbackMimeType, quality));
+    const tryEncode = async (mimeType: string, quality: number) => {
+      const encoded = await canvasToBlob(canvas, mimeType, quality);
+      if (encoded) return encoded;
+      if (mimeType !== fallbackMimeType) return canvasToBlob(canvas, fallbackMimeType, quality);
+      return null;
+    };
 
-    let encoded =
-      (await tryEncode(primaryMimeType, 0.84)) ??
-      (await tryEncode(fallbackMimeType, 0.84));
+    let encoded: Blob | null = null;
+    for (const format of preferredFormats) {
+      for (const quality of qualitySteps) {
+        const candidate = await tryEncode(format, quality);
+        if (!candidate) continue;
+        encoded = candidate;
+        if (candidate.size <= UPLOAD_IMAGE_TARGET_MAX_BYTES) break;
+      }
+      if (encoded && encoded.size <= UPLOAD_IMAGE_TARGET_MAX_BYTES) break;
+    }
 
     if (!encoded) return file;
 
-    if (encoded.size > UPLOAD_IMAGE_TARGET_MAX_BYTES && (encoded.type === 'image/webp' || encoded.type === 'image/jpeg')) {
-      for (const quality of [0.78, 0.72, 0.66, 0.6]) {
-        const candidate = await tryEncode(encoded.type, quality);
+    if (encoded.size > UPLOAD_IMAGE_TARGET_MAX_BYTES) {
+      for (const quality of [0.58, 0.52, 0.46]) {
+        const candidate = await tryEncode(encoded.type || fallbackMimeType, quality);
         if (!candidate) continue;
         encoded = candidate;
         if (encoded.size <= UPLOAD_IMAGE_TARGET_MAX_BYTES) break;
@@ -81,7 +95,13 @@ const optimizeImageForUpload = async (file: File): Promise<File> => {
     }
 
     const extension =
-      encoded.type === 'image/webp' ? 'webp' : encoded.type === 'image/png' ? 'png' : 'jpg';
+      encoded.type === 'image/avif'
+        ? 'avif'
+        : encoded.type === 'image/webp'
+          ? 'webp'
+          : encoded.type === 'image/png'
+            ? 'png'
+            : 'jpg';
     const safeBaseName = file.name.replace(/\.[^/.]+$/, '');
     return new File([encoded], `${safeBaseName}.${extension}`, {
       type: encoded.type,

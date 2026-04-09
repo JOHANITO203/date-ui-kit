@@ -9,6 +9,8 @@ Implemented endpoints:
 - `GET /discover/feed`
 - `POST /discover/swipe`
 - `POST /discover/rewind`
+- `GET /discover/likes/incoming`
+- `POST /discover/likes/:likeId/decision`
 - `GET /health`
 
 Security:

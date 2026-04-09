@@ -12,6 +12,8 @@ import {
   updateRelationPreview,
 } from "./data";
 import type { ChatMessage } from "./types";
+import type { ProfileCard } from "./types";
+import { startActorEngine } from "./actorEngine";
 
 const openChatSchema = z.object({
   profileId: z.string().min(1),
@@ -43,6 +45,13 @@ type InternalJwtPayload = {
 type TranslationSetting = {
   enabled: boolean;
   targetLocale: "en" | "ru";
+};
+
+type ProfilePhotoRow = {
+  user_id: string;
+  storage_path: string;
+  sort_order: number | null;
+  is_primary: boolean | null;
 };
 
 const verifyInternalToken = createVerifier({
@@ -90,12 +99,165 @@ const normalizeRelationState = (value: unknown): "active" | "blocked_by_me" | "b
 
 const resolveConversationId = (userId: string, profileId: string) =>
   `conv-${userId}-${profileId}`;
+const looksLikeConversationId = (value: string) =>
+  value.startsWith("conv-") || value.startsWith("match-");
+const PROFILE_PHOTOS_BUCKET = "profile-photos";
+const SIGNED_URL_TTL_SEC = 60 * 60 * 24;
+const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
 
 const toOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0 ? value : undefined;
 
 const toTranslationMapKey = (userId: string, conversationId: string) =>
   `${userId}:${conversationId}`;
+
+const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
+  const cached = signedPhotoUrlCache.get(storagePath);
+  if (!cached) return null;
+  if (cached.expiresAtMs <= Date.now()) {
+    signedPhotoUrlCache.delete(storagePath);
+    return null;
+  }
+  return cached.url;
+};
+
+const setCachedSignedPhotoUrl = (storagePath: string, url: string) => {
+  const safeTtlMs = Math.max(60, SIGNED_URL_TTL_SEC - 30) * 1000;
+  signedPhotoUrlCache.set(storagePath, {
+    url,
+    expiresAtMs: Date.now() + safeTtlMs,
+  });
+};
+
+const computeAge = (birthDate: string | null): number => {
+  if (!birthDate) return 24;
+  const dob = new Date(birthDate);
+  if (Number.isNaN(dob.getTime())) return 24;
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const monthDelta = now.getUTCMonth() - dob.getUTCMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < dob.getUTCDate())) age -= 1;
+  return Math.max(18, Math.min(60, age));
+};
+
+const buildPeerCardFromSupabase = (row: {
+  user_id: string;
+  first_name: string | null;
+  birth_date: string | null;
+  city: string | null;
+  languages: string[] | null;
+  bio: string | null;
+  interests: string[] | null;
+  verified_opt_in: boolean | null;
+  photos: string[];
+}): ProfileCard => ({
+  id: row.user_id,
+  name: row.first_name?.trim() || "Profile",
+  age: computeAge(row.birth_date),
+  city: row.city?.trim() || "Unknown",
+  distanceKm: 0,
+  languages: row.languages && row.languages.length > 0 ? row.languages : ["English", "Russian"],
+  bio: row.bio?.trim() || "Looking for meaningful connections.",
+  photos: row.photos.length > 0 ? row.photos : ["/placeholder.svg"],
+  compatibility: 75,
+  interests: row.interests && row.interests.length > 0 ? row.interests : ["Travel", "Music"],
+  online: true,
+  flags: {
+    verifiedIdentity: Boolean(row.verified_opt_in),
+    premiumTier: "free",
+    hideAge: false,
+    hideDistance: false,
+    shadowGhost: false,
+  },
+});
+
+const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileCard>> => {
+  const byId = new Map<string, ProfileCard>();
+  for (const peerId of peerIds) {
+    const staticPeer = getProfileById(peerId);
+    if (staticPeer) byId.set(peerId, staticPeer);
+  }
+
+  if (!supabaseServiceClient) return byId;
+
+  const missing = peerIds.filter((peerId) => !byId.has(peerId));
+  if (missing.length === 0) return byId;
+
+  const profileResult = await supabaseServiceClient
+    .from("profiles")
+    .select("user_id,first_name,birth_date,city,languages,bio,interests,verified_opt_in")
+    .in("user_id", missing);
+
+  if (profileResult.error) return byId;
+
+  let signedByPath = new Map<string, string>();
+  const primaryPathByUser = new Map<string, string>();
+  const photoResult = await supabaseServiceClient
+    .from("profile_photos")
+    .select("user_id,storage_path,sort_order,is_primary")
+    .in("user_id", missing)
+    .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1")
+    .order("is_primary", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .limit(Math.max(200, missing.length * 3));
+
+  if (!photoResult.error) {
+    const rows = (photoResult.data ?? []) as ProfilePhotoRow[];
+    for (const row of rows) {
+      if (!primaryPathByUser.has(row.user_id) && typeof row.storage_path === "string" && row.storage_path.length > 0) {
+        primaryPathByUser.set(row.user_id, row.storage_path);
+      }
+    }
+
+    const paths = [...new Set([...primaryPathByUser.values()])];
+    const missingPaths: string[] = [];
+    for (const storagePath of paths) {
+      const cached = getCachedSignedPhotoUrl(storagePath);
+      if (cached) {
+        signedByPath.set(storagePath, cached);
+      } else {
+        missingPaths.push(storagePath);
+      }
+    }
+
+    if (missingPaths.length > 0) {
+      const signed = await supabaseServiceClient.storage
+        .from(PROFILE_PHOTOS_BUCKET)
+        .createSignedUrls(missingPaths, SIGNED_URL_TTL_SEC);
+      if (!signed.error && Array.isArray(signed.data)) {
+        for (const entry of signed.data) {
+          if (!entry?.path || !entry?.signedUrl) continue;
+          signedByPath.set(entry.path, entry.signedUrl);
+          setCachedSignedPhotoUrl(entry.path, entry.signedUrl);
+        }
+      }
+    }
+  }
+
+  for (const row of profileResult.data ?? []) {
+    const typedRow = row as {
+      user_id: string;
+      first_name: string | null;
+      birth_date: string | null;
+      city: string | null;
+      languages: string[] | null;
+      bio: string | null;
+      interests: string[] | null;
+      verified_opt_in: boolean | null;
+    };
+    const primaryPath = primaryPathByUser.get(typedRow.user_id);
+    const primarySignedUrl = primaryPath ? signedByPath.get(primaryPath) : undefined;
+    byId.set(
+      typedRow.user_id,
+      buildPeerCardFromSupabase({
+        ...typedRow,
+        photos: primarySignedUrl ? [primarySignedUrl] : [],
+      }),
+    );
+  }
+
+  return byId;
+};
 
 const translationSettingsByConversation = new Map<string, TranslationSetting>();
 const autoReplyStateByConversation = new Map<
@@ -172,6 +334,13 @@ export const buildServer = () => {
     methods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
+
+  const stopActorEngine = startActorEngine(app.log);
+  if (stopActorEngine) {
+    app.addHook("onClose", async () => {
+      stopActorEngine();
+    });
+  }
 
   const scheduleIncomingReply = (input: {
     userId: string;
@@ -366,10 +535,31 @@ export const buildServer = () => {
         return { code: "CHAT_CONVERSATIONS_READ_FAILED" };
       }
 
+      const peerIds = [...new Set((conversationsResult.data ?? []).map((row) => row.peer_profile_id))].filter(
+        (entry): entry is string => typeof entry === "string" && entry.length > 0,
+      );
+      const peerMap = await loadPeerProfiles(peerIds);
+      let blockedByMeSet = new Set<string>();
+      const blockedResult = await supabaseServiceClient
+        .from("safety_blocks")
+        .select("blocked_user_id")
+        .eq("user_id", userId);
+      if (!blockedResult.error) {
+        blockedByMeSet = new Set(
+          (blockedResult.data ?? [])
+            .map((row) => (row as { blocked_user_id?: unknown }).blocked_user_id)
+            .filter((value): value is string => typeof value === "string" && value.length > 0),
+        );
+      }
+
       const conversations = (conversationsResult.data ?? [])
         .map((row) => {
-          const peer = getProfileById(row.peer_profile_id);
+          const peer = peerMap.get(row.peer_profile_id) ?? null;
           if (!peer) return null;
+          let relationState = normalizeRelationState(row.relation_state);
+          if (relationState === "blocked_by_me" && !blockedByMeSet.has(row.peer_profile_id)) {
+            relationState = "active";
+          }
 
           return {
             id: row.conversation_id,
@@ -378,7 +568,7 @@ export const buildServer = () => {
             lastMessagePreview: row.last_message_preview ?? "",
             lastMessageAtIso: row.last_message_at ?? new Date().toISOString(),
             online: peer.online,
-            relationState: normalizeRelationState(row.relation_state),
+            relationState,
             relationStateUpdatedAtIso: toOptionalString(row.relation_state_updated_at),
             receivedSuperLikeTraceAtIso: toOptionalString(row.received_superlike_trace_at),
           };
@@ -406,16 +596,52 @@ export const buildServer = () => {
     if (!userId) {
       return { code: "UNAUTHORIZED" };
     }
+    const requestedProfileId = parsed.data.profileId.trim();
 
     if (supabaseServiceClient) {
-      const peer = getProfileById(parsed.data.profileId);
+      if (looksLikeConversationId(requestedProfileId)) {
+        const existingByConversationId = await supabaseServiceClient
+          .from("chat_conversations")
+          .select("conversation_id")
+          .eq("user_id", userId)
+          .eq("conversation_id", requestedProfileId)
+          .maybeSingle();
+        if (existingByConversationId.error) {
+          reply.status(500);
+          return { code: "CHAT_OPEN_FAILED" };
+        }
+        if (existingByConversationId.data?.conversation_id) {
+          return { conversationId: existingByConversationId.data.conversation_id };
+        }
+      }
+
+      const peerMap = await loadPeerProfiles([requestedProfileId]);
+      const peer = peerMap.get(requestedProfileId) ?? null;
       if (!peer) {
         reply.status(404);
         return { code: "PROFILE_NOT_FOUND", message: "Cannot open conversation for this profile." };
       }
 
-      const conversationId = resolveConversationId(userId, parsed.data.profileId);
       const nowIso = new Date().toISOString();
+      const byPeer = await supabaseServiceClient
+        .from("chat_conversations")
+        .select("conversation_id")
+        .eq("user_id", userId)
+        .eq("peer_profile_id", requestedProfileId)
+        .order("last_message_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (byPeer.error) {
+        reply.status(500);
+        return { code: "CHAT_OPEN_FAILED" };
+      }
+
+      if (byPeer.data?.conversation_id) {
+        return { conversationId: byPeer.data.conversation_id };
+      }
+
+      const conversationId = resolveConversationId(userId, requestedProfileId);
 
       const existingConversation = await supabaseServiceClient
         .from("chat_conversations")
@@ -434,7 +660,7 @@ export const buildServer = () => {
           {
             user_id: userId,
             conversation_id: conversationId,
-            peer_profile_id: parsed.data.profileId,
+            peer_profile_id: requestedProfileId,
             unread_count: 0,
             last_message_preview: parsed.data.fromSuperLike
               ? "This chat started from a SuperLike."
@@ -457,7 +683,7 @@ export const buildServer = () => {
             user_id: userId,
             message_id: `m-${Date.now()}`,
             conversation_id: conversationId,
-            sender_user_id: parsed.data.profileId,
+            sender_user_id: requestedProfileId,
             direction: "incoming",
             original_text: parsed.data.fromSuperLike
               ? "SuperLike landed. Want to chat tonight?"
@@ -479,7 +705,7 @@ export const buildServer = () => {
 
     const createdOrExisting = ensureConversationForProfile(
       store,
-      parsed.data.profileId,
+      requestedProfileId,
       parsed.data.fromSuperLike,
     );
 

@@ -120,7 +120,8 @@
     --boost-tier-pad: clamp(1rem, 1.4vw, 1.5rem);
     --boost-tier-title-size: clamp(1.95rem, 3.4vw, 2.65rem);
     --boost-tier-title-size-long: clamp(1.5rem, 2.2vw, 1.95rem);
-    --boost-tier-price-size: clamp(2.2rem, 4.2vw, 3.2rem);
+    --boost-tier-price-size: clamp(1.9rem, 3.2vw, 2.8rem);
+    --boost-tier-currency-size: clamp(1.75rem, 2.6vw, 2.45rem);
     --boost-tier-period-size: clamp(0.72rem, 1.1vw, 0.88rem);
     --boost-tier-feature-size: clamp(0.86rem, 1.2vw, 1rem);
     --boost-tier-tag-size: clamp(0.55rem, 0.9vw, 0.62rem);

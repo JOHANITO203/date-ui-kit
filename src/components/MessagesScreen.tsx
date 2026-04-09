@@ -19,13 +19,49 @@ const resolvePhotoUrl = (photos: string[] | undefined): string => {
   return direct ?? '/placeholder.svg';
 };
 
+type AvatarImageProps = {
+  src: string;
+  name: string;
+  className: string;
+  imgClassName: string;
+};
+
+const AvatarImage = ({ src, name, className, imgClassName }: AvatarImageProps) => {
+  const [failed, setFailed] = useState(false);
+  const initial = (name?.trim()?.[0] ?? '?').toUpperCase();
+  const canRenderImage = !failed && src !== '/placeholder.svg';
+
+  return (
+    <div className={`${className} overflow-hidden bg-white/5`}>
+      {canRenderImage ? (
+        <img
+          src={src}
+          className={imgClassName}
+          alt={name}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-fuchsia-500/30 to-blue-500/30 text-white/85 font-black">
+          {initial}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MessagesScreen = () => {
   const navigate = useNavigate();
   const { userId: urlUserId } = useParams();
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const isLarge = isDesktop || isTablet;
-  const showDesktopRail = isDesktop && !isTouch;
+  const showDesktopRail =
+    isDesktop &&
+    !isTablet &&
+    !isTouch &&
+    (typeof window !== 'undefined' ? window.innerWidth >= 1280 : false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [conversationItems, setConversationItems] = useState<ConversationSummary[]>([]);
@@ -42,7 +78,7 @@ const MessagesScreen = () => {
   const [conversationsThumb, setConversationsThumb] = useState(30);
   const matchesRef = useRef<HTMLDivElement | null>(null);
   const conversationsRef = useRef<HTMLDivElement | null>(null);
-  const conversationItemRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const conversationsRailTrackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (urlUserId) setSelectedUserId(urlUserId);
@@ -197,12 +233,30 @@ const MessagesScreen = () => {
     }
   };
 
-  const jumpToConversation = (index: number) => {
-    const node = conversationItemRefs.current[index];
-    if (!node) return;
-    node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    const target = conversationListItems[index];
-    if (target) handleUserSelect(target.peer.id);
+  const scrollConversationsFromRail = (clientY: number) => {
+    const convNode = conversationsRef.current;
+    const railNode = conversationsRailTrackRef.current;
+    if (!convNode || !railNode) return;
+    const maxScroll = Math.max(0, convNode.scrollHeight - convNode.clientHeight);
+    if (maxScroll <= 0) return;
+    const bounds = railNode.getBoundingClientRect();
+    if (bounds.height <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientY - bounds.top) / bounds.height));
+    convNode.scrollTop = ratio * maxScroll;
+  };
+
+  const handleConversationsRailMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    scrollConversationsFromRail(event.clientY);
+    const onMove = (moveEvent: MouseEvent) => {
+      scrollConversationsFromRail(moveEvent.clientY);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
   const hasMatches = newMatchItems.length > 0;
@@ -241,14 +295,20 @@ const MessagesScreen = () => {
     try {
       if (nextState === 'blocked_by_me') {
         await appApi.blockUser(conversation.peer.id);
+        await appApi.setConversationRelationState({
+          conversationId: conversation.id,
+          state: nextState,
+        });
+        applyConversationRelationState(conversation.id, nextState);
       } else {
-        await appApi.unblockUser(conversation.peer.id);
+        // UX-first unblock: recover relation state even if safety row is already absent.
+        await appApi.setConversationRelationState({
+          conversationId: conversation.id,
+          state: nextState,
+        });
+        applyConversationRelationState(conversation.id, nextState);
+        await appApi.unblockUser(conversation.peer.id).catch(() => undefined);
       }
-      await appApi.setConversationRelationState({
-        conversationId: conversation.id,
-        state: nextState,
-      });
-      applyConversationRelationState(conversation.id, nextState);
     } catch {
       setSafetyFeedback(t('chat.actionFailed'));
     } finally {
@@ -333,12 +393,11 @@ const MessagesScreen = () => {
                 onClick={() => handleUserSelect(conversation.peer.id)}
               >
                 <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
-                  <img
+                  <AvatarImage
                     src={resolvePhotoUrl(conversation.peer.photos)}
-                    className="w-full h-full object-cover"
-                    alt={conversation.peer.name}
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
+                    name={conversation.peer.name}
+                    className="w-full h-full rounded-full"
+                    imgClassName="w-full h-full object-cover object-[center_22%]"
                   />
                 </div>
                 <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider">
@@ -415,13 +474,10 @@ const MessagesScreen = () => {
             className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
             style={{ touchAction: 'pan-y' }}
           >
-            {conversationListItems.map((conversation, index) => {
+            {conversationListItems.map((conversation) => {
                 return (
                   <div
                     key={conversation.id}
-                    ref={(el) => {
-                      conversationItemRefs.current[index] = el;
-                    }}
                     onClick={() => handleUserSelect(conversation.peer.id)}
                     className={`flex items-center ${isLarge ? (isTablet ? 'gap-2.5 p-3.5 rounded-[20px] min-h-[88px]' : 'gap-4 p-4 rounded-[24px]') : 'gap-[var(--messages-conv-card-gap)] p-[var(--messages-conv-card-pad)] rounded-[var(--messages-conv-card-radius)]'} transition-all cursor-pointer ${
                       isLarge && selectedUserId === conversation.peer.id
@@ -431,12 +487,11 @@ const MessagesScreen = () => {
                     style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
                   >
                     <div className="relative shrink-0">
-                      <img
+                      <AvatarImage
                         src={resolvePhotoUrl(conversation.peer.photos)}
-                        className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'} object-cover`}
-                        alt={conversation.peer.name}
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
+                        name={conversation.peer.name}
+                        className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'}`}
+                        imgClassName="w-full h-full object-cover object-[center_20%]"
                       />
                       {conversation.online && (
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
@@ -525,12 +580,15 @@ const MessagesScreen = () => {
           )}
           </div>
           {showDesktopRail && showContent && hasConversations && (
-            <div className="absolute right-1 top-8 bottom-0 w-11 z-20 pointer-events-none">
-              <div className="group/messages-rail h-full w-full flex items-center justify-center pointer-events-auto opacity-0 transition-opacity duration-300 group-hover/messages-pane:opacity-100 group-hover/messages-rail:opacity-100">
-              <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.25)]">
-                <div className="relative w-2.5 h-40 rounded-full bg-[#09090c]/95 overflow-hidden">
+            <div className="absolute right-2 top-12 bottom-4 w-4 z-20 flex items-center justify-center overflow-hidden pointer-events-auto">
+              <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.22)]">
+                <div
+                  ref={conversationsRailTrackRef}
+                  onMouseDown={handleConversationsRailMouseDown}
+                  className="relative w-2 h-36 rounded-full bg-[#09090c]/95 overflow-hidden cursor-ns-resize"
+                >
                   <div
-                    className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
+                    className="absolute left-[2px] right-[2px] rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
                     style={{
                       height: `${conversationsThumb}%`,
                       top: `${conversationsProgress * (100 - conversationsThumb)}%`,
@@ -538,19 +596,6 @@ const MessagesScreen = () => {
                   />
                 </div>
               </div>
-              <div className="ml-1 flex flex-col gap-2">
-                {conversationListItems.map((conversation, index) => (
-                  <button
-                    key={`jump-${conversation.id}`}
-                    onClick={() => jumpToConversation(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      selectedUserId === conversation.peer.id ? 'bg-pink-400 shadow-[0_0_10px_rgba(236,72,153,0.6)]' : 'bg-white/30 hover:bg-white/60'
-                    }`}
-                    aria-label={t('messages.jumpConversation', { name: conversation.peer.name })}
-                  />
-                ))}
-              </div>
-            </div>
             </div>
           )}
         </div>

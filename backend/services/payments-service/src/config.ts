@@ -22,6 +22,10 @@ const envSchema = z.object({
   RATE_LIMIT_MAX_CHECKOUT: z.coerce.number().int().positive().default(20),
   RATE_LIMIT_MAX_STATUS: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_MAX_WEBHOOK: z.coerce.number().int().positive().default(120),
+  PAYMENTS_DEV_AUTO_GRANT: z
+    .string()
+    .optional()
+    .transform((value) => value === "1" || value?.toLowerCase() === "true"),
 });
 
 const parsed = envSchema.safeParse(process.env);

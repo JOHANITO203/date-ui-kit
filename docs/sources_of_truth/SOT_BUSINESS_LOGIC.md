@@ -44,3 +44,14 @@ Date de verrouillage: 2026-03-30
 ## 7) I18n
 - Fallback EN si cle manquante.
 - Validation placeholder/mojibake en dev.
+
+## 8) Likes -> Match -> Chat
+- Un `like` entrant doit d'abord vivre dans la source de verite `discover_likes`.
+- La page Likes lit les `incoming likes` du destinataire (pas les conversations chat).
+- Actions autorisees sur un like entrant:
+  - `like_back`: cree un match bilateral et ouvre/alimente la conversation match des deux cotes.
+  - `pass`: refuse le like (pas de match).
+- `ShadowGhost`:
+  - si l'expediteur a un ShadowGhost actif, l'identite est masquee sur Likes selon la logique de visibilite.
+- Etat premium/lock:
+  - user `free` sans mecanisme de deblocage actif conserve l'affichage floute des profils entrants.

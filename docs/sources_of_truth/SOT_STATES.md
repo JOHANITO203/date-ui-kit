@@ -10,6 +10,12 @@ Date de verrouillage: 2026-03-30
 ## 2) Likes
 - `loading | locked | unlocked | empty | error`
 - icebreaker context present/absent
+- incoming like domain state:
+  - `pending_incoming_like`
+  - `matched`
+  - `refused`
+  - `hidden_by_shadowghost` (visibility mask overlay)
+  - `blurred_locked` (free lock visual state)
 
 ## 3) Messages list
 - data: `loading | ready | empty | error`

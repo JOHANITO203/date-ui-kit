@@ -57,6 +57,26 @@ const supabase = hasSupabase
       auth: { autoRefreshToken: false, persistSession: false },
     })
   : null;
+const optionalQueryTimeoutMs = Math.min(
+  env.DISCOVER_SUPABASE_TIMEOUT_MS,
+  env.DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS,
+);
+const SIGNED_URL_CACHE_VERSION = "v1";
+const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
+const signedPhotoCacheKey = (storagePath: string) => `${SIGNED_URL_CACHE_VERSION}:${storagePath}`;
+const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}_timeout_${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
 
 const cityCoordinates: Record<string, { lat: number; lng: number }> = {
   Moscow: { lat: 55.7558, lng: 37.6173 },
@@ -178,13 +198,61 @@ const mapProfileToCandidate = (
   };
 };
 
-const createSignedUrlForPath = async (storagePath: string): Promise<string | null> => {
-  if (!supabase) return null;
-  const signed = await supabase.storage
-    .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
-    .createSignedUrl(storagePath, env.STORAGE_SIGNED_URL_TTL_SEC);
-  if (signed.error || !signed.data?.signedUrl) return null;
-  return signed.data.signedUrl;
+const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
+  const key = signedPhotoCacheKey(storagePath);
+  const cached = signedPhotoUrlCache.get(key);
+  if (!cached) return null;
+  if (Date.now() >= cached.expiresAtMs) {
+    signedPhotoUrlCache.delete(key);
+    return null;
+  }
+  return cached.url;
+};
+
+const setCachedSignedPhotoUrl = (storagePath: string, signedUrl: string) => {
+  const key = signedPhotoCacheKey(storagePath);
+  const safeTtlSec = Math.max(60, env.STORAGE_SIGNED_URL_TTL_SEC - 30);
+  signedPhotoUrlCache.set(key, {
+    url: signedUrl,
+    expiresAtMs: Date.now() + safeTtlSec * 1000,
+  });
+};
+
+const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, string>> => {
+  const result = new Map<string, string>();
+  if (!supabase || paths.length === 0) return result;
+
+  const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
+  const missingPaths: string[] = [];
+
+  for (const storagePath of uniquePaths) {
+    const cached = getCachedSignedPhotoUrl(storagePath);
+    if (cached) {
+      result.set(storagePath, cached);
+    } else {
+      missingPaths.push(storagePath);
+    }
+  }
+
+  if (missingPaths.length > 0) {
+    const signedBatch = await withTimeout(
+      supabase.storage
+        .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
+        .createSignedUrls(missingPaths, env.STORAGE_SIGNED_URL_TTL_SEC),
+      optionalQueryTimeoutMs,
+      "discover_create_signed_urls",
+    );
+
+    if (!signedBatch.error && Array.isArray(signedBatch.data)) {
+      for (const entry of signedBatch.data) {
+        if (!entry?.path || !entry?.signedUrl) continue;
+        result.set(entry.path, entry.signedUrl);
+        setCachedSignedPhotoUrl(entry.path, entry.signedUrl);
+      }
+    }
+  }
+
+  return result;
 };
 
 export const loadCandidatesFromSupabase = async (input: {
@@ -198,66 +266,116 @@ export const loadCandidatesFromSupabase = async (input: {
   }
 
   try {
-    const profilesResult = await supabase
-      .from("profiles")
-      .select(
-        "user_id,first_name,birth_date,gender,city,origin_country,languages,bio,interests,verified_opt_in",
-      )
-      .neq("user_id", input.currentUserId)
-      .limit(200);
+    const profilesResult = await withTimeout(
+      supabase
+        .from("profiles")
+        .select(
+          "user_id,first_name,birth_date,gender,city,origin_country,languages,bio,interests,verified_opt_in",
+        )
+        .neq("user_id", input.currentUserId)
+        .limit(env.DISCOVER_FEED_PROFILE_LIMIT),
+      env.DISCOVER_SUPABASE_TIMEOUT_MS,
+      "discover_profiles_query",
+    );
 
     if (profilesResult.error) throw profilesResult.error;
     const profiles = (profilesResult.data ?? []) as ProfileRow[];
     if (profiles.length === 0) return [];
 
     const profileIds = profiles.map((row) => row.user_id);
-    const photosResult = await supabase
-      .from("profile_photos")
-      .select("user_id,storage_path,sort_order,is_primary")
-      .in("user_id", profileIds)
-      .order("is_primary", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .limit(500);
-    if (photosResult.error) throw photosResult.error;
 
-    const settingsResult = await supabase
-      .from("settings")
-      .select("user_id,hide_age,hide_distance,shadow_ghost")
-      .in("user_id", profileIds)
-      .limit(500);
-    if (settingsResult.error) throw settingsResult.error;
+    let photosRows: ProfilePhotoRow[] = [];
+    try {
+      const photosResult = await withTimeout(
+        supabase
+          .from("profile_photos")
+          .select("user_id,storage_path,sort_order,is_primary")
+          .in("user_id", profileIds)
+          .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1,sort_order.eq.2")
+          .order("is_primary", { ascending: false })
+          .order("sort_order", { ascending: true })
+        .limit(Math.max(160, env.DISCOVER_FEED_PROFILE_LIMIT * 4)),
+        optionalQueryTimeoutMs,
+        "discover_photos_query",
+      );
+      if (photosResult.error) throw photosResult.error;
+      photosRows = (photosResult.data ?? []) as ProfilePhotoRow[];
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.photos_query_failed_continue_with_placeholders");
+    }
 
-    const entitlementResult = await supabase
-      .from("user_entitlements")
-      .select("user_id,entitlement_snapshot")
-      .in("user_id", profileIds)
-      .limit(500);
-    if (entitlementResult.error) throw entitlementResult.error;
+    let settingsRows: SettingsRow[] = [];
+    try {
+      const settingsResult = await withTimeout(
+        supabase
+          .from("settings")
+          .select("user_id,hide_age,hide_distance,shadow_ghost")
+          .in("user_id", profileIds)
+          .limit(500),
+        optionalQueryTimeoutMs,
+        "discover_settings_query",
+      );
+      if (settingsResult.error) throw settingsResult.error;
+      settingsRows = (settingsResult.data ?? []) as SettingsRow[];
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.settings_query_failed_continue_with_defaults");
+    }
+
+    let entitlementRows: UserEntitlementRow[] = [];
+    try {
+      const entitlementResult = await withTimeout(
+        supabase
+          .from("user_entitlements")
+          .select("user_id,entitlement_snapshot")
+          .in("user_id", profileIds)
+          .limit(500),
+        optionalQueryTimeoutMs,
+        "discover_entitlements_query",
+      );
+      if (entitlementResult.error) throw entitlementResult.error;
+      entitlementRows = (entitlementResult.data ?? []) as UserEntitlementRow[];
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.entitlements_query_failed_continue_with_free_tier");
+    }
 
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
-    for (const row of (photosResult.data ?? []) as ProfilePhotoRow[]) {
+    for (const row of photosRows) {
       const bucketRows = photosByUser.get(row.user_id) ?? [];
       bucketRows.push(row);
       photosByUser.set(row.user_id, bucketRows);
     }
 
     const settingsByUser = new Map(
-      ((settingsResult.data ?? []) as SettingsRow[]).map((row) => [row.user_id, row]),
+      settingsRows.map((row) => [row.user_id, row]),
     );
 
     const entitlementsByUser = new Map(
-      ((entitlementResult.data ?? []) as UserEntitlementRow[]).map((row) => [row.user_id, row]),
+      entitlementRows.map((row) => [row.user_id, row]),
     );
+
+    const topPhotoPathsByUser = new Map<string, string[]>();
+    const allTopPaths: string[] = [];
+    for (const profile of profiles) {
+      const photoRows = photosByUser.get(profile.user_id) ?? [];
+      const topPaths = photoRows
+        .slice(0, 3)
+        .map((row) => row.storage_path)
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      topPhotoPathsByUser.set(profile.user_id, topPaths);
+      allTopPaths.push(...topPaths);
+    }
+    let signedByPath = new Map<string, string>();
+    try {
+      signedByPath = await createSignedUrlsForPaths(allTopPaths);
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.signed_urls_failed_continue_with_placeholders");
+    }
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
-      const photoRows = photosByUser.get(profile.user_id) ?? [];
-      const topRows = photoRows.slice(0, 2);
-      const signedUrls: string[] = [];
-      for (const photoRow of topRows) {
-        const signed = await createSignedUrlForPath(photoRow.storage_path);
-        if (signed) signedUrls.push(signed);
-      }
+      const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
+        .map((storagePath) => signedByPath.get(storagePath))
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(
           profile,
@@ -272,6 +390,141 @@ export const loadCandidatesFromSupabase = async (input: {
     return candidates;
   } catch (error) {
     input.logger.error({ err: error }, "discover.load_candidates_supabase_failed_no_static_fallback");
+    return [];
+  }
+};
+
+export const loadCandidatesByProfileIds = async (input: {
+  profileIds: string[];
+  userGeoPoint?: { lat: number; lng: number } | null;
+  logger: FastifyBaseLogger;
+}): Promise<FeedCandidate[]> => {
+  if (!supabase) {
+    input.logger.error("discover.supabase_config_missing_no_static_fallback");
+    return [];
+  }
+
+  const profileIds = [...new Set(input.profileIds.filter((entry) => typeof entry === "string" && entry.length > 0))];
+  if (profileIds.length === 0) return [];
+
+  try {
+    const profilesResult = await withTimeout(
+      supabase
+        .from("profiles")
+        .select(
+          "user_id,first_name,birth_date,gender,city,origin_country,languages,bio,interests,verified_opt_in",
+        )
+        .in("user_id", profileIds)
+        .limit(Math.max(32, profileIds.length * 2)),
+      env.DISCOVER_SUPABASE_TIMEOUT_MS,
+      "discover_profiles_by_ids_query",
+    );
+
+    if (profilesResult.error) throw profilesResult.error;
+    const profiles = (profilesResult.data ?? []) as ProfileRow[];
+    if (profiles.length === 0) return [];
+
+    let photosRows: ProfilePhotoRow[] = [];
+    try {
+      const photosResult = await withTimeout(
+        supabase
+          .from("profile_photos")
+          .select("user_id,storage_path,sort_order,is_primary")
+          .in("user_id", profileIds)
+          .order("is_primary", { ascending: false })
+          .order("sort_order", { ascending: true })
+          .limit(Math.max(96, profileIds.length * 4)),
+        optionalQueryTimeoutMs,
+        "discover_photos_by_ids_query",
+      );
+      if (photosResult.error) throw photosResult.error;
+      photosRows = (photosResult.data ?? []) as ProfilePhotoRow[];
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.photos_by_ids_query_failed_continue_with_placeholders");
+    }
+
+    let settingsRows: SettingsRow[] = [];
+    try {
+      const settingsResult = await withTimeout(
+        supabase
+          .from("settings")
+          .select("user_id,hide_age,hide_distance,shadow_ghost")
+          .in("user_id", profileIds)
+          .limit(Math.max(64, profileIds.length * 2)),
+        optionalQueryTimeoutMs,
+        "discover_settings_by_ids_query",
+      );
+      if (settingsResult.error) throw settingsResult.error;
+      settingsRows = (settingsResult.data ?? []) as SettingsRow[];
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.settings_by_ids_query_failed_continue_with_defaults");
+    }
+
+    let entitlementRows: UserEntitlementRow[] = [];
+    try {
+      const entitlementResult = await withTimeout(
+        supabase
+          .from("user_entitlements")
+          .select("user_id,entitlement_snapshot")
+          .in("user_id", profileIds)
+          .limit(Math.max(64, profileIds.length * 2)),
+        optionalQueryTimeoutMs,
+        "discover_entitlements_by_ids_query",
+      );
+      if (entitlementResult.error) throw entitlementResult.error;
+      entitlementRows = (entitlementResult.data ?? []) as UserEntitlementRow[];
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.entitlements_by_ids_query_failed_continue_with_free_tier");
+    }
+
+    const photosByUser = new Map<string, ProfilePhotoRow[]>();
+    for (const row of photosRows) {
+      const bucketRows = photosByUser.get(row.user_id) ?? [];
+      bucketRows.push(row);
+      photosByUser.set(row.user_id, bucketRows);
+    }
+
+    const settingsByUser = new Map(settingsRows.map((row) => [row.user_id, row]));
+    const entitlementsByUser = new Map(entitlementRows.map((row) => [row.user_id, row]));
+
+    const topPhotoPathsByUser = new Map<string, string[]>();
+    const allTopPaths: string[] = [];
+    for (const profile of profiles) {
+      const photoRows = photosByUser.get(profile.user_id) ?? [];
+      const topPaths = photoRows
+        .slice(0, 3)
+        .map((row) => row.storage_path)
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      topPhotoPathsByUser.set(profile.user_id, topPaths);
+      allTopPaths.push(...topPaths);
+    }
+
+    let signedByPath = new Map<string, string>();
+    try {
+      signedByPath = await createSignedUrlsForPaths(allTopPaths);
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.signed_urls_by_ids_failed_continue_with_placeholders");
+    }
+
+    const candidates: FeedCandidate[] = [];
+    for (const profile of profiles) {
+      const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
+        .map((storagePath) => signedByPath.get(storagePath))
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      candidates.push(
+        mapProfileToCandidate(
+          profile,
+          signedUrls,
+          input.userGeoPoint ?? null,
+          settingsByUser.get(profile.user_id),
+          entitlementsByUser.get(profile.user_id),
+        ),
+      );
+    }
+
+    return candidates;
+  } catch (error) {
+    input.logger.error({ err: error }, "discover.load_candidates_by_ids_failed");
     return [];
   }
 };

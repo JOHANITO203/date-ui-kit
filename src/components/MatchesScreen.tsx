@@ -32,11 +32,16 @@ const MatchesScreen: React.FC = () => {
       city: string;
       photo: string;
       wasSuperLike: boolean;
+      state: 'pending_incoming_like' | 'matched' | 'refused';
+      hiddenByShadowGhost: boolean;
+      blurredLocked: boolean;
+      online: boolean;
     }>
   >([]);
   const [hiddenLikesCount, setHiddenLikesCount] = useState(0);
   const [iceBreakerEligibleCount, setIceBreakerEligibleCount] = useState(0);
   const [isPremiumPreviewUnlocked, setIsPremiumPreviewUnlocked] = useState(false);
+  const [actionLikeId, setActionLikeId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -57,6 +62,10 @@ const MatchesScreen: React.FC = () => {
             city: entry.profile.city,
             photo: entry.profile.photos[0] ?? '',
             wasSuperLike: entry.wasSuperLike,
+            state: entry.state,
+            hiddenByShadowGhost: entry.hiddenByShadowGhost,
+            blurredLocked: entry.blurredLocked,
+            online: entry.profile.online,
           })),
         );
         if (response.state === 'locked') {
@@ -94,6 +103,10 @@ const MatchesScreen: React.FC = () => {
             city: entry.profile.city,
             photo: entry.profile.photos[0] ?? '',
             wasSuperLike: entry.wasSuperLike,
+            state: entry.state,
+            hiddenByShadowGhost: entry.hiddenByShadowGhost,
+            blurredLocked: entry.blurredLocked,
+            online: entry.profile.online,
           })),
         );
       } catch {
@@ -151,7 +164,46 @@ const MatchesScreen: React.FC = () => {
     baseState === 'locked' && isPremiumPreviewUnlocked ? 'unlocked' : baseState;
   const totalLikesCount = likesCards.length + hiddenLikesCount;
 
+  const handleLikeDecision = async (
+    like: (typeof likesCards)[number],
+    action: 'like_back' | 'pass',
+  ) => {
+    setActionLikeId(like.id);
+    try {
+      const response = await appApi.decideIncomingLike({
+        likeId: like.id,
+        action,
+      });
+      setLikesCards((prev) =>
+        prev
+          .map((entry) =>
+            entry.id === like.id
+              ? {
+                  ...entry,
+                  state: response.status,
+                }
+              : entry,
+          )
+          .filter((entry) => entry.state !== 'refused'),
+      );
+      if (response.matched) {
+        if (like.profileId && response.conversationId) {
+          navigate(`/chat/${like.profileId}`);
+          return;
+        }
+        navigate('/messages');
+      }
+    } finally {
+      setActionLikeId(null);
+    }
+  };
+
   const renderCardContent = (like: (typeof likesCards)[number], compact = false) => {
+    const isBusy = actionLikeId === like.id;
+    const senderIdentityMasked = like.hiddenByShadowGhost;
+    const displayName = senderIdentityMasked ? t('likes.shadowGhostMaskedName') : like.name;
+    const displayAgeMasked = senderIdentityMasked ? true : like.ageMasked;
+
     if (screenState === 'unlocked') {
       return (
         <>
@@ -162,12 +214,17 @@ const MatchesScreen: React.FC = () => {
           <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
             <div className="flex items-center justify-between">
               <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white`}>
-                {like.ageMasked ? like.name : `${like.name}, ${like.age}`}
+                {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
               </span>
               <div className="flex items-center gap-1.5">
                 {like.wasSuperLike && (
                   <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.12em] text-fuchsia-200 border border-fuchsia-300/35 bg-fuchsia-500/10">
                     SuperLike
+                  </span>
+                )}
+                {like.hiddenByShadowGhost && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.12em] text-fuchsia-100 border border-fuchsia-300/35 bg-fuchsia-500/10">
+                    {t('likes.shadowGhostTag')}
                   </span>
                 )}
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{t('chat.online')}</span>
@@ -176,16 +233,38 @@ const MatchesScreen: React.FC = () => {
             <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/75 leading-snug`}>
               {t('likes.unlockedSubtitle', { city: like.city })}
             </p>
-            <button
-              onClick={() => {
-                void appApi.openChat(like.profileId, like.wasSuperLike).then(() => {
-                  navigate(`/chat/${like.profileId}`);
-                });
-              }}
-              className="w-full h-9 rounded-xl gradient-premium text-white text-[10px] font-black uppercase tracking-[0.14em]"
-            >
-              {t('likes.openChat')}
-            </button>
+            {like.state === 'matched' && (
+              <button
+                onClick={() => {
+                  void appApi.openChat(like.profileId, like.wasSuperLike).then(() => {
+                    navigate(`/chat/${like.profileId}`);
+                  });
+                }}
+                className="w-full h-9 rounded-xl gradient-premium text-white text-[10px] font-black uppercase tracking-[0.14em]"
+              >
+                {t('likes.openChat')}
+              </button>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                disabled={isBusy || like.state === 'matched'}
+                onClick={() => {
+                  void handleLikeDecision(like, 'like_back');
+                }}
+                className="h-8 rounded-lg gradient-premium text-white text-[10px] font-black uppercase tracking-[0.12em] disabled:opacity-50"
+              >
+                {like.state === 'matched' ? t('likes.matched') : t('likes.likeBack')}
+              </button>
+              <button
+                disabled={isBusy || like.state === 'matched'}
+                onClick={() => {
+                  void handleLikeDecision(like, 'pass');
+                }}
+                className="h-8 rounded-lg border border-white/20 bg-black/35 text-white/80 text-[10px] font-black uppercase tracking-[0.12em] disabled:opacity-50"
+              >
+                {t('likes.pass')}
+              </button>
+            </div>
           </div>
         </>
       );
@@ -206,8 +285,8 @@ const MatchesScreen: React.FC = () => {
           </div>
         </div>
 
-        <div className={`absolute ${compact ? 'inset-x-3' : 'inset-x-4'} top-[48%] text-center`}>
-          <p className={`mx-auto ${compact ? 'max-w-[10.5ch] text-[0.8rem]' : 'max-w-[12ch] text-[clamp(0.92rem,1.15vw,1.08rem)]'} leading-[1.18] font-black text-white`}>
+        <div className={`absolute ${compact ? 'inset-x-3 top-[45%]' : 'inset-x-4 top-[46%]'} text-center`}>
+          <p className={`mx-auto ${compact ? 'max-w-[9.5ch] text-[0.76rem]' : 'max-w-[11ch] text-[clamp(0.88rem,1.05vw,1rem)]'} leading-[1.16] font-black text-white`}>
             {t('likes.unlock.cta')}
           </p>
           <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/62 mt-1.5`}>
@@ -217,7 +296,7 @@ const MatchesScreen: React.FC = () => {
 
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
           <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>
-            {like.ageMasked ? like.name : `${like.name}, ${like.age}`}
+            {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
           </span>
           <Eye size={compact ? 14 : 16} className="text-white/50" />
         </div>
@@ -297,7 +376,7 @@ const MatchesScreen: React.FC = () => {
                   transition={{ delay: index * 0.04 }}
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
-                  <img src={like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
+                  <img src={like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
                   {renderCardContent(like, false)}
                 </motion.article>
               ))}
@@ -361,7 +440,7 @@ const MatchesScreen: React.FC = () => {
                   transition={{ delay: index * 0.05 }}
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
-                  <img src={like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
+                  <img src={like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
                   {renderCardContent(like, true)}
                 </motion.article>
               ))}

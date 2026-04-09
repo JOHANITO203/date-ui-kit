@@ -7,7 +7,7 @@ import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
-import { appApi } from '../services';
+import { appApi, authApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { FeedCandidate, FeedQuickFilter, PlanTier, SwipeDecision } from '../contracts';
 
@@ -23,6 +23,28 @@ const formatBoostTimer = (seconds: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
 };
 
+const reshuffleCandidates = (candidates: FeedCandidate[]): FeedCandidate[] => {
+  const unique = new Map<string, FeedCandidate>();
+  for (const candidate of candidates) {
+    if (!candidate?.id) continue;
+    if (!unique.has(candidate.id)) unique.set(candidate.id, candidate);
+  }
+
+  return [...unique.values()].sort((a, b) => {
+    const scoreA =
+      (typeof a.rankScore === 'number' ? a.rankScore : a.compatibility) +
+      (a.online ? 2 : 0) +
+      (a.flags.verifiedIdentity ? 1 : 0) +
+      (Math.random() * 10 - 5);
+    const scoreB =
+      (typeof b.rankScore === 'number' ? b.rankScore : b.compatibility) +
+      (b.online ? 2 : 0) +
+      (b.flags.verifiedIdentity ? 1 : 0) +
+      (Math.random() * 10 - 5);
+    return scoreB - scoreA;
+  });
+};
+
 const SwipeScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
@@ -32,18 +54,18 @@ const SwipeScreen = () => {
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const likedCount = useRuntimeSelector((payload) => payload.likedProfileIds.length);
   const matchCount = useRuntimeSelector((payload) => payload.conversations.length);
-  const selfPreviewPhoto = useRuntimeSelector(
-    (payload) => payload.feedSource[0]?.photos?.[1] ?? payload.feedSource[0]?.photos?.[0] ?? '',
-  );
+  const [selfPrimaryPhotoUrl, setSelfPrimaryPhotoUrl] = useState('');
   const [boostTick, setBoostTick] = useState(() => Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
+  const [matchedUser, setMatchedUser] = useState<FeedCandidate | null>(null);
   const [isFiltering, setIsFiltering] = useState(false);
   const [feedStatus, setFeedStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [feedCandidates, setFeedCandidates] = useState<FeedCandidate[]>([]);
   const [feedCursor, setFeedCursor] = useState('');
   const [dismissedCandidates, setDismissedCandidates] = useState<FeedCandidate[]>([]);
+  const [matchedProfileIds, setMatchedProfileIds] = useState<string[]>([]);
   const [isSwipePending, setIsSwipePending] = useState(false);
   const [swipeError, setSwipeError] = useState(false);
   const imagePreloadCacheRef = useRef<Set<string>>(new Set());
@@ -82,15 +104,35 @@ const SwipeScreen = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    authApi
+      .getProfilePhotos()
+      .then((response) => {
+        if (cancelled || response.ok !== true) return;
+        const photos = response.data?.photos ?? [];
+        const primary =
+          photos.find((photo) => photo.is_primary && typeof photo.url === 'string' && photo.url.trim().length > 0) ??
+          photos.find((photo) => typeof photo.url === 'string' && photo.url.trim().length > 0);
+        if (primary?.url) setSelfPrimaryPhotoUrl(primary.url);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     let isCancelled = false;
     setFeedStatus('loading');
     appApi
       .getFeed(activeFilterIds)
       .then((response) => {
         if (isCancelled) return;
-        setFeedCandidates(response.window.candidates);
+        setFeedCandidates(
+          response.window.candidates.filter((candidate) => !matchedProfileIds.includes(candidate.id)),
+        );
         setFeedCursor(response.window.cursor);
-        setDismissedCandidates([]);
+        setDismissedCandidates((prev) => prev.filter((candidate) => !matchedProfileIds.includes(candidate.id)));
         setSwipeError(false);
         setFeedStatus('success');
       })
@@ -103,7 +145,7 @@ const SwipeScreen = () => {
     return () => {
       isCancelled = true;
     };
-  }, [activeFilterIds]);
+  }, [activeFilterIds, matchedProfileIds]);
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -206,7 +248,11 @@ const SwipeScreen = () => {
     void appApi
       .swipe(user.id, decision, feedCursor)
       .then((response) => {
-        if (response.matched) setShowMatch(true);
+        if (response.matched) {
+          setMatchedUser(user);
+          setMatchedProfileIds((prev) => (prev.includes(user.id) ? prev : [...prev, user.id]));
+          setShowMatch(true);
+        }
         setDismissedCandidates((prev) => [...prev, user]);
         setFeedCandidates((prev) => prev.filter((candidate) => candidate.id !== user.id));
         setCurrentIndex(0);
@@ -321,7 +367,22 @@ const SwipeScreen = () => {
       <p className="text-white text-lg font-black tracking-tight">{t('discover.emptyTitle')}</p>
       <p className="text-white/50 text-sm mt-2 max-w-[24ch]">{t('discover.emptySubtitle')}</p>
       <button
-        onClick={() => setActiveFilterIds(['all'])}
+        onClick={() => {
+          const reshuffled = reshuffleCandidates(
+            [...feedCandidates, ...dismissedCandidates].filter(
+              (candidate) => !matchedProfileIds.includes(candidate.id),
+            ),
+          );
+          if (reshuffled.length > 0) {
+            setFeedCandidates(reshuffled);
+            setDismissedCandidates([]);
+            setCurrentIndex(0);
+            setPhotoIndex(0);
+            setSwipeError(false);
+            return;
+          }
+          setActiveFilterIds(['all']);
+        }}
         className="mt-5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border border-white/20 bg-white/5 text-white/80 hover:bg-white/10 transition-colors"
       >
         {t('discover.resetFilters')}
@@ -833,10 +894,10 @@ const SwipeScreen = () => {
               <div className="relative h-56 flex justify-center items-center">
                 <div className="flex -space-x-8 relative z-10">
                   <motion.div initial={{ x: -50, rotate: -15 }} animate={{ x: 0, rotate: -10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img src={selfPreviewPhoto || user?.photos?.[0]} className="w-full h-full object-cover" alt="Me" />
+                    <img src={selfPrimaryPhotoUrl || '/placeholder.svg'} className="w-full h-full object-cover" alt="Me" />
                   </motion.div>
                   <motion.div initial={{ x: 50, rotate: 15 }} animate={{ x: 0, rotate: 10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img src={user?.photos?.[0]} className="w-full h-full object-cover" alt="Match" />
+                    <img src={matchedUser?.photos?.[0] || '/placeholder.svg'} className="w-full h-full object-cover" alt="Match" />
                   </motion.div>
                 </div>
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="absolute bottom-0 z-20 bg-white text-black px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs shadow-2xl">
@@ -845,7 +906,7 @@ const SwipeScreen = () => {
               </div>
 
               <div className="space-y-3">
-                <h2 className="text-4xl font-bold text-white tracking-tight">{t('discover.matchPair', { name: user?.name ?? '' })}</h2>
+                <h2 className="text-4xl font-bold text-white tracking-tight">{t('discover.matchPair', { name: matchedUser?.name ?? '' })}</h2>
                 <p className="text-white/40 text-sm max-w-[240px] mx-auto leading-relaxed">{t('discover.matchSubtitle')}</p>
               </div>
 
@@ -853,14 +914,23 @@ const SwipeScreen = () => {
                 <GlassButton
                   variant="premium"
                   onClick={() => {
-                    if (!user) return;
-                    void appApi.openChat(user.id).then(() => navigate(`/chat/${user.id}`));
+                    if (!matchedUser) return;
+                    void appApi
+                      .openChat(matchedUser.id)
+                      .then(() => navigate(`/chat/${matchedUser.id}`))
+                      .catch(() => navigate(`/chat/${matchedUser.id}`));
                   }}
                   className="w-full py-5 text-sm font-bold uppercase tracking-widest"
                 >
                   {t('discover.sendMessage')}
                 </GlassButton>
-                <button onClick={() => setShowMatch(false)} className="w-full py-2 text-white/30 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
+                <button
+                  onClick={() => {
+                    setShowMatch(false);
+                    setMatchedUser(null);
+                  }}
+                  className="w-full py-2 text-white/30 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors"
+                >
                   {t('discover.continueSwiping')}
                 </button>
               </div>
