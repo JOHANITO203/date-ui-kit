@@ -39,6 +39,7 @@
     "test:runtime": "tsx scripts/runtime-spec-check.ts",
     "test:chat-contract": "tsx scripts/chat-contract-check.ts",
     "test:likes-flow": "tsx scripts/likes-flow-regression.ts",
+    "test:image-perf-audit": "tsx scripts/image-perf-audit.ts",
     "test:shop-effects": "tsx scripts/shop-effects-regression.ts",
     "test:payments-catalog-db": "tsx scripts/payments-catalog-regression.ts",
     "test:payments-catalog-endpoint": "tsx scripts/payments-catalog-endpoint-regression.ts",

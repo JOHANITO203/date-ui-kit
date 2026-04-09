@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
+import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
 type CardVariant =
   | 'locked_standard'
@@ -374,7 +375,7 @@ const MatchesScreen: React.FC = () => {
 
     return (
       <>
-        <div className="absolute inset-0 bg-black/38 premium-blur-overlay" />
+        <div className="absolute inset-0 bg-black/44" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/52 to-black/14" />
 
         <div
@@ -398,7 +399,7 @@ const MatchesScreen: React.FC = () => {
         )}
 
         <div className="absolute bottom-3 left-3 right-3 text-white/70">
-          <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>
+          <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold text-white/72`}>
             {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
           </span>
         </div>
@@ -513,7 +514,26 @@ const MatchesScreen: React.FC = () => {
                   transition={{ delay: index * 0.04 }}
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
-                  <img src={like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
+                  {(() => {
+                    const imageAttrs = buildResponsiveImageAttrs(
+                      like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo,
+                      'card',
+                      '(max-width: 1024px) 50vw, 360px',
+                    );
+                    return (
+                      <img
+                        src={imageAttrs.src}
+                        srcSet={imageAttrs.srcSet}
+                        sizes={imageAttrs.sizes}
+                        alt={like.name}
+                        className="absolute inset-0 w-full h-full object-cover object-center scale-105"
+                        referrerPolicy="no-referrer"
+                        loading={index < 2 ? 'eager' : 'lazy'}
+                        fetchPriority={index < 2 ? 'high' : 'auto'}
+                        decoding="async"
+                      />
+                    );
+                  })()}
                   {renderCardContent(like, false)}
                 </motion.article>
               ))}
@@ -556,7 +576,26 @@ const MatchesScreen: React.FC = () => {
                   transition={{ delay: index * 0.05 }}
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
-                  <img src={like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo} alt={like.name} className="absolute inset-0 w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
+                  {(() => {
+                    const imageAttrs = buildResponsiveImageAttrs(
+                      like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo,
+                      'card',
+                      '(max-width: 1024px) 50vw, 360px',
+                    );
+                    return (
+                      <img
+                        src={imageAttrs.src}
+                        srcSet={imageAttrs.srcSet}
+                        sizes={imageAttrs.sizes}
+                        alt={like.name}
+                        className="absolute inset-0 w-full h-full object-cover object-center scale-105"
+                        referrerPolicy="no-referrer"
+                        loading={index < 2 ? 'eager' : 'lazy'}
+                        fetchPriority={index < 2 ? 'high' : 'auto'}
+                        decoding="async"
+                      />
+                    );
+                  })()}
                   {renderCardContent(like, true)}
                 </motion.article>
               ))}

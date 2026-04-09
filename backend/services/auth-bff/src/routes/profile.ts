@@ -93,7 +93,7 @@ type ProfilePhotoRow = {
 
 const PROFILE_PHOTOS_BUCKET = env.STORAGE_PROFILE_PHOTOS_BUCKET;
 const PHOTO_MAX_COUNT = 5;
-const SIGNED_URL_CACHE_VERSION = "v2:original";
+const SIGNED_URL_CACHE_VERSION = "v3:profile";
 const SIGNED_URL_CACHE_SKEW_MS = 30_000;
 const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
 
@@ -171,7 +171,12 @@ const buildPhotoPublicPayload = async (row: ProfilePhotoRow) => {
 
   const { data, error } = await supabaseServiceClient.storage
     .from(PROFILE_PHOTOS_BUCKET)
-    .createSignedUrl(row.storage_path, env.STORAGE_SIGNED_URL_TTL_SEC);
+    .createSignedUrl(row.storage_path, env.STORAGE_SIGNED_URL_TTL_SEC, {
+      transform: {
+        width: 1080,
+        quality: 78,
+      },
+    } as any);
 
   if (error) {
     return {

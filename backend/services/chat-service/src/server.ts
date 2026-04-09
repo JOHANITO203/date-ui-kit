@@ -223,7 +223,12 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
     if (missingPaths.length > 0) {
       const signed = await supabaseServiceClient.storage
         .from(PROFILE_PHOTOS_BUCKET)
-        .createSignedUrls(missingPaths, SIGNED_URL_TTL_SEC);
+        .createSignedUrls(missingPaths, SIGNED_URL_TTL_SEC, {
+          transform: {
+            width: 256,
+            quality: 72,
+          },
+        } as any);
       if (!signed.error && Array.isArray(signed.data)) {
         for (const entry of signed.data) {
           if (!entry?.path || !entry?.signedUrl) continue;

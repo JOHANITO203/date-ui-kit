@@ -14,6 +14,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { getOnboardingProfileSnapshot, hydrateProfileSeed } from '../domain/profileHydration';
 import { computeVisibilityScore } from '../domain/visibilityScore';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
+import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
 const calculateAge = (birthDateIso: string | null | undefined) => {
   if (!birthDateIso) return undefined;
@@ -195,6 +196,15 @@ const ProfileScreen = () => {
       travelPassServerAccess.source,
       verifiedIdentity,
     ],
+  );
+  const profilePhotoAttrs = useMemo(
+    () =>
+      buildResponsiveImageAttrs(
+        profilePhotoUrl,
+        'profile',
+        '(max-width: 1024px) 100vw, 520px',
+      ),
+    [profilePhotoUrl],
   );
   const openServerSettings = () => {
     if (travelPassServerAccess.canChangeServer) {
@@ -428,7 +438,9 @@ const ProfileScreen = () => {
               <div className="aspect-square rounded-[var(--card-radius)] overflow-hidden border border-white/10 shadow-2xl">
                 {profilePhotoUrl ? (
                   <img
-                    src={profilePhotoUrl}
+                    src={profilePhotoAttrs.src}
+                    srcSet={profilePhotoAttrs.srcSet}
+                    sizes={profilePhotoAttrs.sizes}
                     className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700"
                     alt="Me"
                     loading="eager"

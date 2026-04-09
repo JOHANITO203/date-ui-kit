@@ -9,6 +9,7 @@ import { appApi, subscribeConversationRelationChange } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { ConversationSummary, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
+import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
@@ -35,16 +36,20 @@ const AvatarImage = ({ src, name, className, imgClassName }: AvatarImageProps) =
   const [failed, setFailed] = useState(false);
   const initial = (name?.trim()?.[0] ?? '?').toUpperCase();
   const canRenderImage = !failed && src !== '/placeholder.svg';
+  const imageAttrs = buildResponsiveImageAttrs(src, 'avatar', '64px');
 
   return (
     <div className={`${className} overflow-hidden bg-white/5`}>
       {canRenderImage ? (
         <img
-          src={src}
+          src={imageAttrs.src}
+          srcSet={imageAttrs.srcSet}
+          sizes={imageAttrs.sizes}
           className={imgClassName}
           alt={name}
           referrerPolicy="no-referrer"
           loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
         />
       ) : (

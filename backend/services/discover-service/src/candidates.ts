@@ -61,7 +61,7 @@ const optionalQueryTimeoutMs = Math.min(
   env.DISCOVER_SUPABASE_TIMEOUT_MS,
   env.DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS,
 );
-const SIGNED_URL_CACHE_VERSION = "v1";
+const SIGNED_URL_CACHE_VERSION = "v2-card";
 const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
 const signedPhotoCacheKey = (storagePath: string) => `${SIGNED_URL_CACHE_VERSION}:${storagePath}`;
 const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
@@ -238,7 +238,12 @@ const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, st
     const signedBatch = await withTimeout(
       supabase.storage
         .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
-        .createSignedUrls(missingPaths, env.STORAGE_SIGNED_URL_TTL_SEC),
+        .createSignedUrls(missingPaths, env.STORAGE_SIGNED_URL_TTL_SEC, {
+          transform: {
+            width: 960,
+            quality: 76,
+          },
+        } as any),
       optionalQueryTimeoutMs,
       "discover_create_signed_urls",
     );

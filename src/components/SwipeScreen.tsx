@@ -11,6 +11,7 @@ import { appApi, authApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { FeedCandidate, FeedQuickFilter, PlanTier, SwipeDecision } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
+import { buildOptimizedImageUrl, buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
@@ -96,9 +97,9 @@ const SwipeScreen = () => {
   }, [feedCandidates, t]);
 
   const preloadImage = (url: string | undefined | null) => {
-    if (!url || typeof url !== 'string') return;
-    const normalized = url.trim();
-    if (!normalized || imagePreloadCacheRef.current.has(normalized)) return;
+    const normalized = buildOptimizedImageUrl(url, 'card');
+    if (!normalized || normalized === '/placeholder.svg' || imagePreloadCacheRef.current.has(normalized))
+      return;
     imagePreloadCacheRef.current.add(normalized);
     const image = new Image();
     image.decoding = 'async';
@@ -192,8 +193,6 @@ const SwipeScreen = () => {
     if (!user) return;
     preloadImage(user.photos?.[photoIndex]);
     preloadImage(user.photos?.[photoIndex + 1]);
-    preloadImage(user.photos?.[photoIndex - 1]);
-    preloadImage(user.photos?.[0]);
     preloadImage(nextUser?.photos?.[0]);
   }, [nextUser?.id, photoIndex, user?.id]);
   const boostRemainingSeconds = useMemo(() => {
@@ -213,6 +212,22 @@ const SwipeScreen = () => {
       : boostState === 'available'
         ? `x${balances.boostsLeft}`
         : t('discover.boost');
+  const currentPhotoAttrs = user
+    ? buildResponsiveImageAttrs(user.photos[photoIndex], 'card', '(max-width: 1024px) 100vw, 720px')
+    : null;
+  const nextPhotoAttrs = nextUser
+    ? buildResponsiveImageAttrs(nextUser.photos[0], 'card', '(max-width: 1024px) 100vw, 720px')
+    : null;
+  const matchSelfPhotoAttrs = buildResponsiveImageAttrs(
+    selfPrimaryPhotoUrl || '/placeholder.svg',
+    'profile',
+    '144px',
+  );
+  const matchPeerPhotoAttrs = buildResponsiveImageAttrs(
+    matchedUser?.photos?.[0] || '/placeholder.svg',
+    'profile',
+    '144px',
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -619,10 +634,13 @@ const SwipeScreen = () => {
                   style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
                 >
                   <img
-                    src={nextUser.photos[0]}
+                    src={nextPhotoAttrs?.src}
+                    srcSet={nextPhotoAttrs?.srcSet}
+                    sizes={nextPhotoAttrs?.sizes}
                     className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]"
                     alt="next"
                     referrerPolicy="no-referrer"
+                    loading="lazy"
                     decoding="async"
                   />
                 </motion.div>
@@ -644,7 +662,9 @@ const SwipeScreen = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.4 }}
-                  src={user.photos[photoIndex]}
+                  src={currentPhotoAttrs?.src}
+                  srcSet={currentPhotoAttrs?.srcSet}
+                  sizes={currentPhotoAttrs?.sizes}
                   className="w-full h-full object-cover object-[center_22%] pointer-events-none"
                   alt={user.name}
                   referrerPolicy="no-referrer"
@@ -767,10 +787,13 @@ const SwipeScreen = () => {
                   style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
                 >
                   <img
-                    src={nextUser.photos[0]}
+                    src={nextPhotoAttrs?.src}
+                    srcSet={nextPhotoAttrs?.srcSet}
+                    sizes={nextPhotoAttrs?.sizes}
                     className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]"
                     alt="next"
                     referrerPolicy="no-referrer"
+                    loading="lazy"
                     decoding="async"
                   />
                 </motion.div>
@@ -792,7 +815,9 @@ const SwipeScreen = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.4 }}
-                  src={user.photos[photoIndex]}
+                  src={currentPhotoAttrs?.src}
+                  srcSet={currentPhotoAttrs?.srcSet}
+                  sizes={currentPhotoAttrs?.sizes}
                   className="w-full h-full object-cover object-[center_22%] pointer-events-none"
                   alt={user.name}
                   referrerPolicy="no-referrer"
@@ -902,10 +927,26 @@ const SwipeScreen = () => {
               <div className="relative h-56 flex justify-center items-center">
                 <div className="flex -space-x-8 relative z-10">
                   <motion.div initial={{ x: -50, rotate: -15 }} animate={{ x: 0, rotate: -10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img src={selfPrimaryPhotoUrl || '/placeholder.svg'} className="w-full h-full object-cover" alt="Me" />
+                    <img
+                      src={matchSelfPhotoAttrs.src}
+                      srcSet={matchSelfPhotoAttrs.srcSet}
+                      sizes={matchSelfPhotoAttrs.sizes}
+                      className="w-full h-full object-cover"
+                      alt="Me"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </motion.div>
                   <motion.div initial={{ x: 50, rotate: 15 }} animate={{ x: 0, rotate: 10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img src={matchedUser?.photos?.[0] || '/placeholder.svg'} className="w-full h-full object-cover" alt="Match" />
+                    <img
+                      src={matchPeerPhotoAttrs.src}
+                      srcSet={matchPeerPhotoAttrs.srcSet}
+                      sizes={matchPeerPhotoAttrs.sizes}
+                      className="w-full h-full object-cover"
+                      alt="Match"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </motion.div>
                 </div>
                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="absolute bottom-0 z-20 bg-white text-black px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs shadow-2xl">
