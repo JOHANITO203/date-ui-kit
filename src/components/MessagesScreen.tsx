@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
@@ -252,7 +252,7 @@ const MessagesScreen = () => {
     convNode.scrollTop = ratio * maxScroll;
   };
 
-  const handleConversationsRailMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleConversationsRailMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     scrollConversationsFromRail(event.clientY);
     const onMove = (moveEvent: MouseEvent) => {

@@ -1,6 +1,15 @@
-﻿import { config as loadEnv } from "dotenv";
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const serviceDir = path.resolve(__dirname, "..");
+const rootDir = path.resolve(__dirname, "../../../../");
+
+loadEnv({ path: path.join(rootDir, ".env") });
+loadEnv({ path: path.join(serviceDir, ".env") });
 loadEnv();
 
 const envSchema = z.object({
@@ -26,6 +35,9 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((value) => value === "1" || value?.toLowerCase() === "true"),
+  PAYMENTS_CATALOG_SOURCE: z
+    .enum(["db_strict", "db_with_emergency_fallback", "code"])
+    .default("db_strict"),
 });
 
 const parsed = envSchema.safeParse(process.env);

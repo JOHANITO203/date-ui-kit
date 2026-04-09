@@ -92,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (requestId !== refreshRequestIdRef.current) return;
       if (ephemeralAccessRef.current) return;
       if (!session.ok || !session.data?.authenticated || !session.data.user) {
+        await appApi.applyEntitlementSnapshot(null);
         setUser(null);
         setStatus('guest');
         return;
@@ -204,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const disableEphemeralAccess = () => {
     refreshRequestIdRef.current += 1;
     clearEphemeralAccess();
+    void appApi.applyEntitlementSnapshot(null);
     setEphemeralAccessEnabled(false);
     setUser(null);
     setStatus('guest');
@@ -219,6 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authApi.logout();
     } finally {
+      await appApi.applyEntitlementSnapshot(null);
       setUser(null);
       setStatus('guest');
       profileBackfillUserIdRef.current = null;

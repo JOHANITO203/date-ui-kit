@@ -100,11 +100,11 @@ export type EntitlementSnapshot = {
 };
 
 type OfferEffectDefinition = {
-  snapshot: EntitlementSnapshot;
+  resolveSnapshot: () => EntitlementSnapshot;
   summary: string;
 };
 
-const computeExpiry = (durationHours: number) =>
+const computeExpiryFromNow = (durationHours: number) =>
   new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString();
 
 const isIsoActive = (value?: string) => {
@@ -185,128 +185,134 @@ const MONTH_HOURS = 24 * 30;
 
 const offerEffectsById: Record<string, OfferEffectDefinition> = {
   "tier-essential-month": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "essential",
-      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      planExpiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       balancesDelta: { superlikesLeft: 5 },
-    },
+    }),
     summary: "Essential monthly plan + starter superlikes allocation",
   },
   "tier-gold-month": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "gold",
-      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      planExpiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       balancesDelta: { superlikesLeft: 10, boostsLeft: 4, rewindsLeft: 12 },
-    },
+    }),
     summary: "Gold monthly plan + included boosts/superlikes/rewinds allocation",
   },
   "tier-platinum-month": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "platinum",
-      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      planExpiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       balancesDelta: { superlikesLeft: 20, boostsLeft: 30, rewindsLeft: 30 },
-    },
+    }),
     summary: "Platinum monthly plan + high included token allocation",
   },
   "tier-elite-month": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "elite",
-      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      planExpiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       balancesDelta: { superlikesLeft: 30, boostsLeft: 45, rewindsLeft: 45, icebreakersLeft: 5 },
-    },
+    }),
     summary: "Elite monthly plan + top included token allocation",
   },
 
   "instant-boost": {
-    snapshot: { balancesDelta: { boostsLeft: 1 } },
+    resolveSnapshot: () => ({ balancesDelta: { boostsLeft: 1 } }),
     summary: "Single boost token",
   },
   "instant-superlike": {
-    snapshot: { balancesDelta: { superlikesLeft: 5 } },
+    resolveSnapshot: () => ({ balancesDelta: { superlikesLeft: 5 } }),
     summary: "SuperLike token pack",
   },
   "instant-icebreaker": {
-    snapshot: { balancesDelta: { icebreakersLeft: 1 } },
+    resolveSnapshot: () => ({ balancesDelta: { icebreakersLeft: 1 } }),
     summary: "Single IceBreaker item",
   },
   "instant-rewind-x10": {
-    snapshot: { balancesDelta: { rewindsLeft: 10 } },
+    resolveSnapshot: () => ({ balancesDelta: { rewindsLeft: 10 } }),
     summary: "Rewind x10 token pack",
   },
   "instant-travel-pass": {
-    snapshot: {
+    resolveSnapshot: () => ({
       travelPass: {
         source: "travel_pass",
-        expiresAtIso: computeExpiry(24),
+        expiresAtIso: computeExpiryFromNow(24),
       },
-    },
+    }),
     summary: "Travel Pass access for 24h",
   },
   "instant-shadowghost": {
-    snapshot: {
+    resolveSnapshot: () => ({
       shadowGhost: {
         source: "shadowghost_item",
-        expiresAtIso: computeExpiry(24),
+        expiresAtIso: computeExpiryFromNow(24),
         enablePrivacy: true,
       },
-    },
+    }),
     summary: "ShadowGhost privacy access for 24h",
   },
 
   "pass-day": {
-    snapshot: { planTier: "essential", planExpiresAtIso: computeExpiry(24) },
+    resolveSnapshot: () => ({
+      planTier: "essential",
+      planExpiresAtIso: computeExpiryFromNow(24),
+    }),
     summary: "Essential short pass (24h)",
   },
   "pass-week": {
-    snapshot: { planTier: "essential", planExpiresAtIso: computeExpiry(24 * 7) },
+    resolveSnapshot: () => ({
+      planTier: "essential",
+      planExpiresAtIso: computeExpiryFromNow(24 * 7),
+    }),
     summary: "Essential short pass (7d)",
   },
   "pass-month": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "essential",
-      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      planExpiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       balancesDelta: { superlikesLeft: 5 },
-    },
+    }),
     summary: "Essential monthly pass + starter superlikes allocation",
   },
   "pass-travel-pass-plus": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "essential",
-      planExpiresAtIso: computeExpiry(24 * 7),
+      planExpiresAtIso: computeExpiryFromNow(24 * 7),
       travelPass: {
         source: "travel_pass",
-        expiresAtIso: computeExpiry(24 * 7),
+        expiresAtIso: computeExpiryFromNow(24 * 7),
       },
-    },
+    }),
     summary: "Essential weekly pass + Travel Pass+ access",
   },
 
   "bundle-starter": {
-    snapshot: {
+    resolveSnapshot: () => ({
       balancesDelta: { boostsLeft: 1, superlikesLeft: 5 },
-    },
+    }),
     summary: "Starter bundle token credits",
   },
   "bundle-dating-pro": {
-    snapshot: {
+    resolveSnapshot: () => ({
       balancesDelta: { boostsLeft: 5, superlikesLeft: 20, rewindsLeft: 10, icebreakersLeft: 2 },
       travelPass: {
         source: "bundle_included",
-        expiresAtIso: computeExpiry(MONTH_HOURS),
+        expiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       },
-    },
+    }),
     summary: "Dating Pro bundle credits + Travel Pass entitlement",
   },
   "bundle-premium-plus": {
-    snapshot: {
+    resolveSnapshot: () => ({
       planTier: "elite",
-      planExpiresAtIso: computeExpiry(MONTH_HOURS),
+      planExpiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       balancesDelta: { boostsLeft: 4, superlikesLeft: 20, rewindsLeft: 10, icebreakersLeft: 3 },
       travelPass: {
         source: "bundle_included",
-        expiresAtIso: computeExpiry(MONTH_HOURS),
+        expiresAtIso: computeExpiryFromNow(MONTH_HOURS),
       },
-    },
+    }),
     summary: "Premium+ bundle with elite plan + credits + travel pass",
   },
 };
@@ -326,11 +332,11 @@ export const listOfferEffectsAudit = (): Array<{
   Object.entries(offerEffectsById).map(([offerId, effect]) => ({
     offerId,
     summary: effect.summary,
-    hasEffect: hasMeaningfulEntitlementEffect(effect.snapshot),
+    hasEffect: hasMeaningfulEntitlementEffect(effect.resolveSnapshot()),
   }));
 
 export const resolveEntitlementSnapshot = (offer: Offer): EntitlementSnapshot => {
-  return offerEffectsById[offer.id]?.snapshot ?? {};
+  return offerEffectsById[offer.id]?.resolveSnapshot() ?? {};
 };
 
 export const resolveEffectiveBenefitsSnapshot = (

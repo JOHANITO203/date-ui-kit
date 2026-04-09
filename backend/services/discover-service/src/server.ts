@@ -547,7 +547,8 @@ export const buildServer = () => {
         .eq("liked_user_id", userId)
         .in("status", ["pending", "matched"])
         .order("created_at", { ascending: false })
-        .limit(250);
+        .order("id", { ascending: false })
+        .limit(2000);
       if (likesResult.error) throw likesResult.error;
       const likesRows = (likesResult.data ?? []) as DiscoverLikeRow[];
       if (likesRows.length === 0) {

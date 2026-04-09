@@ -20,8 +20,11 @@ Runtime:
 - internal service JWT required on protected endpoints (`Authorization: Bearer <token>`)
 - persistence in Supabase tables (`payments_checkouts`, `user_entitlements`) when Supabase creds are set
 - catalog source:
-  - reads `public.in_app_offers` when available
-  - falls back to in-code catalog if DB is unavailable or empty
+  - `PAYMENTS_CATALOG_SOURCE=db_strict` (default): `public.in_app_offers` is mandatory; endpoint returns `503` if incomplete/unavailable
+  - `PAYMENTS_CATALOG_SOURCE=db_with_emergency_fallback`: temporary emergency mode; falls back to in-code catalog with explicit error logs (`payments.catalog.emergency_fallback_used`)
+  - `PAYMENTS_CATALOG_SOURCE=code`: local/dev catalog-only mode
+- catalog observability:
+  - `GET /payments/catalog/audit` returns required IDs, missing IDs, and degraded/source flags
 - automatic memory fallback when Supabase creds are not set
 - works in two modes:
   - `mock` when YooKassa credentials are not set

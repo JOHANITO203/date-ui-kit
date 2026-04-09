@@ -4,7 +4,7 @@ import formbody from "@fastify/formbody";
 import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config.js";
-import { offerSchema, offersCatalog, resolveOffer, type Offer } from "./catalog.js";
+import { offerSchema, offersCatalog, type Offer } from "./catalog.js";
 import {
   hasMeaningfulEntitlementEffect,
   listOfferEffectsAudit,
@@ -35,7 +35,21 @@ type CheckoutRow = {
 
 type CatalogCache = {
   fetchedAt: number;
+  result: CatalogBuildResult;
+};
+
+type CatalogRequiredValidation = {
+  requiredOfferIds: string[];
+  missingOfferIds: string[];
+  offersWithoutEffects: string[];
+};
+
+type CatalogBuildResult = {
   offers: Offer[];
+  source: "db" | "fallback" | "code";
+  degraded: boolean;
+  reason?: string;
+  validation: CatalogRequiredValidation;
 };
 
 const CATALOG_CACHE_TTL_MS = 60_000;
@@ -123,6 +137,27 @@ const getWebhookSecret = (headers: Record<string, unknown>) => {
   if (typeof altHeaderToken === "string" && altHeaderToken.trim()) return altHeaderToken.trim();
   return "";
 };
+
+const requiredOfferIds = offersCatalog.map((offer) => offer.id);
+
+const validateRequiredCatalog = (offers: Offer[]): CatalogRequiredValidation => {
+  const byId = new Map(offers.map((offer) => [offer.id, offer]));
+  const missingOfferIds = requiredOfferIds.filter((offerId) => !byId.has(offerId));
+  const offersWithoutEffects = requiredOfferIds.filter((offerId) => {
+    const offer = byId.get(offerId);
+    if (!offer) return false;
+    return !hasMeaningfulEntitlementEffect(resolveEntitlementSnapshot(offer));
+  });
+
+  return {
+    requiredOfferIds,
+    missingOfferIds,
+    offersWithoutEffects,
+  };
+};
+
+const isCatalogValidationOk = (validation: CatalogRequiredValidation) =>
+  validation.missingOfferIds.length === 0 && validation.offersWithoutEffects.length === 0;
 
 type InternalJwtPayload = {
   sub: string;
@@ -273,6 +308,24 @@ export const buildServer = () => {
     if (error) throw error;
   };
 
+  const listPendingAttributionCheckouts = async (userId: string): Promise<CheckoutRow[]> => {
+    if (!supabaseServiceClient) {
+      return [...checkoutsMemory.values()].filter(
+        (entry) => entry.user_id === userId && entry.status === "paid" && !entry.attributed,
+      );
+    }
+    const { data, error } = await supabaseServiceClient
+      .from("payments_checkouts")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "paid")
+      .eq("attributed", false)
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    return (data as CheckoutRow[] | null) ?? [];
+  };
+
   const saveEntitlement = async (userId: string, snapshot: EntitlementSnapshot) => {
     const sanitized = sanitizeEntitlementSnapshot(snapshot);
     if (!supabaseServiceClient) {
@@ -324,15 +377,41 @@ export const buildServer = () => {
     );
   };
 
-  const getCatalog = async (): Promise<Offer[]> => {
+  const getCatalog = async (): Promise<CatalogBuildResult> => {
     const now = Date.now();
     if (catalogCache && now - catalogCache.fetchedAt < CATALOG_CACHE_TTL_MS) {
-      return catalogCache.offers;
+      return catalogCache.result;
+    }
+
+    const buildFromCode = (reason?: string): CatalogBuildResult => {
+      const validation = validateRequiredCatalog(offersCatalog);
+      return {
+        offers: offersCatalog,
+        source: "code",
+        degraded: Boolean(reason),
+        reason,
+        validation,
+      };
+    };
+
+    if (env.PAYMENTS_CATALOG_SOURCE === "code") {
+      const result = buildFromCode("catalog_source_code_mode");
+      catalogCache = { fetchedAt: now, result };
+      return result;
     }
 
     if (!supabaseServiceClient) {
-      catalogCache = { fetchedAt: now, offers: offersCatalog };
-      return offersCatalog;
+      if (env.PAYMENTS_CATALOG_SOURCE === "db_strict") {
+        throw new Error("catalog_db_strict_requires_supabase");
+      }
+      const fallback = buildFromCode("supabase_client_unavailable");
+      app.log.error(
+        { reason: fallback.reason, sourceMode: env.PAYMENTS_CATALOG_SOURCE },
+        "payments.catalog.emergency_fallback_used",
+      );
+      const result = { ...fallback, source: "fallback" as const };
+      catalogCache = { fetchedAt: now, result };
+      return result;
     }
 
     const { data, error } = await supabaseServiceClient
@@ -342,13 +421,27 @@ export const buildServer = () => {
       .order("sort_order", { ascending: true });
 
     if (error || !data) {
-      catalogCache = { fetchedAt: now, offers: offersCatalog };
-      return offersCatalog;
+      if (env.PAYMENTS_CATALOG_SOURCE === "db_strict") {
+        throw new Error(`catalog_db_query_failed:${error?.message ?? "unknown"}`);
+      }
+      const fallback = buildFromCode("catalog_db_query_failed");
+      app.log.error(
+        {
+          reason: fallback.reason,
+          sourceMode: env.PAYMENTS_CATALOG_SOURCE,
+          dbError: error?.message ?? null,
+        },
+        "payments.catalog.emergency_fallback_used",
+      );
+      const result = { ...fallback, source: "fallback" as const };
+      catalogCache = { fetchedAt: now, result };
+      return result;
     }
 
+    const invalidDbRows: string[] = [];
     const parsedOffers = (data as Record<string, unknown>[])
-      .map((row) =>
-        offerSchema.safeParse({
+      .map((row) => {
+        const parsed = offerSchema.safeParse({
           id: row.id,
           label: row.label,
           description: row.description,
@@ -356,20 +449,60 @@ export const buildServer = () => {
           amountMinor: row.amount_minor,
           currencyNumeric: row.currency_numeric,
           type: row.type,
-          durationHours: row.duration_hours,
-        }),
-      )
+          durationHours: row.duration_hours ?? undefined,
+        });
+        if (!parsed.success) {
+          invalidDbRows.push(String(row.id ?? "unknown"));
+        }
+        return parsed;
+      })
       .filter((entry): entry is { success: true; data: Offer } => entry.success)
       .map((entry) => entry.data);
 
-    const finalOffers = parsedOffers.length > 0 ? parsedOffers : offersCatalog;
-    catalogCache = { fetchedAt: now, offers: finalOffers };
-    return finalOffers;
+    const dbValidation = validateRequiredCatalog(parsedOffers);
+    const dbValid = isCatalogValidationOk(dbValidation) && invalidDbRows.length === 0;
+
+    if (dbValid) {
+      const result = {
+        offers: parsedOffers,
+        source: "db" as const,
+        degraded: false,
+        validation: dbValidation,
+      };
+      catalogCache = { fetchedAt: now, result };
+      return result;
+    }
+
+    app.log.error(
+      {
+        sourceMode: env.PAYMENTS_CATALOG_SOURCE,
+        invalidDbRows,
+        missingOfferIds: dbValidation.missingOfferIds,
+        offersWithoutEffects: dbValidation.offersWithoutEffects,
+      },
+      "payments.catalog.incomplete_required_offers",
+    );
+
+    if (env.PAYMENTS_CATALOG_SOURCE === "db_strict") {
+      throw new Error("catalog_db_incomplete_required_offers");
+    }
+
+    const fallback = buildFromCode("catalog_db_incomplete_required_offers");
+    app.log.error(
+      {
+        reason: fallback.reason,
+        sourceMode: env.PAYMENTS_CATALOG_SOURCE,
+      },
+      "payments.catalog.emergency_fallback_used",
+    );
+    const result = { ...fallback, source: "fallback" as const };
+    catalogCache = { fetchedAt: now, result };
+    return result;
   };
 
   const getOfferById = async (offerId: string): Promise<Offer | undefined> => {
-    const catalog = await getCatalog();
-    return catalog.find((offer) => offer.id === offerId) ?? resolveOffer(offerId);
+    const catalogResult = await getCatalog();
+    return catalogResult.offers.find((offer) => offer.id === offerId);
   };
 
   const attributeCheckout = async (checkout: CheckoutRow): Promise<CheckoutRow> => {
@@ -379,10 +512,15 @@ export const buildServer = () => {
 
     const resolvedSnapshot = resolveEntitlementSnapshot(offer);
     if (!hasMeaningfulEntitlementEffect(resolvedSnapshot)) {
+      app.log.error({ checkoutId: checkout.checkout_id, offerId: checkout.offer_id }, "payments.attribute.offer_effect_missing");
       throw new Error(`offer_effect_missing:${offer.id}`);
     }
     const snapshot = sanitizeEntitlementSnapshot(resolvedSnapshot);
     if (!snapshot) {
+      app.log.error(
+        { checkoutId: checkout.checkout_id, offerId: checkout.offer_id },
+        "payments.attribute.offer_effect_sanitized_empty",
+      );
       throw new Error(`offer_effect_sanitized_empty:${offer.id}`);
     }
     const currentEntitlement = await getEntitlement(checkout.user_id);
@@ -394,6 +532,15 @@ export const buildServer = () => {
     });
 
     await saveEntitlement(checkout.user_id, mergedSnapshot);
+
+    app.log.info(
+      {
+        checkoutId: checkout.checkout_id,
+        userId: checkout.user_id,
+        offerId: checkout.offer_id,
+      },
+      "payments.attribute.applied",
+    );
 
     return {
       ...checkout,
@@ -415,12 +562,45 @@ export const buildServer = () => {
     offers: listOfferEffectsAudit(),
   }));
 
-  app.get("/payments/catalog", async () => {
-    const offers = await getCatalog();
-    return {
-      offers,
-      pspMode: yookassa ? "yookassa" : "mock",
-    };
+  app.get("/payments/catalog/audit", async (_request, reply) => {
+    try {
+      const catalog = await getCatalog();
+      return {
+        sourceMode: env.PAYMENTS_CATALOG_SOURCE,
+        source: catalog.source,
+        degraded: catalog.degraded,
+        reason: catalog.reason ?? null,
+        requiredOfferIds: catalog.validation.requiredOfferIds,
+        missingOfferIds: catalog.validation.missingOfferIds,
+        offersWithoutEffects: catalog.validation.offersWithoutEffects,
+        totalOffers: catalog.offers.length,
+      };
+    } catch (error) {
+      app.log.error({ error }, "payments.catalog.audit_failed");
+      reply.status(503);
+      return {
+        code: "CATALOG_AUDIT_FAILED",
+      };
+    }
+  });
+
+  app.get("/payments/catalog", async (_request, reply) => {
+    try {
+      const catalog = await getCatalog();
+      return {
+        offers: catalog.offers,
+        pspMode: yookassa ? "yookassa" : "mock",
+        source: catalog.source,
+        degraded: catalog.degraded,
+      };
+    } catch (error) {
+      app.log.error({ error }, "payments.catalog.unavailable");
+      reply.status(503);
+      return {
+        code: "CATALOG_UNAVAILABLE",
+        message: "Payments catalog is incomplete or unavailable.",
+      };
+    }
   });
 
   app.get("/entitlements/me", async (request, reply) => {
@@ -429,6 +609,24 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
     }
     try {
+      const pendingCheckouts = await listPendingAttributionCheckouts(userId);
+      if (pendingCheckouts.length > 0) {
+        for (const checkout of pendingCheckouts) {
+          try {
+            await attributeCheckout(checkout);
+          } catch (error) {
+            app.log.error(
+              {
+                error,
+                checkoutId: checkout.checkout_id,
+                offerId: checkout.offer_id,
+              },
+              "payments.attribute.reconcile_failed",
+            );
+          }
+        }
+      }
+
       const snapshot = await getEntitlement(userId);
       if (snapshot) {
         await saveEntitlement(userId, snapshot);

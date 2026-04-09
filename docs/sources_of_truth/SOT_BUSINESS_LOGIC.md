@@ -84,10 +84,14 @@ Date de verrouillage: 2026-03-30
 
 ## 10) Boutique / creditation post-achat (verrouille)
 - Source de verite boutique:
-  - catalogue: `backend/services/payments-service/src/catalog.ts`
+  - prod: table DB `public.in_app_offers` (source explicite servie par `GET /payments/catalog`)
+  - canon versionne: `backend/services/payments-service/src/catalog.ts` (reference de realign + tests)
+  - mode urgence uniquement: fallback code active par `PAYMENTS_CATALOG_SOURCE=db_with_emergency_fallback` avec logs explicites
   - mapping effet metier: `backend/services/payments-service/src/entitlements.ts`
 - Chaine obligatoire pour tout produit:
   - `product definition -> payment success -> post-purchase validation -> crediting -> persistence -> activation -> UI reflection -> real effect`.
+- Regle temporelle critique:
+  - les expirations (`planExpiresAtIso`, `travelPass.expiresAtIso`, `shadowGhost.expiresAtIso`) sont calculees au moment de l'attribution (achat valide), jamais au demarrage du service.
 - Regle anti-faux-succes:
   - un produit paye sans effet metier explicite est invalide et doit echouer explicitement (pas de succes silencieux).
 - Abonnements mensuels:

@@ -814,7 +814,7 @@ export const runtimeApi = {
         icebreakersLeft: Math.max(0, snapshot?.balancesDelta?.icebreakersLeft ?? 0),
       };
 
-      const nextSettings = {
+      const nextSettings: UserSettings = {
         ...prev.settings,
         preferences: {
           ...prev.settings.preferences,

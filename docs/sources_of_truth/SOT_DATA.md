@@ -61,7 +61,8 @@ Source: `src/state/appRuntimeStore.ts`
 - Pas de hardcode de droits UI sans passer par contrat/derive metier.
 
 ## 5) Boutique: definitions / effets
-- Definitions produits: `backend/services/payments-service/src/catalog.ts`.
+- Catalogue prod: `public.in_app_offers` (servi par `GET /payments/catalog`, mode strict par defaut).
+- Catalogue canon versionne: `backend/services/payments-service/src/catalog.ts` (reconciliation/migrations/tests).
 - Effets post-achat: `backend/services/payments-service/src/entitlements.ts` (`offer -> entitlement snapshot`).
 - Validation anti-produit vide:
   - un produit sans effet metier est considere invalide lors de l'attribution.

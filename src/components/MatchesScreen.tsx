@@ -1,10 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Heart, Star, Eye } from 'lucide-react';
+import { Heart, Star, Ghost, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
+
+type CardVariant =
+  | 'locked_standard'
+  | 'locked_ghost'
+  | 'unlockable_icebreaker'
+  | 'unlocked'
+  | 'visible_by_entitlement';
 
 const MatchesScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +33,7 @@ const MatchesScreen: React.FC = () => {
     Array<{
       id: string;
       profileId: string;
+      receivedAtIso: string;
       name: string;
       age: number;
       ageMasked: boolean;
@@ -46,7 +54,49 @@ const MatchesScreen: React.FC = () => {
   const [isPremiumPreviewUnlocked, setIsPremiumPreviewUnlocked] = useState(false);
   const [actionLikeId, setActionLikeId] = useState<string | null>(null);
   const [iceBreakerBusy, setIceBreakerBusy] = useState(false);
+  const [iceBreakerBusyLikeId, setIceBreakerBusyLikeId] = useState<string | null>(null);
   const [iceBreakerFeedback, setIceBreakerFeedback] = useState<string | null>(null);
+
+  const mapLikesCards = (
+    visibleLikes: Array<{
+      id: string;
+      profile: {
+        id: string;
+        name: string;
+        age: number;
+        city: string;
+        photos: string[];
+        flags: { hideAge: boolean };
+        online: boolean;
+      };
+      receivedAtIso: string;
+      wasSuperLike: boolean;
+      state: 'pending_incoming_like' | 'matched' | 'refused';
+      hiddenByShadowGhost: boolean;
+      blurredLocked: boolean;
+    }>,
+  ) =>
+    visibleLikes
+      .map((entry) => ({
+        id: entry.id,
+        profileId: entry.profile.id,
+        receivedAtIso: entry.receivedAtIso,
+        name: entry.profile.name,
+        age: entry.profile.age,
+        ageMasked: entry.profile.flags.hideAge,
+        city: entry.profile.city,
+        photo: entry.profile.photos[0] ?? '',
+        wasSuperLike: entry.wasSuperLike,
+        state: entry.state,
+        hiddenByShadowGhost: entry.hiddenByShadowGhost,
+        blurredLocked: entry.blurredLocked,
+        online: entry.profile.online,
+      }))
+      .sort((a, b) => {
+        // Keep unlocked cards visible/prioritized even when new locked likes arrive.
+        if (a.blurredLocked !== b.blurredLocked) return a.blurredLocked ? 1 : -1;
+        return new Date(b.receivedAtIso).getTime() - new Date(a.receivedAtIso).getTime();
+      });
 
   useEffect(() => {
     setIsLoading(true);
@@ -60,22 +110,7 @@ const MatchesScreen: React.FC = () => {
         setIceBreakerOwnedCount(response.inventory.iceBreaker.ownedCount);
         setIceBreakerCanUse(response.inventory.iceBreaker.canUse);
         setIceBreakerUnlockedCount(response.inventory.iceBreaker.unlockedCount);
-        setLikesCards(
-          response.inventory.visibleLikes.map((entry) => ({
-            id: entry.id,
-            profileId: entry.profile.id,
-            name: entry.profile.name,
-            age: entry.profile.age,
-            ageMasked: entry.profile.flags.hideAge,
-            city: entry.profile.city,
-            photo: entry.profile.photos[0] ?? '',
-            wasSuperLike: entry.wasSuperLike,
-            state: entry.state,
-            hiddenByShadowGhost: entry.hiddenByShadowGhost,
-            blurredLocked: entry.blurredLocked,
-            online: entry.profile.online,
-          })),
-        );
+        setLikesCards(mapLikesCards(response.inventory.visibleLikes));
         if (response.state === 'locked') {
           appApi.trackLikesPaywallView();
         }
@@ -104,22 +139,7 @@ const MatchesScreen: React.FC = () => {
         setIceBreakerOwnedCount(response.inventory.iceBreaker.ownedCount);
         setIceBreakerCanUse(response.inventory.iceBreaker.canUse);
         setIceBreakerUnlockedCount(response.inventory.iceBreaker.unlockedCount);
-        setLikesCards(
-          response.inventory.visibleLikes.map((entry) => ({
-            id: entry.id,
-            profileId: entry.profile.id,
-            name: entry.profile.name,
-            age: entry.profile.age,
-            ageMasked: entry.profile.flags.hideAge,
-            city: entry.profile.city,
-            photo: entry.profile.photos[0] ?? '',
-            wasSuperLike: entry.wasSuperLike,
-            state: entry.state,
-            hiddenByShadowGhost: entry.hiddenByShadowGhost,
-            blurredLocked: entry.blurredLocked,
-            online: entry.profile.online,
-          })),
-        );
+        setLikesCards(mapLikesCards(response.inventory.visibleLikes));
       } catch {
         // Keep existing state and retry on next tick.
       } finally {
@@ -174,6 +194,21 @@ const MatchesScreen: React.FC = () => {
   const screenState: 'loading' | 'empty' | 'locked' | 'unlocked' | 'error' =
     baseState === 'locked' && isPremiumPreviewUnlocked ? 'unlocked' : baseState;
   const totalLikesCount = likesCards.length + hiddenLikesCount;
+  const unlockedCardsCount = likesCards.filter(
+    (entry) => !entry.blurredLocked && !entry.hiddenByShadowGhost,
+  ).length;
+  const lockedCardsCount = likesCards.filter((entry) => entry.blurredLocked).length;
+  const ghostCardsCount = likesCards.filter((entry) => entry.hiddenByShadowGhost).length;
+  const summaryLine = `${totalLikesCount} ${t('likes.title').toLowerCase()} • ${unlockedCardsCount} ${t('likes.unlocked').toLowerCase()} • ${ghostCardsCount} ${t('likes.shadowGhostTag').toLowerCase()}`;
+
+  const resolveCardVariant = (like: (typeof likesCards)[number]): CardVariant => {
+    if (like.hiddenByShadowGhost) return 'locked_ghost';
+    if (!like.blurredLocked) {
+      return remoteState === 'unlocked' ? 'visible_by_entitlement' : 'unlocked';
+    }
+    if (iceBreakerOwnedCount > 0) return 'unlockable_icebreaker';
+    return 'locked_standard';
+  };
 
   const handleLikeDecision = async (
     like: (typeof likesCards)[number],
@@ -212,74 +247,84 @@ const MatchesScreen: React.FC = () => {
   const handleUseIceBreaker = async (likeId: string) => {
     if (iceBreakerBusy || !iceBreakerCanUse) return;
     setIceBreakerBusy(true);
+    setIceBreakerBusyLikeId(likeId);
     setIceBreakerFeedback(null);
     try {
       const response = await appApi.useLikesIceBreaker(likeId);
+      if (!response.ok) {
+        setIceBreakerFeedback(t('likes.iceBreakerActivationFailed'));
+        return;
+      }
       setRemoteState(response.state === 'error' ? 'locked' : response.state);
       setHiddenLikesCount(response.inventory.hiddenCount);
       setIceBreakerEligibleCount(response.inventory.iceBreaker.eligibleLikesHiddenCount);
       setIceBreakerOwnedCount(response.inventory.iceBreaker.ownedCount);
       setIceBreakerCanUse(response.inventory.iceBreaker.canUse);
       setIceBreakerUnlockedCount(response.inventory.iceBreaker.unlockedCount);
-      setLikesCards(
-        response.inventory.visibleLikes.map((entry) => ({
-          id: entry.id,
-          profileId: entry.profile.id,
-          name: entry.profile.name,
-          age: entry.profile.age,
-          ageMasked: entry.profile.flags.hideAge,
-          city: entry.profile.city,
-          photo: entry.profile.photos[0] ?? '',
-          wasSuperLike: entry.wasSuperLike,
-          state: entry.state,
-          hiddenByShadowGhost: entry.hiddenByShadowGhost,
-          blurredLocked: entry.blurredLocked,
-          online: entry.profile.online,
-        })),
+      setLikesCards(mapLikesCards(response.inventory.visibleLikes));
+      const targetAfterUnlock = response.inventory.visibleLikes.find((entry) => entry.id === likeId);
+      const unlockedTarget = Boolean(targetAfterUnlock && !targetAfterUnlock.blurredLocked);
+      setIceBreakerFeedback(
+        unlockedTarget ? t('likes.iceBreakerActivatedSingle') : t('likes.iceBreakerActivationFailed'),
       );
-      setIceBreakerFeedback(t('likes.iceBreakerActivated'));
     } catch {
-      setIceBreakerFeedback(t('chat.actionFailed'));
+      setIceBreakerFeedback(t('likes.iceBreakerActivationFailed'));
     } finally {
       setIceBreakerBusy(false);
+      setIceBreakerBusyLikeId(null);
     }
   };
 
   const renderCardContent = (like: (typeof likesCards)[number], compact = false) => {
     const isBusy = actionLikeId === like.id;
-    const senderIdentityMasked = like.hiddenByShadowGhost;
+    const isIceBreakerBusyForCard = iceBreakerBusyLikeId === like.id;
+    const variant = resolveCardVariant(like);
+    const senderIdentityMasked = variant === 'locked_ghost';
     const displayName = senderIdentityMasked ? t('likes.shadowGhostMaskedName') : like.name;
     const displayAgeMasked = senderIdentityMasked ? true : like.ageMasked;
+    const showIdentity = variant === 'unlocked' || variant === 'visible_by_entitlement';
+    const showUnlockAction = variant === 'unlockable_icebreaker';
+    const badgeToneClass =
+      variant === 'locked_ghost'
+        ? 'text-fuchsia-100 border-fuchsia-300/35 bg-fuchsia-500/12'
+        : variant === 'unlockable_icebreaker'
+          ? 'text-cyan-100 border-cyan-300/35 bg-cyan-500/12'
+          : variant === 'locked_standard'
+            ? 'text-white/82 border-white/20 bg-white/8'
+            : 'text-cyan-100 border-cyan-300/35 bg-cyan-500/12';
+    const badgeLabel =
+      variant === 'locked_ghost'
+        ? t('likes.shadowGhostTag')
+        : variant === 'unlockable_icebreaker' || variant === 'locked_standard'
+          ? t('likes.unlock.locked')
+          : variant === 'visible_by_entitlement'
+            ? t('likes.states.unlocked')
+            : t('likes.unlocked');
 
-    if (screenState === 'unlocked') {
+    if (showIdentity) {
       return (
         <>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
-          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200">
-            {t('likes.unlocked')}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/22 to-transparent" />
+        <div
+          className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
+        >
+          {variant === 'visible_by_entitlement' ? <Star size={10} /> : null}
+          <span>{badgeLabel}</span>
           </div>
+          {like.wasSuperLike ? (
+            <div className="absolute top-3 right-3 w-6 h-6 rounded-full border border-fuchsia-300/35 bg-fuchsia-500/12 text-fuchsia-100 inline-flex items-center justify-center">
+              <Star size={10} />
+            </div>
+          ) : null}
           <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
             <div className="flex items-center justify-between">
               <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white`}>
                 {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
               </span>
               <div className="flex items-center gap-1.5">
-                {like.wasSuperLike && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.12em] text-fuchsia-200 border border-fuchsia-300/35 bg-fuchsia-500/10">
-                    SuperLike
-                  </span>
-                )}
-                {like.hiddenByShadowGhost && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-[0.12em] text-fuchsia-100 border border-fuchsia-300/35 bg-fuchsia-500/10">
-                    {t('likes.shadowGhostTag')}
-                  </span>
-                )}
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{t('chat.online')}</span>
               </div>
             </div>
-            <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/75 leading-snug`}>
-              {t('likes.unlockedSubtitle', { city: like.city })}
-            </p>
             {like.state === 'matched' && (
               <button
                 onClick={() => {
@@ -298,18 +343,28 @@ const MatchesScreen: React.FC = () => {
                 onClick={() => {
                   void handleLikeDecision(like, 'like_back');
                 }}
-                className="h-8 rounded-lg gradient-premium text-white text-[10px] font-black uppercase tracking-[0.12em] disabled:opacity-50"
+                className="h-8 rounded-lg gradient-premium text-white inline-flex items-center justify-center gap-1 disabled:opacity-50"
+                aria-label={t('likes.likeBack')}
               >
-                {like.state === 'matched' ? t('likes.matched') : t('likes.likeBack')}
+                {like.state === 'matched' ? (
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em]">{t('likes.matched')}</span>
+                ) : (
+                  <>
+                    <Heart size={14} />
+                    <span className="sr-only">{t('likes.likeBack')}</span>
+                  </>
+                )}
               </button>
               <button
                 disabled={isBusy || like.state === 'matched'}
                 onClick={() => {
                   void handleLikeDecision(like, 'pass');
                 }}
-                className="h-8 rounded-lg border border-white/20 bg-black/35 text-white/80 text-[10px] font-black uppercase tracking-[0.12em] disabled:opacity-50"
+                className="h-8 rounded-lg border border-white/20 bg-black/35 text-white/80 inline-flex items-center justify-center disabled:opacity-50"
+                aria-label={t('likes.pass')}
               >
-                {t('likes.pass')}
+                <X size={14} />
+                <span className="sr-only">{t('likes.pass')}</span>
               </button>
             </div>
           </div>
@@ -319,28 +374,16 @@ const MatchesScreen: React.FC = () => {
 
     return (
       <>
-        <div className="absolute inset-0 bg-black/36 premium-blur-overlay" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
+        <div className="absolute inset-0 bg-black/38 premium-blur-overlay" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/52 to-black/14" />
 
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full glass-panel-soft text-[10px] font-black uppercase tracking-[0.16em] text-white/80">
-          {t('likes.unlock.locked')}
+        <div
+          className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
+        >
+          {variant === 'locked_ghost' ? <Ghost size={10} /> : null}
+          <span>{badgeLabel}</span>
         </div>
-
-        <div className={`absolute ${compact ? 'top-12' : 'top-14'} left-1/2 -translate-x-1/2`}>
-          <div className={`${compact ? 'w-11 h-11' : 'w-14 h-14'} rounded-full bg-gradient-to-r from-[#FF1493] to-[#00BFFF] flex items-center justify-center shadow-[0_0_26px_rgba(236,72,153,0.34)]`}>
-            <Heart size={compact ? 22 : 24} fill="white" />
-          </div>
-        </div>
-
-        <div className={`absolute ${compact ? 'inset-x-3 top-[45%]' : 'inset-x-4 top-[46%]'} text-center`}>
-          <p className={`mx-auto ${compact ? 'max-w-[9.5ch] text-[0.76rem]' : 'max-w-[11ch] text-[clamp(0.88rem,1.05vw,1rem)]'} leading-[1.16] font-black text-white`}>
-            {t('likes.unlock.cta')}
-          </p>
-          <p className={`${compact ? 'text-[11px]' : 'text-xs'} text-white/62 mt-1.5`}>
-            {t('likes.unlock.city', { city: like.city })}
-          </p>
-        </div>
-        {!like.hiddenByShadowGhost && (
+        {showUnlockAction && (
           <div className="absolute left-3 right-3 bottom-10">
             <button
               disabled={iceBreakerBusy || !like.blurredLocked || iceBreakerOwnedCount <= 0}
@@ -349,16 +392,15 @@ const MatchesScreen: React.FC = () => {
               }}
               className="w-full h-8 rounded-lg border border-cyan-300/35 bg-cyan-500/15 text-cyan-100 text-[10px] font-black uppercase tracking-[0.12em] disabled:opacity-50"
             >
-              {t('likes.iceBreakerUse')} x{iceBreakerOwnedCount}
+              {isIceBreakerBusyForCard ? '...' : `${t('likes.iceBreakerUse')} x${iceBreakerOwnedCount}`}
             </button>
           </div>
         )}
 
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70">
+        <div className="absolute bottom-3 left-3 right-3 text-white/70">
           <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold premium-blur-text`}>
             {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
           </span>
-          <Eye size={compact ? 14 : 16} className="text-white/50" />
         </div>
       </>
     );
@@ -378,10 +420,11 @@ const MatchesScreen: React.FC = () => {
             <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">
               {t('likes.title')}
             </h1>
+            <p className="text-[11px] text-white/50">{summaryLine}</p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-pink-500/35 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.12)]">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/5">
             <Heart size={12} fill="currentColor" className="text-pink-400" />
-            <span className="text-[10px] font-black text-pink-300">{t('likes.newLikes', { count: totalLikesCount })}</span>
+            <span className="text-[10px] font-black text-white/75">{t('likes.newLikes', { count: totalLikesCount })}</span>
           </div>
         </header>
 
@@ -482,12 +525,12 @@ const MatchesScreen: React.FC = () => {
               }}
               className="layout-stack"
             >
-              <section className="glass-panel rounded-[var(--card-radius)] p-5">
+              <section className="glass-panel rounded-[var(--card-radius)] p-4 border border-white/10">
                 <div className="inline-flex p-2 rounded-xl bg-white/5 mb-3">
                   <Star className="text-[#FFD166]" fill="#FFD166" size={18} />
                 </div>
-                <h2 className="text-2xl font-black tracking-tight mb-2">{t('likes.premium.title')}</h2>
-                <p className="text-secondary text-sm leading-relaxed mb-5">
+                <h2 className="text-lg font-black tracking-tight mb-2">{t('likes.premium.title')}</h2>
+                <p className="text-secondary text-sm leading-relaxed mb-4">
                   {t('likes.premium.subtitle')}
                 </p>
                 <button
@@ -495,38 +538,17 @@ const MatchesScreen: React.FC = () => {
                     appApi.clickLikesPaywall();
                     navigate('/boost');
                   }}
-                  className="w-full h-[var(--cta-height)] rounded-2xl gradient-premium text-white font-black uppercase tracking-[0.15em] text-[11px]"
+                  className="w-full h-11 rounded-xl gradient-premium text-white font-black uppercase tracking-[0.14em] text-[10px]"
                 >
                   {t('likes.premium.buttonLarge')}
                 </button>
-                <button
-                  onClick={() => setIsPremiumPreviewUnlocked((prev) => !prev)}
-                  className="w-full mt-3 h-10 rounded-2xl border border-white/15 bg-white/5 text-white/75 text-[10px] font-black uppercase tracking-[0.15em]"
-                >
-                  {isPremiumPreviewUnlocked ? t('likes.previewLocked') : t('likes.previewUnlocked')}
-                </button>
-              </section>
-
-              <section className="glass-panel rounded-[var(--card-radius)] p-5 space-y-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('likes.premium.includes')}</p>
-                {[
-                  t('likes.includes.likesReceived'),
-                  t('likes.includes.unlimitedLikes'),
-                  t('likes.includes.advancedFilters'),
-                  t('likes.includes.weeklyBoost'),
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-2 text-sm text-white/80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-                    <span>{item}</span>
-                  </div>
-                ))}
               </section>
             </aside>
           </div>
         ) : (screenState === 'locked' || screenState === 'unlocked') ? (
           <>
             <section className="grid grid-cols-2 gap-[var(--grid-gap)]">
-              {likesCards.slice(0, 4).map((like, index) => (
+              {likesCards.map((like, index) => (
                 <motion.article
                   key={like.id}
                   initial={{ opacity: 0, scale: 0.97 }}
@@ -564,46 +586,6 @@ const MatchesScreen: React.FC = () => {
             </section>
           </>
         ) : null}
-        {screenState === 'locked' && iceBreakerEligibleCount >= 3 && (
-          <section className="glass-panel rounded-[var(--card-radius)] p-5 flex items-center justify-between gap-4 border border-fuchsia-400/25 bg-fuchsia-500/5">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-200 font-black">{t('likes.iceBreakerTitle')}</p>
-              <p className="text-sm text-white/75 mt-1">
-                {t('likes.iceBreakerSubtitle', { count: iceBreakerEligibleCount })}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const firstLockedLike = likesCards.find(
-                  (entry) => entry.blurredLocked && !entry.hiddenByShadowGhost,
-                );
-                if (iceBreakerCanUse && firstLockedLike) {
-                  void handleUseIceBreaker(firstLockedLike.id);
-                  return;
-                }
-                appApi.clickLikesPaywall();
-                navigate('/boost');
-              }}
-              className="h-10 px-4 rounded-xl border border-fuchsia-300/35 bg-fuchsia-500/15 text-fuchsia-100 text-[10px] font-black uppercase tracking-[0.14em]"
-            >
-              {iceBreakerCanUse ? t('likes.iceBreakerUse') : t('likes.iceBreakerCta')}
-            </button>
-          </section>
-        )}
-        {(screenState === 'locked' || screenState === 'unlocked') && (
-          <section className="glass-panel rounded-[var(--card-radius)] p-5 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/45 font-black">{t('likes.matchFlowLabel')}</p>
-              <p className="text-sm text-white/75 mt-1">{t('likes.matchFlowHint')}</p>
-            </div>
-            <button
-              onClick={() => navigate('/messages')}
-              className="h-10 px-4 rounded-xl border border-white/20 bg-white/5 text-white/80 text-[10px] font-black uppercase tracking-[0.14em]"
-            >
-              {t('likes.goMessages')}
-            </button>
-          </section>
-        )}
       </div>
       {showDesktopRail && (
         <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">

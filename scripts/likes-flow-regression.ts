@@ -128,11 +128,20 @@ const run = () => {
   seedInventory('J', 2);
   const targetLike = rows.find((row) => row.liker === 'I' && row.liked === 'J');
   assert.ok(targetLike);
+  upsertLike({ liker: 'L', liked: 'J' });
+  const secondLike = rows.find((row) => row.liker === 'L' && row.liked === 'J');
+  assert.ok(secondLike);
   assert.equal(getVisibility('J', targetLike!).blurredLocked, true);
+  assert.equal(getVisibility('J', secondLike!).blurredLocked, true);
   const used = useIceBreaker('J', targetLike!.id);
   assert.equal(used.ok, true);
   assert.equal(getInventory('J').icebreakersLeft, 1);
   assert.equal(getVisibility('J', targetLike!).blurredLocked, false);
+  assert.equal(
+    getVisibility('J', secondLike!).blurredLocked,
+    true,
+    'Using one IceBreaker must not unlock other locked likes.',
+  );
   const usedAgain = useIceBreaker('J', targetLike!.id);
   assert.equal(usedAgain.ok, false);
   setPlanTier('J', 'essential');
@@ -149,6 +158,17 @@ const run = () => {
   assert.equal(getVisibility('J', shadowLike).blurredLocked, false);
   const shadowUse = useIceBreaker('J', shadowLike.id);
   assert.equal(shadowUse.ok, false);
+
+  // Case 9: after one card is unlocked, new incoming likes must not relock or "remove" it logically.
+  setPlanTier('J', 'free');
+  upsertLike({ liker: 'M', liked: 'J' });
+  upsertLike({ liker: 'N', liked: 'J' });
+  assert.equal(
+    getVisibility('J', targetLike!).blurredLocked,
+    false,
+    'Previously unlocked card must remain unlocked when new likes arrive.',
+  );
+  assert.equal(getVisibility('J', secondLike!).blurredLocked, true);
 
   // eslint-disable-next-line no-console
   console.log('[likes-flow-regression] ok');
