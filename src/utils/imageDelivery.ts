@@ -18,10 +18,14 @@ const clampWidth = (value: number) => Math.max(48, Math.round(value));
 const clampQuality = (value: number) => Math.max(45, Math.min(90, Math.round(value)));
 
 const isTransformableSupabaseUrl = (url: URL) =>
-  url.pathname.includes('/storage/v1/object/sign/') ||
-  url.pathname.includes('/storage/v1/object/public/') ||
   url.pathname.includes('/storage/v1/render/image/public/') ||
   url.pathname.includes('/storage/v1/render/image/sign/');
+
+const isSupabasePublicObjectUrl = (url: URL) =>
+  url.pathname.includes('/storage/v1/object/public/');
+
+const isSupabaseSignedObjectUrl = (url: URL) =>
+  url.pathname.includes('/storage/v1/object/sign/');
 
 const isImageOptimizationDisabled = () => {
   if (typeof window === 'undefined') return false;
@@ -67,6 +71,9 @@ export const buildOptimizedImageUrl = (
     if (url.hostname.includes('images.unsplash.com')) {
       return withUnsplashTransform(url, options);
     }
+    if (isSupabasePublicObjectUrl(url) || isSupabaseSignedObjectUrl(url)) {
+      return normalized;
+    }
     if (isTransformableSupabaseUrl(url)) {
       return withSupabaseTransform(url, options);
     }
@@ -92,7 +99,8 @@ export const buildResponsiveImageAttrs = (
   const base = VARIANT_OPTIONS[variant];
   const src1x = buildOptimizedImageUrl(rawUrl, variant, { width: base.width });
   const src2x = buildOptimizedImageUrl(rawUrl, variant, { width: base.width * 2 });
-  const srcSet = src1x === PLACEHOLDER_SRC ? undefined : `${src1x} 1x, ${src2x} 2x`;
+  const srcSet =
+    src1x === PLACEHOLDER_SRC || src1x === src2x ? undefined : `${src1x} 1x, ${src2x} 2x`;
 
   return {
     src: src1x,

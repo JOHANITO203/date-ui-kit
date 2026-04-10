@@ -637,7 +637,7 @@ const SwipeScreen = () => {
                     src={nextPhotoAttrs?.src}
                     srcSet={nextPhotoAttrs?.srcSet}
                     sizes={nextPhotoAttrs?.sizes}
-                    className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]"
+                    className="w-full h-full object-cover object-[center_18%] grayscale-[0.3]"
                     alt="next"
                     referrerPolicy="no-referrer"
                     loading="lazy"
@@ -665,7 +665,7 @@ const SwipeScreen = () => {
                   src={currentPhotoAttrs?.src}
                   srcSet={currentPhotoAttrs?.srcSet}
                   sizes={currentPhotoAttrs?.sizes}
-                  className="w-full h-full object-cover object-[center_22%] pointer-events-none"
+                  className="w-full h-full object-cover object-[center_18%] pointer-events-none"
                   alt={user.name}
                   referrerPolicy="no-referrer"
                   loading="eager"

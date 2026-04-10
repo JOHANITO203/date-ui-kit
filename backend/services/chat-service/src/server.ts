@@ -14,6 +14,7 @@ import {
 import type { ChatMessage } from "./types";
 import type { ProfileCard } from "./types";
 import { startActorEngine } from "./actorEngine";
+import { resolveImageAccessPolicy, type ImageAccessPolicy } from "./imageAccessPolicy";
 
 const openChatSchema = z.object({
   profileId: z.string().min(1),
@@ -121,14 +122,22 @@ const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) =
   if (!env.SUPABASE_URL) return "/placeholder.svg";
   const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const base = `${env.SUPABASE_URL}/storage/v1/render/image/public/${bucket}/${encodeStoragePath(storagePath)}`;
-  const params = new URLSearchParams({
-    width: "256",
-    quality: "72",
-    format: "webp",
-  });
-  if (version) params.set("v", String(version));
-  return `${base}?${params.toString()}`;
+  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(storagePath)}`;
+  if (!version) return base;
+  return `${base}?v=${version}`;
+};
+
+const buildSignedPhotoUrl = async (storagePath: string): Promise<string | null> => {
+  if (!supabaseServiceClient) return null;
+  const result = await supabaseServiceClient.storage
+    .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
+    .createSignedUrls([storagePath], 60 * 60 * 24 * 7, {
+      transform: { width: 256, quality: 72 },
+    } as any);
+  if (result.error || !Array.isArray(result.data)) return null;
+  const entry = result.data[0];
+  if (!entry?.signedUrl) return null;
+  return entry.signedUrl;
 };
 
 const toOptionalString = (value: unknown) =>
@@ -180,7 +189,10 @@ const buildPeerCardFromSupabase = (row: {
   },
 });
 
-const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileCard>> => {
+const loadPeerProfiles = async (
+  peerIds: string[],
+  resolvePhotoAccess?: (profileId: string) => ImageAccessPolicy,
+): Promise<Map<string, ProfileCard>> => {
   const byId = new Map<string, ProfileCard>();
   for (const peerId of peerIds) {
     const staticPeer = getProfileById(peerId);
@@ -193,7 +205,8 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
   if (missing.length === 0) return byId;
 
   const primaryPathByUser = new Map<string, string>();
-  const primaryUrlByUser = new Map<string, string>();
+  const photoAccessResolver =
+    resolvePhotoAccess ?? (() => resolveImageAccessPolicy("messages", "pending"));
   const profileRows: {
     user_id: string;
     first_name: string | null;
@@ -236,17 +249,22 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
       for (const row of rows) {
         if (!primaryPathByUser.has(row.user_id) && row.storage_path) {
           primaryPathByUser.set(row.user_id, row.storage_path);
-          primaryUrlByUser.set(
-            row.user_id,
-            buildPublicPhotoUrl(row.storage_path, row.updated_at ?? null),
-          );
         }
       }
     }
   }
 
   for (const row of profileRows) {
-    const primarySignedUrl = primaryUrlByUser.get(row.user_id);
+    const path = primaryPathByUser.get(row.user_id);
+    let primarySignedUrl: string | null = null;
+    if (path) {
+      const policy = photoAccessResolver(row.user_id);
+      if (policy === "public_stable") {
+        primarySignedUrl = buildPublicPhotoUrl(path, null);
+      } else {
+        primarySignedUrl = await buildSignedPhotoUrl(path);
+      }
+    }
     byId.set(
       row.user_id,
       buildPeerCardFromSupabase({
@@ -538,7 +556,26 @@ export const buildServer = () => {
       const peerIds = [...new Set((conversationsResult.data ?? []).map((row) => row.peer_profile_id))].filter(
         (entry): entry is string => typeof entry === "string" && entry.length > 0,
       );
-      const peerMap = await loadPeerProfiles(peerIds);
+      const peerPolicyById = new Map<string, ImageAccessPolicy>();
+      for (const row of conversationsResult.data ?? []) {
+        const conversationId = row.conversation_id as string;
+        const relationState = normalizeRelationState(row.relation_state);
+        const state =
+          conversationId.startsWith("match-")
+            ? "match_confirmed"
+            : relationState === "active"
+              ? "conversation_authorized"
+              : "pending";
+        const policy = resolveImageAccessPolicy("messages", state);
+        const existing = peerPolicyById.get(row.peer_profile_id);
+        peerPolicyById.set(
+          row.peer_profile_id,
+          existing === "signed_private" || policy === "signed_private" ? "signed_private" : "public_stable",
+        );
+      }
+      const peerMap = await loadPeerProfiles(peerIds, (profileId) =>
+        peerPolicyById.get(profileId) ?? resolveImageAccessPolicy("messages", "pending"),
+      );
       let shadowGhostPeerSet = new Set<string>();
       if (peerIds.length > 0) {
         const shadowGhostResult = await supabaseServiceClient
@@ -640,7 +677,9 @@ export const buildServer = () => {
         }
       }
 
-      const peerMap = await loadPeerProfiles([requestedProfileId]);
+      const peerMap = await loadPeerProfiles([requestedProfileId], () =>
+        resolveImageAccessPolicy("messages", "pending"),
+      );
       const peer = peerMap.get(requestedProfileId) ?? null;
       if (!peer) {
         reply.status(404);

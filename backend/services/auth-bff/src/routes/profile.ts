@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { z } from "zod";
 import { supabaseServiceClient } from "../lib/supabaseClient";
 import { sendAuthError, sendAuthSuccess } from "./auth/utils";
@@ -105,24 +106,45 @@ const encodeStoragePath = (value: string) =>
 const buildPublicPhotoUrl = (storagePath: string, updatedAtIso?: string | null) => {
   if (!env.SUPABASE_URL) return null;
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const base = `${env.SUPABASE_URL}/storage/v1/render/image/public/${PROFILE_PHOTOS_PUBLIC_BUCKET}/${encodeStoragePath(storagePath)}`;
-  const params = new URLSearchParams({
-    width: "1080",
-    quality: "78",
-    format: "webp",
+  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${PROFILE_PHOTOS_PUBLIC_BUCKET}/${encodeStoragePath(storagePath)}`;
+  if (!version) return base;
+  return `${base}?v=${version}`;
+};
+
+const VARIANT_MAX_WIDTH = 1080;
+const VARIANT_MAX_HEIGHT = 1440;
+const VARIANT_QUALITY = 78;
+
+const optimizeProfileVariant = async (buffer: Buffer) => {
+  const image = sharp(buffer, { failOnError: false }).rotate();
+  const resized = image.resize({
+    width: VARIANT_MAX_WIDTH,
+    height: VARIANT_MAX_HEIGHT,
+    fit: "inside",
+    withoutEnlargement: true,
   });
-  if (version) params.set("v", String(version));
-  return `${base}?${params.toString()}`;
+
+  const output = await resized
+    .jpeg({
+      quality: VARIANT_QUALITY,
+      mozjpeg: true,
+    })
+    .toBuffer();
+
+  return {
+    buffer: output,
+    contentType: "image/jpeg",
+  };
 };
 
 const uploadPublicVariantFromBuffer = async (
   storagePath: string,
   buffer: Buffer,
-  contentType: string,
 ) => {
   if (!buffer || buffer.length === 0) return;
-  await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).upload(storagePath, buffer, {
-    contentType,
+  const optimized = await optimizeProfileVariant(buffer);
+  await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).upload(storagePath, optimized.buffer, {
+    contentType: optimized.contentType,
     cacheControl: "public, max-age=31536000, immutable",
     upsert: true,
   });
@@ -133,8 +155,7 @@ const copyPublicVariantFromPrivate = async (storagePath: string) => {
   if (download.error || !download.data) return;
   const arrayBuffer = await download.data.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const contentType = download.data.type || "application/octet-stream";
-  await uploadPublicVariantFromBuffer(storagePath, buffer, contentType);
+  await uploadPublicVariantFromBuffer(storagePath, buffer);
 };
 
 const mapStorageUploadError = (
@@ -170,12 +191,29 @@ const extensionFromMimeType = (mimeType: string) => {
   return "bin";
 };
 
-const buildPhotoPublicPayload = (row: ProfilePhotoRow) => {
-  const url = buildPublicPhotoUrl(row.storage_path, row.updated_at);
+const createSignedUrlsForPaths = async (paths: string[]) => {
+  const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
+  if (uniquePaths.length === 0) return new Map<string, string>();
+  const result = await supabaseServiceClient.storage
+    .from(PROFILE_PHOTOS_BUCKET)
+    .createSignedUrls(uniquePaths, env.STORAGE_SIGNED_URL_TTL_SEC, {
+      transform: { width: 1080, quality: 78 },
+    } as any);
+  const byPath = new Map<string, string>();
+  if (result.error || !Array.isArray(result.data)) return byPath;
+  for (const entry of result.data) {
+    if (entry?.path && entry?.signedUrl) {
+      byPath.set(entry.path, entry.signedUrl);
+    }
+  }
+  return byPath;
+};
+
+const buildPhotoPayload = (row: ProfilePhotoRow, signedUrl: string | null) => {
   return {
     id: row.id,
     path: row.storage_path,
-    url,
+    url: signedUrl,
     sort_order: row.sort_order,
     is_primary: row.is_primary,
     created_at: row.created_at,
@@ -317,8 +355,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         return sendAuthError(reply, 500, "PROFILE_PHOTOS_FETCH_FAILED", "Unable to fetch profile photos.");
       }
 
-      const payload = (photosResult.data ?? []).map((row) =>
-        buildPhotoPublicPayload(row as ProfilePhotoRow),
+      const rows = (photosResult.data ?? []) as ProfilePhotoRow[];
+      const signedByPath = await createSignedUrlsForPaths(rows.map((row) => row.storage_path));
+      const payload = rows.map((row) =>
+        buildPhotoPayload(row, signedByPath.get(row.storage_path) ?? null),
       );
 
       return sendAuthSuccess(reply, {
@@ -410,12 +450,16 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         return sendAuthError(reply, 500, "PROFILE_PHOTO_INSERT_FAILED", "Unable to persist profile photo.");
       }
 
-      await uploadPublicVariantFromBuffer(storagePath, buffer, mimeType).catch((error) => {
+      await uploadPublicVariantFromBuffer(storagePath, buffer).catch((error) => {
         request.log.warn({ err: error, storagePath }, "profile.photos.public_variant_failed");
       });
 
       await syncPhotosCount(session.user.id);
-      const photoPayload = buildPhotoPublicPayload(insertResult.data as ProfilePhotoRow);
+      const signedByPath = await createSignedUrlsForPaths([storagePath]);
+      const photoPayload = buildPhotoPayload(
+        insertResult.data as ProfilePhotoRow,
+        signedByPath.get(storagePath) ?? null,
+      );
 
       return sendAuthSuccess(reply, {
         ok: true,

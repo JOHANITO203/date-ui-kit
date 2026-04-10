@@ -7,6 +7,7 @@ import { env } from "./config";
 import { applyFiltersAndRank, buildRankingMetrics, parseFeedPreferences, parseUserGeoPoint } from "./ranking";
 import { loadCandidatesByProfileIds, loadCandidatesFromSupabase } from "./candidates";
 import type { FeedCandidate } from "./data";
+import { resolveImageAccessPolicy, type ImageAccessPolicy } from "./imageAccessPolicy";
 
 const filterSchema = z
   .array(z.enum(["all", "nearby", "new", "online", "verified"]))
@@ -315,6 +316,7 @@ const loadDiscoverCandidatesCached = async (input: {
     currentUserId: input.userId,
     userGeoPoint: input.userGeoPoint,
     logger: input.logger,
+    resolvePhotoAccess: () => resolveImageAccessPolicy("discover", "visible_standard"),
   });
 
   discoverCandidatesCache.set(input.userId, {
@@ -571,10 +573,30 @@ export const buildServer = () => {
       const unlockedByIceBreaker = await loadIceBreakerUnlockedLikeIds(userId);
       const unlockedByPlan = planTier !== "free";
       const senderIds = [...new Set(likesRows.map((row) => row.liker_user_id))];
+      const photoPolicyByProfile = new Map<string, ImageAccessPolicy>();
+      const mergePolicy = (current: ImageAccessPolicy | undefined, next: ImageAccessPolicy) =>
+        current === "signed_private" || next === "signed_private" ? "signed_private" : "public_stable";
+      for (const row of likesRows) {
+        let state = "locked_free" as const;
+        if (row.hidden_by_shadowghost) {
+          state = "shadowghost_active";
+        } else if (unlockedByPlan) {
+          state = "visible_by_entitlement";
+        } else if (unlockedByIceBreaker.has(row.id)) {
+          state = "unlocked_icebreaker";
+        } else if (ownedIceBreakers > 0) {
+          state = "unlockable_icebreaker";
+        }
+        const policy = resolveImageAccessPolicy("likes", state);
+        const existing = photoPolicyByProfile.get(row.liker_user_id);
+        photoPolicyByProfile.set(row.liker_user_id, mergePolicy(existing, policy));
+      }
       const senderCards = await loadCandidatesByProfileIds({
         profileIds: senderIds,
         userGeoPoint: null,
         logger: app.log,
+        resolvePhotoAccess: (profileId) =>
+          photoPolicyByProfile.get(profileId) ?? resolveImageAccessPolicy("likes", "locked_free"),
       });
       const senderMap = new Map(senderCards.map((entry) => [entry.id, entry]));
       const visibleSlice = likesRows;
@@ -894,6 +916,7 @@ export const buildServer = () => {
         profileIds: [incoming.liker_user_id],
         userGeoPoint: null,
         logger: app.log,
+        resolvePhotoAccess: () => resolveImageAccessPolicy("messages", "pending"),
       });
       const peerOnline = Boolean(senderCards[0]?.online);
 

@@ -3,6 +3,8 @@ import { env } from "./config";
 import type { FeedCandidate } from "./data";
 import type { FastifyBaseLogger } from "fastify";
 import type { PlanTier, ShortPassTier } from "./data";
+import type { ImageAccessPolicy } from "./imageAccessPolicy";
+import { resolveImageAccessPolicy } from "./imageAccessPolicy";
 
 type ProfileRow = {
   user_id: string;
@@ -72,14 +74,11 @@ const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) =
   if (!env.SUPABASE_URL) return "/placeholder.svg";
   const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const base = `${env.SUPABASE_URL}/storage/v1/render/image/public/${bucket}/${encodeStoragePath(storagePath)}`;
-  const params = new URLSearchParams({
-    width: "960",
-    quality: "76",
-    format: "webp",
-  });
+  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(storagePath)}`;
+  const params = new URLSearchParams();
   if (version) params.set("v", String(version));
-  return `${base}?${params.toString()}`;
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
 };
 
 const SIGNED_URL_CACHE_VERSION = "v2-card";
@@ -114,6 +113,8 @@ const chunkArray = <T>(items: T[], size: number) => {
   }
   return chunks;
 };
+
+type PhotoAccessResolver = (profileId: string) => ImageAccessPolicy;
 
 const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, string>> => {
   const result = new Map<string, string>();
@@ -166,49 +167,36 @@ const publicBucketState = {
 };
 const PUBLIC_BUCKET_CHECK_TTL_MS = 60_000;
 
+const checkPublicBucketViaStorageApi = async (): Promise<boolean> => {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE) return false;
+  const response = await withTimeout(
+    fetch(`${env.SUPABASE_URL}/storage/v1/bucket`, {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}`,
+      },
+    }),
+    optionalQueryTimeoutMs,
+    "discover_public_bucket_storage_api",
+  );
+  if (!response.ok) return false;
+  const buckets = (await response.json()) as Array<{ id?: string; public?: boolean }>;
+  const target = buckets.find((bucket) => bucket.id === env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET);
+  return Boolean(target?.public);
+};
+
 const isPublicBucketEnabled = async () => {
-  if (!supabase) return false;
   const now = Date.now();
   if (publicBucketState.checkedAt > 0 && now - publicBucketState.checkedAt < PUBLIC_BUCKET_CHECK_TTL_MS) {
     return publicBucketState.isPublic;
   }
-  const result = await withTimeout(
-    supabase
-      .from("storage.buckets")
-      .select("public")
-      .eq("id", env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET)
-      .maybeSingle(),
-    optionalQueryTimeoutMs,
-    "discover_public_bucket_check",
-  );
-  publicBucketState.checkedAt = now;
-  publicBucketState.isPublic = Boolean(result.data?.public);
-  return publicBucketState.isPublic;
-};
-
-const fetchPublicVariantSet = async (paths: string[]): Promise<Set<string>> => {
-  const available = new Set<string>();
-  if (!supabase || paths.length === 0) return available;
-  const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
-  const chunks = chunkArray(uniquePaths, 100);
-  for (const chunk of chunks) {
-    const objectsResult = await withTimeout(
-      supabase
-        .from("storage.objects")
-        .select("name")
-        .eq("bucket_id", env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET)
-        .in("name", chunk),
-      optionalQueryTimeoutMs,
-      "discover_public_objects_query",
-    );
-    if (!objectsResult.error) {
-      for (const row of objectsResult.data ?? []) {
-        const name = (row as { name?: unknown }).name;
-        if (typeof name === "string" && name.length > 0) available.add(name);
-      }
-    }
+  try {
+    publicBucketState.isPublic = await checkPublicBucketViaStorageApi();
+  } catch {
+    publicBucketState.isPublic = false;
   }
-  return available;
+  publicBucketState.checkedAt = now;
+  return publicBucketState.isPublic;
 };
 const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -362,6 +350,7 @@ export const loadCandidatesFromSupabase = async (input: {
   currentUserId: string;
   userGeoPoint: { lat: number; lng: number } | null;
   logger: FastifyBaseLogger;
+  resolvePhotoAccess?: PhotoAccessResolver;
 }): Promise<FeedCandidate[]> => {
   if (!supabase) {
     input.logger.error("discover.supabase_config_missing_no_static_fallback");
@@ -457,7 +446,13 @@ export const loadCandidatesFromSupabase = async (input: {
     );
 
     const topPhotoPathsByUser = new Map<string, string[]>();
+    const photoAccessByUser = new Map<string, ImageAccessPolicy>();
     const allTopPaths: string[] = [];
+    const publicPaths: string[] = [];
+    const signedPaths: string[] = [];
+    const resolvePhotoAccess =
+      input.resolvePhotoAccess ??
+      (() => resolveImageAccessPolicy("discover", "visible_standard"));
     for (const profile of profiles) {
       const photoRows = photosByUser.get(profile.user_id) ?? [];
       const topPaths = photoRows
@@ -466,38 +461,51 @@ export const loadCandidatesFromSupabase = async (input: {
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       topPhotoPathsByUser.set(profile.user_id, topPaths);
       allTopPaths.push(...topPaths);
+      const accessPolicy = resolvePhotoAccess(profile.user_id);
+      photoAccessByUser.set(profile.user_id, accessPolicy);
+      if (accessPolicy === "public_stable") {
+        publicPaths.push(...topPaths);
+      } else {
+        signedPaths.push(...topPaths);
+      }
     }
     const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
-    const publicAvailable = publicBucketEnabled
-      ? await fetchPublicVariantSet(allTopPaths).catch(() => new Set<string>())
-      : new Set<string>();
     if (!publicBucketEnabled) {
       input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
     }
-    const publicByPath = createPublicUrlsForPaths(
-      photosRows.filter((row) => allTopPaths.includes(row.storage_path)),
-      publicAvailable,
-    );
-    const missingPaths = allTopPaths.filter((path) => !publicByPath.has(path));
+    const publicByPath = new Map<string, string>();
+    if (publicBucketEnabled) {
+      const rowByPath = new Map<string, ProfilePhotoRow>();
+      for (const row of photosRows) {
+        if (row.storage_path) rowByPath.set(row.storage_path, row);
+      }
+      for (const storagePath of publicPaths) {
+        if (!storagePath) continue;
+        const row = rowByPath.get(storagePath);
+        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, row?.updated_at ?? null));
+      }
+    }
+    const signedCandidates = [...signedPaths, ...(!publicBucketEnabled ? publicPaths : [])];
     const signedByPath =
-      missingPaths.length > 0 ? await createSignedUrlsForPaths(missingPaths) : new Map<string, string>();
+      signedCandidates.length > 0 ? await createSignedUrlsForPaths(signedCandidates) : new Map<string, string>();
     const resolvedCount = publicByPath.size + signedByPath.size;
-    if (allTopPaths.length > 0 && resolvedCount === 0) {
+    const totalPaths = publicPaths.length + signedPaths.length;
+    if (totalPaths > 0 && resolvedCount === 0) {
       input.logger.error(
         {
-          total: allTopPaths.length,
+          total: totalPaths,
           publicAvailable: publicByPath.size,
           signedAvailable: signedByPath.size,
           publicBucketEnabled,
         },
         "discover.photos_url_map_empty",
       );
-    } else if (missingPaths.length > 0 && resolvedCount < allTopPaths.length) {
+    } else if (totalPaths > 0 && resolvedCount < totalPaths) {
       input.logger.warn(
         {
-          total: allTopPaths.length,
+          total: totalPaths,
           resolved: resolvedCount,
-          missing: allTopPaths.length - resolvedCount,
+          missing: totalPaths - resolvedCount,
           publicAvailable: publicByPath.size,
           signedAvailable: signedByPath.size,
           publicBucketEnabled,
@@ -508,8 +516,14 @@ export const loadCandidatesFromSupabase = async (input: {
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
+      const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
       const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => publicByPath.get(storagePath) ?? signedByPath.get(storagePath))
+        .map((storagePath) => {
+          if (accessPolicy === "public_stable") {
+            return publicByPath.get(storagePath) ?? signedByPath.get(storagePath);
+          }
+          return signedByPath.get(storagePath);
+        })
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(
@@ -533,6 +547,7 @@ export const loadCandidatesByProfileIds = async (input: {
   profileIds: string[];
   userGeoPoint?: { lat: number; lng: number } | null;
   logger: FastifyBaseLogger;
+  resolvePhotoAccess?: PhotoAccessResolver;
 }): Promise<FeedCandidate[]> => {
   if (!supabase) {
     input.logger.error("discover.supabase_config_missing_no_static_fallback");
@@ -623,7 +638,13 @@ export const loadCandidatesByProfileIds = async (input: {
     const entitlementsByUser = new Map(entitlementRows.map((row) => [row.user_id, row]));
 
     const topPhotoPathsByUser = new Map<string, string[]>();
+    const photoAccessByUser = new Map<string, ImageAccessPolicy>();
     const allTopPaths: string[] = [];
+    const publicPaths: string[] = [];
+    const signedPaths: string[] = [];
+    const resolvePhotoAccess =
+      input.resolvePhotoAccess ??
+      (() => resolveImageAccessPolicy("discover", "visible_standard"));
     for (const profile of profiles) {
       const photoRows = photosByUser.get(profile.user_id) ?? [];
       const topPaths = photoRows
@@ -632,39 +653,52 @@ export const loadCandidatesByProfileIds = async (input: {
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       topPhotoPathsByUser.set(profile.user_id, topPaths);
       allTopPaths.push(...topPaths);
+      const accessPolicy = resolvePhotoAccess(profile.user_id);
+      photoAccessByUser.set(profile.user_id, accessPolicy);
+      if (accessPolicy === "public_stable") {
+        publicPaths.push(...topPaths);
+      } else {
+        signedPaths.push(...topPaths);
+      }
     }
 
     const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
-    const publicAvailable = publicBucketEnabled
-      ? await fetchPublicVariantSet(allTopPaths).catch(() => new Set<string>())
-      : new Set<string>();
     if (!publicBucketEnabled) {
       input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
     }
-    const publicByPath = createPublicUrlsForPaths(
-      photosRows.filter((row) => allTopPaths.includes(row.storage_path)),
-      publicAvailable,
-    );
-    const missingPaths = allTopPaths.filter((path) => !publicByPath.has(path));
+    const publicByPath = new Map<string, string>();
+    if (publicBucketEnabled) {
+      const rowByPath = new Map<string, ProfilePhotoRow>();
+      for (const row of photosRows) {
+        if (row.storage_path) rowByPath.set(row.storage_path, row);
+      }
+      for (const storagePath of publicPaths) {
+        if (!storagePath) continue;
+        const row = rowByPath.get(storagePath);
+        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, row?.updated_at ?? null));
+      }
+    }
+    const signedCandidates = [...signedPaths, ...(!publicBucketEnabled ? publicPaths : [])];
     const signedByPath =
-      missingPaths.length > 0 ? await createSignedUrlsForPaths(missingPaths) : new Map<string, string>();
+      signedCandidates.length > 0 ? await createSignedUrlsForPaths(signedCandidates) : new Map<string, string>();
     const resolvedCount = publicByPath.size + signedByPath.size;
-    if (allTopPaths.length > 0 && resolvedCount === 0) {
+    const totalPaths = publicPaths.length + signedPaths.length;
+    if (totalPaths > 0 && resolvedCount === 0) {
       input.logger.error(
         {
-          total: allTopPaths.length,
+          total: totalPaths,
           publicAvailable: publicByPath.size,
           signedAvailable: signedByPath.size,
           publicBucketEnabled,
         },
         "discover.photos_url_map_empty",
       );
-    } else if (missingPaths.length > 0 && resolvedCount < allTopPaths.length) {
+    } else if (totalPaths > 0 && resolvedCount < totalPaths) {
       input.logger.warn(
         {
-          total: allTopPaths.length,
+          total: totalPaths,
           resolved: resolvedCount,
-          missing: allTopPaths.length - resolvedCount,
+          missing: totalPaths - resolvedCount,
           publicAvailable: publicByPath.size,
           signedAvailable: signedByPath.size,
           publicBucketEnabled,
@@ -675,8 +709,14 @@ export const loadCandidatesByProfileIds = async (input: {
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
+      const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
       const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => publicByPath.get(storagePath) ?? signedByPath.get(storagePath))
+        .map((storagePath) => {
+          if (accessPolicy === "public_stable") {
+            return publicByPath.get(storagePath) ?? signedByPath.get(storagePath);
+          }
+          return signedByPath.get(storagePath);
+        })
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(

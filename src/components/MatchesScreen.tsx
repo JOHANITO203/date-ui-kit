@@ -80,7 +80,9 @@ const MatchesScreen: React.FC = () => {
     }>,
   ) =>
     visibleLikes
-      .map((entry) => ({
+      .map((entry) => {
+        const shouldRevealPhoto = !entry.blurredLocked && !entry.hiddenByShadowGhost;
+        return ({
         id: entry.id,
         profileId: entry.profile.id,
         receivedAtIso: entry.receivedAtIso,
@@ -88,13 +90,14 @@ const MatchesScreen: React.FC = () => {
         age: entry.profile.age,
         ageMasked: entry.profile.flags.hideAge,
         city: entry.profile.city,
-        photo: entry.profile.photos[0] ?? '',
+        photo: shouldRevealPhoto ? (entry.profile.photos[0] ?? '') : '/placeholder.svg',
         wasSuperLike: entry.wasSuperLike,
         state: entry.state,
         hiddenByShadowGhost: entry.hiddenByShadowGhost,
         blurredLocked: entry.blurredLocked,
         online: entry.profile.online,
-      }))
+      });
+    })
       .sort((a, b) => {
         // Keep unlocked cards visible/prioritized even when new locked likes arrive.
         if (a.blurredLocked !== b.blurredLocked) return a.blurredLocked ? 1 : -1;

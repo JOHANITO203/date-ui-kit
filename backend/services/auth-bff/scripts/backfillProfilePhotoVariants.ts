@@ -1,5 +1,6 @@
 import { config as loadEnv } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +28,9 @@ const sourceBucket = process.env.STORAGE_PROFILE_PHOTOS_BUCKET?.trim() || "profi
 const publicBucket = process.env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET?.trim() || "profile-photos-public";
 
 const BATCH_SIZE = 200;
+const VARIANT_MAX_WIDTH = 1080;
+const VARIANT_MAX_HEIGHT = 1440;
+const VARIANT_QUALITY = 78;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -48,10 +52,19 @@ const uploadVariant = async (storagePath: string) => {
   if (!buffer || buffer.length === 0) {
     throw new Error("variant_empty");
   }
-  const contentType = download.data.type || "application/octet-stream";
+  const optimized = await sharp(buffer, { failOnError: false })
+    .rotate()
+    .resize({
+      width: VARIANT_MAX_WIDTH,
+      height: VARIANT_MAX_HEIGHT,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: VARIANT_QUALITY, mozjpeg: true })
+    .toBuffer();
 
-  const { error } = await supabase.storage.from(publicBucket).upload(storagePath, buffer, {
-    contentType,
+  const { error } = await supabase.storage.from(publicBucket).upload(storagePath, optimized, {
+    contentType: "image/jpeg",
     cacheControl: "public, max-age=31536000, immutable",
     upsert: true,
   });
