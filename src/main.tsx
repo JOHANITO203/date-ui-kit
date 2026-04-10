@@ -27,8 +27,16 @@ import './index.css';
 import { I18nProvider } from './i18n/I18nProvider';
 import { AuthProvider } from './auth/AuthProvider';
 import { initMonitoring } from './services/monitoring';
+import { runtimeApi } from './state/appRuntimeStore';
 
 initMonitoring();
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('bench') === '1') {
+    runtimeApi.seedDemo();
+  }
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

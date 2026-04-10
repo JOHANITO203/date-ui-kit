@@ -89,38 +89,52 @@ type ProfilePhotoRow = {
   sort_order: number;
   is_primary: boolean;
   created_at: string;
+  updated_at: string;
 };
 
 const PROFILE_PHOTOS_BUCKET = env.STORAGE_PROFILE_PHOTOS_BUCKET;
+const PROFILE_PHOTOS_PUBLIC_BUCKET = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
 const PHOTO_MAX_COUNT = 5;
-const SIGNED_URL_CACHE_VERSION = "v3:profile";
-const SIGNED_URL_CACHE_SKEW_MS = 30_000;
-const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
 
-const signedPhotoCacheKey = (storagePath: string) => `${SIGNED_URL_CACHE_VERSION}:${storagePath}`;
+const encodeStoragePath = (value: string) =>
+  value
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
 
-const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
-  const key = signedPhotoCacheKey(storagePath);
-  const cached = signedPhotoUrlCache.get(key);
-  if (!cached) return null;
-  if (cached.expiresAtMs <= Date.now()) {
-    signedPhotoUrlCache.delete(key);
-    return null;
-  }
-  return cached.url;
+const buildPublicPhotoUrl = (storagePath: string, updatedAtIso?: string | null) => {
+  if (!env.SUPABASE_URL) return null;
+  const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
+  const base = `${env.SUPABASE_URL}/storage/v1/render/image/public/${PROFILE_PHOTOS_PUBLIC_BUCKET}/${encodeStoragePath(storagePath)}`;
+  const params = new URLSearchParams({
+    width: "1080",
+    quality: "78",
+    format: "webp",
+  });
+  if (version) params.set("v", String(version));
+  return `${base}?${params.toString()}`;
 };
 
-const setCachedSignedPhotoUrl = (storagePath: string, url: string) => {
-  const key = signedPhotoCacheKey(storagePath);
-  const ttlMs = Math.max(15_000, env.STORAGE_SIGNED_URL_TTL_SEC * 1000 - SIGNED_URL_CACHE_SKEW_MS);
-  signedPhotoUrlCache.set(key, {
-    url,
-    expiresAtMs: Date.now() + ttlMs,
+const uploadPublicVariantFromBuffer = async (
+  storagePath: string,
+  buffer: Buffer,
+  contentType: string,
+) => {
+  if (!buffer || buffer.length === 0) return;
+  await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).upload(storagePath, buffer, {
+    contentType,
+    cacheControl: "public, max-age=31536000, immutable",
+    upsert: true,
   });
 };
 
-const invalidateCachedSignedPhotoUrl = (storagePath: string) => {
-  signedPhotoUrlCache.delete(signedPhotoCacheKey(storagePath));
+const copyPublicVariantFromPrivate = async (storagePath: string) => {
+  const download = await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).download(storagePath);
+  if (download.error || !download.data) return;
+  const arrayBuffer = await download.data.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const contentType = download.data.type || "application/octet-stream";
+  await uploadPublicVariantFromBuffer(storagePath, buffer, contentType);
 };
 
 const mapStorageUploadError = (
@@ -156,45 +170,12 @@ const extensionFromMimeType = (mimeType: string) => {
   return "bin";
 };
 
-const buildPhotoPublicPayload = async (row: ProfilePhotoRow) => {
-  const cachedSignedUrl = getCachedSignedPhotoUrl(row.storage_path);
-  if (cachedSignedUrl) {
-    return {
-      id: row.id,
-      path: row.storage_path,
-      url: cachedSignedUrl,
-      sort_order: row.sort_order,
-      is_primary: row.is_primary,
-      created_at: row.created_at,
-    };
-  }
-
-  const { data, error } = await supabaseServiceClient.storage
-    .from(PROFILE_PHOTOS_BUCKET)
-    .createSignedUrl(row.storage_path, env.STORAGE_SIGNED_URL_TTL_SEC, {
-      transform: {
-        width: 1080,
-        quality: 78,
-      },
-    } as any);
-
-  if (error) {
-    return {
-      id: row.id,
-      path: row.storage_path,
-      url: null,
-      sort_order: row.sort_order,
-      is_primary: row.is_primary,
-      created_at: row.created_at,
-    };
-  }
-
-  setCachedSignedPhotoUrl(row.storage_path, data.signedUrl);
-
+const buildPhotoPublicPayload = (row: ProfilePhotoRow) => {
+  const url = buildPublicPhotoUrl(row.storage_path, row.updated_at);
   return {
     id: row.id,
     path: row.storage_path,
-    url: data.signedUrl,
+    url,
     sort_order: row.sort_order,
     is_primary: row.is_primary,
     created_at: row.created_at,
@@ -327,7 +308,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
       const photosResult = await supabaseServiceClient
         .from("profile_photos")
-        .select("id,user_id,storage_path,sort_order,is_primary,created_at")
+        .select("id,user_id,storage_path,sort_order,is_primary,created_at,updated_at")
         .eq("user_id", session.user.id)
         .order("sort_order", { ascending: true });
 
@@ -336,8 +317,8 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         return sendAuthError(reply, 500, "PROFILE_PHOTOS_FETCH_FAILED", "Unable to fetch profile photos.");
       }
 
-      const payload = await Promise.all(
-        (photosResult.data ?? []).map((row) => buildPhotoPublicPayload(row as ProfilePhotoRow))
+      const payload = (photosResult.data ?? []).map((row) =>
+        buildPhotoPublicPayload(row as ProfilePhotoRow),
       );
 
       return sendAuthSuccess(reply, {
@@ -420,18 +401,21 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           sort_order: nextSortOrder,
           is_primary: nextSortOrder === 1,
         })
-        .select("id,user_id,storage_path,sort_order,is_primary,created_at")
+        .select("id,user_id,storage_path,sort_order,is_primary,created_at,updated_at")
         .single();
 
       if (insertResult.error || !insertResult.data) {
         request.log.error({ err: insertResult.error, userId: session.user.id }, "profile.photos.insert_failed");
         await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([storagePath]);
-        invalidateCachedSignedPhotoUrl(storagePath);
         return sendAuthError(reply, 500, "PROFILE_PHOTO_INSERT_FAILED", "Unable to persist profile photo.");
       }
 
+      await uploadPublicVariantFromBuffer(storagePath, buffer, mimeType).catch((error) => {
+        request.log.warn({ err: error, storagePath }, "profile.photos.public_variant_failed");
+      });
+
       await syncPhotosCount(session.user.id);
-      const photoPayload = await buildPhotoPublicPayload(insertResult.data as ProfilePhotoRow);
+      const photoPayload = buildPhotoPublicPayload(insertResult.data as ProfilePhotoRow);
 
       return sendAuthSuccess(reply, {
         ok: true,
@@ -535,7 +519,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
       const lookup = await supabaseServiceClient
         .from("profile_photos")
-        .select("id,user_id,storage_path,sort_order,is_primary,created_at")
+        .select("id,user_id,storage_path,sort_order,is_primary,created_at,updated_at")
         .eq("id", parsedParams.data.photoId)
         .eq("user_id", session.user.id)
         .maybeSingle();
@@ -550,7 +534,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       }
 
       await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([lookup.data.storage_path]);
-      invalidateCachedSignedPhotoUrl(lookup.data.storage_path);
+      await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).remove([lookup.data.storage_path]);
 
       const removeResult = await supabaseServiceClient
         .from("profile_photos")
@@ -564,7 +548,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       }
 
       await syncPhotosCount(session.user.id);
-      return sendAuthSuccess(reply, {
+  return sendAuthSuccess(reply, {
         ok: true,
         data: {
           removed: true,

@@ -418,6 +418,12 @@ export const subscribeConversationRelationChange = (
 
 export const appApi = {
   async getFeed(quickFilters: FeedQuickFilter[]): Promise<GetFeedResponse> {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('bench') === '1') {
+        return withLatency(runtimeApi.getFeed(quickFilters));
+      }
+    }
     if (DISCOVER_API_URL) {
       try {
         const preferences = runtimeApi.getSettingsEnvelope().settings.preferences;
@@ -517,6 +523,12 @@ export const appApi = {
   },
 
   getLikes(): Promise<GetReceivedLikesResponse> {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('bench') === '1') {
+        return withLatency(runtimeApi.getLikes());
+      }
+    }
     if (DISCOVER_API_URL) {
       return discoverRequest<GetReceivedLikesResponse>('/discover/likes/incoming').catch((error) => {
         if (!shouldFallbackToRuntime(error)) {
@@ -566,6 +578,12 @@ export const appApi = {
   },
 
   getConversations(): Promise<ConversationSummary[]> {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('bench') === '1') {
+        return withLatency(runtimeApi.getConversations(), 100);
+      }
+    }
     if (CHAT_API_URL) {
       return chatRequest<{ conversations: ConversationSummary[] }>('/chat/conversations').then(
         (payload) => payload.conversations,

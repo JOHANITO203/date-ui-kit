@@ -44,6 +44,8 @@ for (const key of requiredEnv) {
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE!;
 const bucket = process.env.STORAGE_PROFILE_PHOTOS_BUCKET?.trim() || "profile-photos";
+const publicBucket =
+  process.env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET?.trim() || "profile-photos-public";
 const seedPassword = process.env.SEED_PROFILE_PASSWORD?.trim() || "ExoticSeed!2026";
 const seedPerServer = Number(process.env.SEED_PER_SERVER ?? "13");
 const shouldReset = process.env.SEED_RESET === "1";
@@ -316,6 +318,15 @@ const uploadPrimaryPhoto = async (userId: string, localImagePath: string) => {
       is_primary: true,
     });
     if (insertPhotoError) throw insertPhotoError;
+  });
+
+  await withRetry(`upload public variant for ${objectPath}`, async () => {
+    const { error: publicError } = await supabase.storage.from(publicBucket).upload(objectPath, fileBuffer, {
+      contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+      upsert: true,
+    });
+    if (publicError) throw publicError;
   });
 };
 

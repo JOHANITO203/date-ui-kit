@@ -304,6 +304,154 @@ const resolveBoostStatus = (payload: RuntimeState): BoostStatus => {
   };
 };
 
+const DEMO_PROFILES: ProfileCard[] = [
+  {
+    id: 'demo-1',
+    name: 'Alina',
+    age: 24,
+    city: 'Moscow',
+    distanceKm: 4,
+    languages: ['Russian', 'English'],
+    bio: 'City lights and calm mornings.',
+    photos: ['https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80'],
+    compatibility: 88,
+    interests: ['Music', 'Travel'],
+    online: true,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'gold',
+      shortPassTier: undefined,
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'demo-2',
+    name: 'Roman',
+    age: 28,
+    city: 'Saint Petersburg',
+    distanceKm: 7,
+    languages: ['Russian', 'English'],
+    bio: 'Minimal design, strong coffee.',
+    photos: ['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1200&q=80'],
+    compatibility: 76,
+    interests: ['Design', 'Tech'],
+    online: false,
+    flags: {
+      verifiedIdentity: false,
+      premiumTier: 'free',
+      shortPassTier: undefined,
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'demo-3',
+    name: 'Elena',
+    age: 22,
+    city: 'Sochi',
+    distanceKm: 12,
+    languages: ['Russian'],
+    bio: 'Sun, waves, good vibes.',
+    photos: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80'],
+    compatibility: 81,
+    interests: ['Lifestyle', 'Travel'],
+    online: true,
+    flags: {
+      verifiedIdentity: false,
+      premiumTier: 'essential',
+      shortPassTier: undefined,
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'demo-4',
+    name: 'Artem',
+    age: 27,
+    city: 'Voronezh',
+    distanceKm: 3,
+    languages: ['Russian', 'English'],
+    bio: 'Work hard, travel harder.',
+    photos: ['https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80'],
+    compatibility: 72,
+    interests: ['Business', 'Fitness'],
+    online: false,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'platinum',
+      shortPassTier: undefined,
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'demo-5',
+    name: 'Nadia',
+    age: 25,
+    city: 'Moscow',
+    distanceKm: 6,
+    languages: ['Russian', 'English'],
+    bio: 'Architecture and long walks.',
+    photos: ['https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=1200&q=80'],
+    compatibility: 69,
+    interests: ['Art', 'Coffee'],
+    online: true,
+    flags: {
+      verifiedIdentity: false,
+      premiumTier: 'free',
+      shortPassTier: undefined,
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+  {
+    id: 'demo-6',
+    name: 'Mira',
+    age: 26,
+    city: 'Sochi',
+    distanceKm: 10,
+    languages: ['Russian'],
+    bio: 'Sea air, bright ideas.',
+    photos: ['https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80'],
+    compatibility: 83,
+    interests: ['Lifestyle', 'Music'],
+    online: true,
+    flags: {
+      verifiedIdentity: true,
+      premiumTier: 'elite',
+      shortPassTier: undefined,
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  },
+];
+
+const buildDemoLikes = (): RuntimeState['likes'] =>
+  DEMO_PROFILES.slice(0, 4).map((profile, index) => ({
+    id: `like-${profile.id}`,
+    profile,
+    receivedAtIso: nowIso(),
+    wasSuperLike: index % 2 === 0,
+  }));
+
+const buildDemoConversations = (): RuntimeState['conversations'] =>
+  DEMO_PROFILES.slice(0, 4).map((profile) => ({
+    id: `conv-${profile.id}`,
+    peer: profile,
+    unreadCount: 0,
+    lastMessagePreview: 'Hey there!',
+    lastMessageAtIso: nowIso(),
+    online: profile.online,
+    relationState: 'active',
+  }));
+
 export const runtimeApi = {
   getSettingsEnvelope(): SettingsEnvelope {
     const travelPassServerAccess = resolveTravelPassServerAccess({
@@ -333,6 +481,33 @@ export const runtimeApi = {
       settings: effectiveSettings,
       travelPassServerAccess,
     };
+  },
+
+  seedDemo(): void {
+    if (state.feedSource.length > 0) return;
+    const likes = buildDemoLikes();
+    const conversations = buildDemoConversations();
+    setState((prev) => ({
+      ...prev,
+      feedSource: DEMO_PROFILES,
+      likes,
+      likedByProfileIds: likes.map((entry) => entry.profile.id),
+      conversations,
+      messagesByConversation: conversations.reduce<Record<string, ChatMessage[]>>((acc, entry) => {
+        acc[entry.id] = [
+          {
+            id: `m-${entry.id}`,
+            conversationId: entry.id,
+            senderUserId: entry.peer.id,
+            direction: 'incoming',
+            originalText: 'Hello!',
+            translated: false,
+            createdAtIso: nowIso(),
+          },
+        ];
+        return acc;
+      }, {}),
+    }));
   },
 
   getFeed(quickFilters: FeedQuickFilter[]): GetFeedResponse {

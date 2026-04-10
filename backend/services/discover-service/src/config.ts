@@ -20,6 +20,7 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SERVICE_ROLE: z.string().min(1).optional(),
   STORAGE_PROFILE_PHOTOS_BUCKET: z.string().min(1).default("profile-photos"),
+  STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET: z.string().min(1).default("profile-photos-public"),
   STORAGE_SIGNED_URL_TTL_SEC: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
   DISCOVER_SUPABASE_TIMEOUT_MS: z.coerce.number().int().min(500).max(20000).default(3500),
   DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS: z.coerce.number().int().min(200).max(5000).default(900),

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, devices } from 'playwright';
 
@@ -19,8 +20,14 @@ type RunMetrics = {
   imageRequests: number;
   imageCacheHits: number;
   domImageCount: number;
+  resourceImageCount: number;
+  resourceImageBytes: number;
+  resourceByType: Record<string, number>;
+  resourceByInitiator: Record<string, number>;
   jankFrames: number;
   longTasks: number;
+  routePath: string;
+  bodySample: string;
 };
 
 type ScenarioResult = {
@@ -29,16 +36,21 @@ type ScenarioResult = {
   mode: OptMode;
   firstLoad: RunMetrics;
   secondLoad: Pick<RunMetrics, 'imageRequests' | 'imageBytes' | 'imageCacheHits'>;
+  error?: string;
 };
 
 const BASE_URL = 'http://127.0.0.1:3000';
+const EPHEMERAL_ACCESS_STORAGE_KEY = 'exotic.auth.ephemeral-access.v1';
 
-const targets: PageTarget[] = [
-  { key: 'discover', route: '/discover', firstUsefulSelector: '.container-deck img' },
-  { key: 'likes', route: '/likes', firstUsefulSelector: 'article img' },
+const allTargets: PageTarget[] = [
+  { key: 'discover', route: '/discover', firstUsefulSelector: 'img' },
+  { key: 'likes', route: '/likes', firstUsefulSelector: 'img' },
   { key: 'messages', route: '/messages', firstUsefulSelector: 'img' },
-  { key: 'profile', route: '/profile', firstUsefulSelector: '.aspect-square img, img' },
+  { key: 'profile', route: '/profile', firstUsefulSelector: 'img' },
 ];
+
+const envList = (value: string | undefined) =>
+  value ? value.split(',').map((entry) => entry.trim()).filter(Boolean) : [];
 
 const startDevServer = async (): Promise<ChildProcess> => {
   const child = spawn('npm', ['run', 'dev'], {
@@ -105,6 +117,8 @@ const setupNetworkCapture = async (page: import('playwright').Page, device: Devi
   let imageBytes = 0;
   let imageRequests = 0;
   let imageCacheHits = 0;
+  const bytesByType: Record<string, number> = {};
+  const bytesByInitiator: Record<string, number> = {};
 
   cdp.on('Network.requestWillBeSent', (event) => {
     if (!event.requestId) return;
@@ -123,6 +137,11 @@ const setupNetworkCapture = async (page: import('playwright').Page, device: Devi
     const type = requestType.get(event.requestId);
     const encoded = Number(event.encodedDataLength ?? 0);
     totalBytes += encoded;
+    if (type) {
+      bytesByType[type] = (bytesByType[type] ?? 0) + encoded;
+    }
+    const initiatorType = type ?? 'Other';
+    bytesByInitiator[initiatorType] = (bytesByInitiator[initiatorType] ?? 0) + encoded;
     if (type === 'Image') {
       imageRequests += 1;
       imageBytes += encoded;
@@ -134,7 +153,7 @@ const setupNetworkCapture = async (page: import('playwright').Page, device: Devi
   return {
     stop: async () => {
       await cdp.detach();
-      return { totalBytes, imageBytes, imageRequests, imageCacheHits };
+      return { totalBytes, imageBytes, imageRequests, imageCacheHits, bytesByType, bytesByInitiator };
     },
   };
 };
@@ -163,6 +182,21 @@ const setupPagePerf = async (page: import('playwright').Page) => {
   });
 };
 
+const safeGoto = async (page: import('playwright').Page, url: string) => {
+  const maxAttempts = 2;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 35_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await delay(500);
+    }
+  }
+  throw lastError ?? new Error('navigation_failed');
+};
+
 const runSingleNavigation = async (
   page: import('playwright').Page,
   target: PageTarget,
@@ -171,23 +205,34 @@ const runSingleNavigation = async (
   const capture = await setupNetworkCapture(page, (page as any).__deviceMode as DeviceMode);
   await setupPagePerf(page);
 
-  const url = `${BASE_URL}${target.route}?imgOpt=${mode}`;
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40_000 });
+  const url = `${BASE_URL}${target.route}?imgOpt=${mode}&bench=1`;
+  await safeGoto(page, url);
 
   let firstUsefulMs: number | null = null;
   try {
-    await page.waitForSelector(target.firstUsefulSelector, { timeout: 5_000, state: 'visible' });
+    const fast = process.env.BENCH_FAST === '1';
+    await page.waitForSelector(target.firstUsefulSelector, { timeout: fast ? 3000 : 6000, state: 'visible' });
     firstUsefulMs = await page.evaluate(() => performance.now());
   } catch {
-    firstUsefulMs = null;
+    try {
+      const fast = process.env.BENCH_FAST === '1';
+      await page.waitForFunction(
+        () => Boolean(document.body && document.body.innerText && document.body.innerText.trim().length > 0),
+        { timeout: fast ? 3000 : 6000 },
+      );
+      firstUsefulMs = await page.evaluate(() => performance.now());
+    } catch {
+      firstUsefulMs = null;
+    }
   }
 
-  await delay(500);
+  await delay(process.env.BENCH_FAST === '1' ? 250 : 500);
 
   const scrollProbe = await page.evaluate(async () => {
     let jankFrames = 0;
     let prev = performance.now();
-    for (let i = 0; i < 20; i += 1) {
+    const steps = process.env.BENCH_FAST === '1' ? 10 : 20;
+    for (let i = 0; i < steps; i += 1) {
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => {
           const now = performance.now();
@@ -203,6 +248,15 @@ const runSingleNavigation = async (
       longTasks: (window as any).__perfAudit?.longTasks ?? 0,
       domImageCount: document.querySelectorAll('img').length,
       jankFrames,
+      resourceImageCount: performance
+        .getEntriesByType('resource')
+        .filter((entry) => (entry as PerformanceResourceTiming).initiatorType === 'img').length,
+      resourceImageBytes: performance
+        .getEntriesByType('resource')
+        .filter((entry) => (entry as PerformanceResourceTiming).initiatorType === 'img')
+        .reduce((sum, entry) => sum + ((entry as PerformanceResourceTiming).transferSize || 0), 0),
+      routePath: window.location.pathname,
+      bodySample: document.body?.innerText?.slice(0, 140) ?? '',
     };
   });
 
@@ -215,8 +269,14 @@ const runSingleNavigation = async (
     imageRequests: net.imageRequests,
     imageCacheHits: net.imageCacheHits,
     domImageCount: scrollProbe.domImageCount,
+    resourceImageCount: scrollProbe.resourceImageCount,
+    resourceImageBytes: scrollProbe.resourceImageBytes,
+    resourceByType: net.bytesByType,
+    resourceByInitiator: net.bytesByInitiator,
     jankFrames: scrollProbe.jankFrames,
     longTasks: scrollProbe.longTasks,
+    routePath: scrollProbe.routePath,
+    bodySample: scrollProbe.bodySample,
   };
 };
 
@@ -229,7 +289,8 @@ const runScenario = async (
   const context =
     deviceMode === 'mobile'
       ? await browser.newContext({
-          ...devices['iPhone 13'],
+          viewport: { width: 390, height: 844 },
+          deviceScaleFactor: 2,
           bypassCSP: true,
         })
       : await browser.newContext({
@@ -238,12 +299,26 @@ const runScenario = async (
           bypassCSP: true,
         });
 
+  if (process.env.BENCH_TRACE === '1') {
+    await mkdir('test-results/bench-traces', { recursive: true });
+    await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
+  }
   const page = await context.newPage();
   (page as any).__deviceMode = deviceMode;
+  page.setDefaultNavigationTimeout(40_000);
+  await page.addInitScript((storageKey: string) => {
+    const payload = { enabledAtIso: new Date().toISOString() };
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+  }, EPHEMERAL_ACCESS_STORAGE_KEY);
 
   const firstLoad = await runSingleNavigation(page, target, mode);
   const secondLoad = await runSingleNavigation(page, target, mode);
 
+  if (process.env.BENCH_TRACE === '1') {
+    const label = `${target.key}-${deviceMode}-${mode}`;
+    const tracePath = `test-results/bench-traces/${label}.zip`;
+    await context.tracing.stop({ path: tracePath });
+  }
   await context.close();
 
   return {
@@ -260,22 +335,79 @@ const runScenario = async (
 };
 
 const main = async () => {
-  const server = await startDevServer();
-  const browser = await chromium.launch({ headless: true });
+  const skipServer = process.env.BENCH_SKIP_SERVER === '1';
+  const server = skipServer ? null : await startDevServer();
+  const headless = process.env.BENCH_HEADLESS !== '0';
+  const browser = await chromium.launch({
+    headless,
+    args: ['--disable-gpu', '--disable-dev-shm-usage'],
+  });
   const results: ScenarioResult[] = [];
 
   try {
+    const targetFilter = new Set(envList(process.env.BENCH_PAGES));
+    const deviceFilter = new Set(envList(process.env.BENCH_DEVICES));
+    const modeFilter = new Set(envList(process.env.BENCH_MODES));
+    const targets = targetFilter.size > 0 ? allTargets.filter((t) => targetFilter.has(t.key)) : allTargets;
+    const devices: DeviceMode[] = (deviceFilter.size > 0
+      ? (['desktop', 'mobile'] as const).filter((d) => deviceFilter.has(d))
+      : ['desktop', 'mobile']) as DeviceMode[];
+    const modes: OptMode[] = (modeFilter.size > 0
+      ? (['off', 'on'] as const).filter((m) => modeFilter.has(m))
+      : ['off', 'on']) as OptMode[];
+
     for (const target of targets) {
-      for (const device of ['desktop', 'mobile'] as const) {
-        for (const mode of ['off', 'on'] as const) {
-          const result = await runScenario(browser, target, device, mode);
-          results.push(result);
+      for (const device of devices) {
+        for (const mode of modes) {
+          const label = `${target.key}:${device}:${mode}`;
+          // eslint-disable-next-line no-console
+          console.log(`[bench] start ${label}`);
+          const timeoutMs = Number(process.env.BENCH_TIMEOUT_MS ?? '120000');
+          try {
+            const result = await Promise.race([
+              runScenario(browser, target, device, mode),
+              new Promise<ScenarioResult>((_, reject) =>
+                setTimeout(() => reject(new Error(`timeout_${label}`)), timeoutMs),
+              ),
+            ]);
+            results.push(result as ScenarioResult);
+            // eslint-disable-next-line no-console
+            console.log(`[bench] done ${label}`);
+          } catch (error) {
+            results.push({
+              page: target.key,
+              device,
+              mode,
+              firstLoad: {
+                lcpMs: null,
+                firstUsefulMs: null,
+                totalBytes: 0,
+                imageBytes: 0,
+                imageRequests: 0,
+                imageCacheHits: 0,
+                domImageCount: 0,
+                resourceImageCount: 0,
+                resourceImageBytes: 0,
+                resourceByType: {},
+                jankFrames: 0,
+                longTasks: 0,
+                routePath: '',
+                bodySample: '',
+              },
+              secondLoad: { imageRequests: 0, imageBytes: 0, imageCacheHits: 0 },
+              error: error instanceof Error ? error.message : 'bench_error',
+            });
+            // eslint-disable-next-line no-console
+            console.log(`[bench] fail ${label}`);
+          }
         }
       }
     }
   } finally {
     await browser.close();
-    await stopDevServer(server);
+    if (server) {
+      await stopDevServer(server);
+    }
   }
 
   console.log(JSON.stringify({ results }, null, 2));

@@ -52,6 +52,7 @@ type ProfilePhotoRow = {
   storage_path: string;
   sort_order: number | null;
   is_primary: boolean | null;
+  updated_at: string | null;
 };
 
 const verifyInternalToken = createVerifier({
@@ -101,9 +102,25 @@ const resolveConversationId = (userId: string, profileId: string) =>
   `conv-${userId}-${profileId}`;
 const looksLikeConversationId = (value: string) =>
   value.startsWith("conv-") || value.startsWith("match-");
-const PROFILE_PHOTOS_BUCKET = "profile-photos";
-const SIGNED_URL_TTL_SEC = 60 * 60 * 24;
-const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
+const encodeStoragePath = (value: string) =>
+  value
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) => {
+  if (!env.SUPABASE_URL) return "/placeholder.svg";
+  const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
+  const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
+  const base = `${env.SUPABASE_URL}/storage/v1/render/image/public/${bucket}/${encodeStoragePath(storagePath)}`;
+  const params = new URLSearchParams({
+    width: "256",
+    quality: "72",
+    format: "webp",
+  });
+  if (version) params.set("v", String(version));
+  return `${base}?${params.toString()}`;
+};
 
 const toOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -111,23 +128,6 @@ const toOptionalString = (value: unknown) =>
 const toTranslationMapKey = (userId: string, conversationId: string) =>
   `${userId}:${conversationId}`;
 
-const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
-  const cached = signedPhotoUrlCache.get(storagePath);
-  if (!cached) return null;
-  if (cached.expiresAtMs <= Date.now()) {
-    signedPhotoUrlCache.delete(storagePath);
-    return null;
-  }
-  return cached.url;
-};
-
-const setCachedSignedPhotoUrl = (storagePath: string, url: string) => {
-  const safeTtlMs = Math.max(60, SIGNED_URL_TTL_SEC - 30) * 1000;
-  signedPhotoUrlCache.set(storagePath, {
-    url,
-    expiresAtMs: Date.now() + safeTtlMs,
-  });
-};
 
 const computeAge = (birthDate: string | null): number => {
   if (!birthDate) return 24;
@@ -190,11 +190,11 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
 
   if (profileResult.error) return byId;
 
-  let signedByPath = new Map<string, string>();
   const primaryPathByUser = new Map<string, string>();
+  const primaryUrlByUser = new Map<string, string>();
   const photoResult = await supabaseServiceClient
     .from("profile_photos")
-    .select("user_id,storage_path,sort_order,is_primary")
+    .select("user_id,storage_path,sort_order,is_primary,updated_at")
     .in("user_id", missing)
     .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1")
     .order("is_primary", { ascending: false })
@@ -208,33 +208,13 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
         primaryPathByUser.set(row.user_id, row.storage_path);
       }
     }
-
-    const paths = [...new Set([...primaryPathByUser.values()])];
-    const missingPaths: string[] = [];
-    for (const storagePath of paths) {
-      const cached = getCachedSignedPhotoUrl(storagePath);
-      if (cached) {
-        signedByPath.set(storagePath, cached);
-      } else {
-        missingPaths.push(storagePath);
-      }
-    }
-
-    if (missingPaths.length > 0) {
-      const signed = await supabaseServiceClient.storage
-        .from(PROFILE_PHOTOS_BUCKET)
-        .createSignedUrls(missingPaths, SIGNED_URL_TTL_SEC, {
-          transform: {
-            width: 256,
-            quality: 72,
-          },
-        } as any);
-      if (!signed.error && Array.isArray(signed.data)) {
-        for (const entry of signed.data) {
-          if (!entry?.path || !entry?.signedUrl) continue;
-          signedByPath.set(entry.path, entry.signedUrl);
-          setCachedSignedPhotoUrl(entry.path, entry.signedUrl);
-        }
+    for (const row of rows) {
+      if (!primaryPathByUser.has(row.user_id) && row.storage_path) {
+        primaryPathByUser.set(row.user_id, row.storage_path);
+        primaryUrlByUser.set(
+          row.user_id,
+          buildPublicPhotoUrl(row.storage_path, row.updated_at ?? null),
+        );
       }
     }
   }
@@ -250,8 +230,7 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
       interests: string[] | null;
       verified_opt_in: boolean | null;
     };
-    const primaryPath = primaryPathByUser.get(typedRow.user_id);
-    const primarySignedUrl = primaryPath ? signedByPath.get(primaryPath) : undefined;
+    const primarySignedUrl = primaryUrlByUser.get(typedRow.user_id);
     byId.set(
       typedRow.user_id,
       buildPeerCardFromSupabase({

@@ -18,7 +18,10 @@ const clampWidth = (value: number) => Math.max(48, Math.round(value));
 const clampQuality = (value: number) => Math.max(45, Math.min(90, Math.round(value)));
 
 const isTransformableSupabaseUrl = (url: URL) =>
-  url.pathname.includes('/storage/v1/object/sign/') || url.pathname.includes('/storage/v1/object/public/');
+  url.pathname.includes('/storage/v1/object/sign/') ||
+  url.pathname.includes('/storage/v1/object/public/') ||
+  url.pathname.includes('/storage/v1/render/image/public/') ||
+  url.pathname.includes('/storage/v1/render/image/sign/');
 
 const isImageOptimizationDisabled = () => {
   if (typeof window === 'undefined') return false;

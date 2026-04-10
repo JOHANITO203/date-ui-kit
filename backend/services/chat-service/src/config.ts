@@ -18,6 +18,8 @@ const envSchema = z.object({
   INTERNAL_JWT_SECRET: z.string().min(16),
   SUPABASE_URL: z.string().url().optional().or(z.literal("")),
   SUPABASE_SERVICE_ROLE: z.string().optional().or(z.literal("")),
+  STORAGE_PROFILE_PHOTOS_BUCKET: z.string().min(1).default("profile-photos"),
+  STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET: z.string().min(1).default("profile-photos-public"),
   ACTOR_ENGINE_ENABLED: z.string().optional().default("0"),
   ACTOR_ENGINE_TICK_SECONDS: z.coerce.number().int().min(10).max(3600).default(45),
   ACTOR_ENGINE_TARGET_EMAILS: z

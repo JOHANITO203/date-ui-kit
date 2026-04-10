@@ -217,6 +217,15 @@ const ProfileScreen = () => {
   useEffect(() => {
     let isCancelled = false;
 
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('bench') === '1') {
+        setProfilePhotoUrl(
+          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80',
+        );
+      }
+    }
+
     const fallbackNameFromSession = (() => {
       const profile = user?.profile as Record<string, unknown> | null | undefined;
       if (!profile || typeof profile !== 'object') return '';

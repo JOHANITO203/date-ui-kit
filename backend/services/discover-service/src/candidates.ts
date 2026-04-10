@@ -22,6 +22,7 @@ type ProfilePhotoRow = {
   storage_path: string;
   sort_order: number | null;
   is_primary: boolean | null;
+  updated_at: string | null;
 };
 
 type SettingsRow = {
@@ -61,9 +62,25 @@ const optionalQueryTimeoutMs = Math.min(
   env.DISCOVER_SUPABASE_TIMEOUT_MS,
   env.DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS,
 );
-const SIGNED_URL_CACHE_VERSION = "v2-card";
-const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
-const signedPhotoCacheKey = (storagePath: string) => `${SIGNED_URL_CACHE_VERSION}:${storagePath}`;
+const encodeStoragePath = (value: string) =>
+  value
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) => {
+  if (!env.SUPABASE_URL) return "/placeholder.svg";
+  const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
+  const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
+  const base = `${env.SUPABASE_URL}/storage/v1/render/image/public/${bucket}/${encodeStoragePath(storagePath)}`;
+  const params = new URLSearchParams({
+    width: "960",
+    quality: "76",
+    format: "webp",
+  });
+  if (version) params.set("v", String(version));
+  return `${base}?${params.toString()}`;
+};
 const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -198,65 +215,12 @@ const mapProfileToCandidate = (
   };
 };
 
-const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
-  const key = signedPhotoCacheKey(storagePath);
-  const cached = signedPhotoUrlCache.get(key);
-  if (!cached) return null;
-  if (Date.now() >= cached.expiresAtMs) {
-    signedPhotoUrlCache.delete(key);
-    return null;
-  }
-  return cached.url;
-};
-
-const setCachedSignedPhotoUrl = (storagePath: string, signedUrl: string) => {
-  const key = signedPhotoCacheKey(storagePath);
-  const safeTtlSec = Math.max(60, env.STORAGE_SIGNED_URL_TTL_SEC - 30);
-  signedPhotoUrlCache.set(key, {
-    url: signedUrl,
-    expiresAtMs: Date.now() + safeTtlSec * 1000,
-  });
-};
-
-const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, string>> => {
+const createPublicUrlsForPaths = (rows: ProfilePhotoRow[]): Map<string, string> => {
   const result = new Map<string, string>();
-  if (!supabase || paths.length === 0) return result;
-
-  const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
-  const missingPaths: string[] = [];
-
-  for (const storagePath of uniquePaths) {
-    const cached = getCachedSignedPhotoUrl(storagePath);
-    if (cached) {
-      result.set(storagePath, cached);
-    } else {
-      missingPaths.push(storagePath);
-    }
+  for (const row of rows) {
+    if (!row.storage_path) continue;
+    result.set(row.storage_path, buildPublicPhotoUrl(row.storage_path, row.updated_at));
   }
-
-  if (missingPaths.length > 0) {
-    const signedBatch = await withTimeout(
-      supabase.storage
-        .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
-        .createSignedUrls(missingPaths, env.STORAGE_SIGNED_URL_TTL_SEC, {
-          transform: {
-            width: 960,
-            quality: 76,
-          },
-        } as any),
-      optionalQueryTimeoutMs,
-      "discover_create_signed_urls",
-    );
-
-    if (!signedBatch.error && Array.isArray(signedBatch.data)) {
-      for (const entry of signedBatch.data) {
-        if (!entry?.path || !entry?.signedUrl) continue;
-        result.set(entry.path, entry.signedUrl);
-        setCachedSignedPhotoUrl(entry.path, entry.signedUrl);
-      }
-    }
-  }
-
   return result;
 };
 
@@ -294,7 +258,7 @@ export const loadCandidatesFromSupabase = async (input: {
       const photosResult = await withTimeout(
         supabase
           .from("profile_photos")
-          .select("user_id,storage_path,sort_order,is_primary")
+          .select("user_id,storage_path,sort_order,is_primary,updated_at")
           .in("user_id", profileIds)
           .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1,sort_order.eq.2")
           .order("is_primary", { ascending: false })
@@ -369,17 +333,14 @@ export const loadCandidatesFromSupabase = async (input: {
       topPhotoPathsByUser.set(profile.user_id, topPaths);
       allTopPaths.push(...topPaths);
     }
-    let signedByPath = new Map<string, string>();
-    try {
-      signedByPath = await createSignedUrlsForPaths(allTopPaths);
-    } catch (error) {
-      input.logger.warn({ err: error }, "discover.signed_urls_failed_continue_with_placeholders");
-    }
+    const publicByPath = createPublicUrlsForPaths(
+      photosRows.filter((row) => allTopPaths.includes(row.storage_path)),
+    );
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => signedByPath.get(storagePath))
+        .map((storagePath) => publicByPath.get(storagePath))
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(
@@ -434,7 +395,7 @@ export const loadCandidatesByProfileIds = async (input: {
       const photosResult = await withTimeout(
         supabase
           .from("profile_photos")
-          .select("user_id,storage_path,sort_order,is_primary")
+          .select("user_id,storage_path,sort_order,is_primary,updated_at")
           .in("user_id", profileIds)
           .order("is_primary", { ascending: false })
           .order("sort_order", { ascending: true })
@@ -504,17 +465,14 @@ export const loadCandidatesByProfileIds = async (input: {
       allTopPaths.push(...topPaths);
     }
 
-    let signedByPath = new Map<string, string>();
-    try {
-      signedByPath = await createSignedUrlsForPaths(allTopPaths);
-    } catch (error) {
-      input.logger.warn({ err: error }, "discover.signed_urls_by_ids_failed_continue_with_placeholders");
-    }
+    const publicByPath = createPublicUrlsForPaths(
+      photosRows.filter((row) => allTopPaths.includes(row.storage_path)),
+    );
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => signedByPath.get(storagePath))
+        .map((storagePath) => publicByPath.get(storagePath))
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(
