@@ -28,9 +28,26 @@ const sourceBucket = process.env.STORAGE_PROFILE_PHOTOS_BUCKET?.trim() || "profi
 const publicBucket = process.env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET?.trim() || "profile-photos-public";
 
 const BATCH_SIZE = 200;
-const VARIANT_MAX_WIDTH = 1080;
-const VARIANT_MAX_HEIGHT = 1440;
-const VARIANT_QUALITY = 78;
+type PhotoVariant = "card" | "avatar" | "profile";
+const VARIANT_PRESETS: Record<
+  PhotoVariant,
+  {
+    width: number;
+    height: number;
+    fit: "inside" | "cover";
+    quality: number;
+  }
+> = {
+  card: { width: 720, height: 960, fit: "inside", quality: 76 },
+  avatar: { width: 256, height: 256, fit: "cover", quality: 72 },
+  profile: { width: 1080, height: 1440, fit: "inside", quality: 78 },
+};
+
+const toVariantPath = (storagePath: string, variant: PhotoVariant) => {
+  const clean = storagePath.replace(/^\/+/, "");
+  const withoutExt = clean.replace(/\.[^/.]+$/, "");
+  return `variants/${variant}/${withoutExt}.jpg`;
+};
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -52,23 +69,28 @@ const uploadVariant = async (storagePath: string) => {
   if (!buffer || buffer.length === 0) {
     throw new Error("variant_empty");
   }
-  const optimized = await sharp(buffer, { failOnError: false })
-    .rotate()
-    .resize({
-      width: VARIANT_MAX_WIDTH,
-      height: VARIANT_MAX_HEIGHT,
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: VARIANT_QUALITY, mozjpeg: true })
-    .toBuffer();
+  const variants: PhotoVariant[] = ["card", "avatar", "profile"];
+  for (const variant of variants) {
+    const preset = VARIANT_PRESETS[variant];
+    const optimized = await sharp(buffer, { failOnError: false })
+      .rotate()
+      .resize({
+        width: preset.width,
+        height: preset.height,
+        fit: preset.fit,
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: preset.quality, mozjpeg: true })
+      .toBuffer();
 
-  const { error } = await supabase.storage.from(publicBucket).upload(storagePath, optimized, {
-    contentType: "image/jpeg",
-    cacheControl: "public, max-age=31536000, immutable",
-    upsert: true,
-  });
-  if (error) throw error;
+    const variantPath = toVariantPath(storagePath, variant);
+    const { error } = await supabase.storage.from(publicBucket).upload(variantPath, optimized, {
+      contentType: "image/jpeg",
+      cacheControl: "public, max-age=31536000, immutable",
+      upsert: true,
+    });
+    if (error) throw error;
+  }
 };
 
 const main = async () => {

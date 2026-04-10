@@ -118,11 +118,18 @@ const chunkArray = <T,>(items: T[], size: number) => {
   return chunks;
 };
 
-const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) => {
+const buildPublicPhotoUrl = (
+  storagePath: string,
+  variant: "avatar",
+  updatedAtIso: string | null,
+) => {
   if (!env.SUPABASE_URL) return "/placeholder.svg";
   const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(storagePath)}`;
+  const clean = storagePath.replace(/^\/+/, "");
+  const withoutExt = clean.replace(/\.[^/.]+$/, "");
+  const variantPath = `variants/${variant}/${withoutExt}.jpg`;
+  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(variantPath)}`;
   if (!version) return base;
   return `${base}?v=${version}`;
 };
@@ -260,7 +267,7 @@ const loadPeerProfiles = async (
     if (path) {
       const policy = photoAccessResolver(row.user_id);
       if (policy === "public_stable") {
-        primarySignedUrl = buildPublicPhotoUrl(path, null);
+        primarySignedUrl = buildPublicPhotoUrl(path, "avatar", null);
       } else {
         primarySignedUrl = await buildSignedPhotoUrl(path);
       }

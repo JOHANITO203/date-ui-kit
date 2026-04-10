@@ -103,30 +103,54 @@ const encodeStoragePath = (value: string) =>
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-const buildPublicPhotoUrl = (storagePath: string, updatedAtIso?: string | null) => {
+type PhotoVariant = "card" | "avatar" | "profile";
+
+const VARIANT_PRESETS: Record<
+  PhotoVariant,
+  {
+    width: number;
+    height: number;
+    fit: "inside" | "cover";
+    quality: number;
+  }
+> = {
+  card: { width: 720, height: 960, fit: "inside", quality: 76 },
+  avatar: { width: 256, height: 256, fit: "cover", quality: 72 },
+  profile: { width: 1080, height: 1440, fit: "inside", quality: 78 },
+};
+
+const toVariantPath = (storagePath: string, variant: PhotoVariant) => {
+  const clean = storagePath.replace(/^\/+/, "");
+  const withoutExt = clean.replace(/\.[^/.]+$/, "");
+  return `variants/${variant}/${withoutExt}.jpg`;
+};
+
+const buildPublicPhotoUrl = (
+  storagePath: string,
+  variant: PhotoVariant,
+  updatedAtIso?: string | null,
+) => {
   if (!env.SUPABASE_URL) return null;
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${PROFILE_PHOTOS_PUBLIC_BUCKET}/${encodeStoragePath(storagePath)}`;
+  const variantPath = toVariantPath(storagePath, variant);
+  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${PROFILE_PHOTOS_PUBLIC_BUCKET}/${encodeStoragePath(variantPath)}`;
   if (!version) return base;
   return `${base}?v=${version}`;
 };
 
-const VARIANT_MAX_WIDTH = 1080;
-const VARIANT_MAX_HEIGHT = 1440;
-const VARIANT_QUALITY = 78;
-
-const optimizeProfileVariant = async (buffer: Buffer) => {
+const optimizeVariant = async (buffer: Buffer, variant: PhotoVariant) => {
+  const preset = VARIANT_PRESETS[variant];
   const image = sharp(buffer, { failOnError: false }).rotate();
   const resized = image.resize({
-    width: VARIANT_MAX_WIDTH,
-    height: VARIANT_MAX_HEIGHT,
-    fit: "inside",
+    width: preset.width,
+    height: preset.height,
+    fit: preset.fit,
     withoutEnlargement: true,
   });
 
   const output = await resized
     .jpeg({
-      quality: VARIANT_QUALITY,
+      quality: preset.quality,
       mozjpeg: true,
     })
     .toBuffer();
@@ -137,17 +161,18 @@ const optimizeProfileVariant = async (buffer: Buffer) => {
   };
 };
 
-const uploadPublicVariantFromBuffer = async (
-  storagePath: string,
-  buffer: Buffer,
-) => {
+const uploadPublicVariantFromBuffer = async (storagePath: string, buffer: Buffer) => {
   if (!buffer || buffer.length === 0) return;
-  const optimized = await optimizeProfileVariant(buffer);
-  await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).upload(storagePath, optimized.buffer, {
-    contentType: optimized.contentType,
-    cacheControl: "public, max-age=31536000, immutable",
-    upsert: true,
-  });
+  const variants: PhotoVariant[] = ["card", "avatar", "profile"];
+  for (const variant of variants) {
+    const optimized = await optimizeVariant(buffer, variant);
+    const variantPath = toVariantPath(storagePath, variant);
+    await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).upload(variantPath, optimized.buffer, {
+      contentType: optimized.contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+      upsert: true,
+    });
+  }
 };
 
 const copyPublicVariantFromPrivate = async (storagePath: string) => {

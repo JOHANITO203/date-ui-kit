@@ -70,11 +70,18 @@ const encodeStoragePath = (value: string) =>
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) => {
+const buildPublicPhotoUrl = (
+  storagePath: string,
+  variant: "card",
+  updatedAtIso: string | null,
+) => {
   if (!env.SUPABASE_URL) return "/placeholder.svg";
   const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(storagePath)}`;
+  const clean = storagePath.replace(/^\/+/, "");
+  const withoutExt = clean.replace(/\.[^/.]+$/, "");
+  const variantPath = `variants/${variant}/${withoutExt}.jpg`;
+  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(variantPath)}`;
   const params = new URLSearchParams();
   if (version) params.set("v", String(version));
   const query = params.toString();
@@ -340,7 +347,7 @@ const createPublicUrlsForPaths = (
   for (const row of rows) {
     if (!row.storage_path) continue;
     if (available.has(row.storage_path)) {
-      result.set(row.storage_path, buildPublicPhotoUrl(row.storage_path, row.updated_at));
+      result.set(row.storage_path, buildPublicPhotoUrl(row.storage_path, "card", row.updated_at));
     }
   }
   return result;
@@ -482,7 +489,7 @@ export const loadCandidatesFromSupabase = async (input: {
       for (const storagePath of publicPaths) {
         if (!storagePath) continue;
         const row = rowByPath.get(storagePath);
-        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, row?.updated_at ?? null));
+        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
       }
     }
     const signedCandidates = [...signedPaths, ...(!publicBucketEnabled ? publicPaths : [])];
@@ -675,7 +682,7 @@ export const loadCandidatesByProfileIds = async (input: {
       for (const storagePath of publicPaths) {
         if (!storagePath) continue;
         const row = rowByPath.get(storagePath);
-        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, row?.updated_at ?? null));
+        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
       }
     }
     const signedCandidates = [...signedPaths, ...(!publicBucketEnabled ? publicPaths : [])];
