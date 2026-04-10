@@ -116,15 +116,20 @@ const request = async <T>(
   path: string,
   init?: RequestInit,
 ): Promise<AuthResponse<T>> => {
-  const response = await fetch(`${AUTH_BFF_URL}${path}`, {
-    credentials: 'include',
-    headers:
-      init?.body instanceof FormData
-        ? { ...(init?.headers ?? {}) }
-        : {
+  const hasBody = typeof init?.body !== 'undefined' && init?.body !== null;
+  const headers =
+    init?.body instanceof FormData
+      ? { ...(init?.headers ?? {}) }
+      : hasBody
+        ? {
             'Content-Type': 'application/json',
             ...(init?.headers ?? {}),
-          },
+          }
+        : { ...(init?.headers ?? {}) };
+
+  const response = await fetch(`${AUTH_BFF_URL}${path}`, {
+    credentials: 'include',
+    headers,
     ...init,
   });
 
