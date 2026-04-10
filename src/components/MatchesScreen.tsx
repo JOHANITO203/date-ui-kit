@@ -199,13 +199,13 @@ const MatchesScreen: React.FC = () => {
       : remoteState;
   const screenState: 'loading' | 'empty' | 'locked' | 'unlocked' | 'error' =
     baseState === 'locked' && isPremiumPreviewUnlocked ? 'unlocked' : baseState;
-  const totalLikesCount = likesCards.length + hiddenLikesCount;
+  const totalLikesCount = likesCards.length;
   const unlockedCardsCount = likesCards.filter(
     (entry) => !entry.blurredLocked && !entry.hiddenByShadowGhost,
   ).length;
   const lockedCardsCount = likesCards.filter((entry) => entry.blurredLocked).length;
   const ghostCardsCount = likesCards.filter((entry) => entry.hiddenByShadowGhost).length;
-  const summaryLine = `${totalLikesCount} ${t('likes.title').toLowerCase()} • ${unlockedCardsCount} ${t('likes.unlocked').toLowerCase()} • ${ghostCardsCount} ${t('likes.shadowGhostTag').toLowerCase()}`;
+  const summaryLine = `${totalLikesCount} ${t('likes.title').toLowerCase()} • ${unlockedCardsCount} ${t('likes.unlocked').toLowerCase()}`;
 
   const resolveCardVariant = (like: (typeof likesCards)[number]): CardVariant => {
     if (like.hiddenByShadowGhost) {
@@ -290,7 +290,8 @@ const MatchesScreen: React.FC = () => {
     const isIceBreakerBusyForCard = iceBreakerBusyLikeId === like.id;
     const variant = resolveCardVariant(like);
     const senderIdentityMasked = like.hiddenByShadowGhost;
-    const displayName = senderIdentityMasked ? t('likes.shadowGhostMaskedName') : like.name;
+    const maskedName = t('likes.shadowGhostMaskedName');
+    const displayName = senderIdentityMasked ? maskedName : like.name;
     const displayAgeMasked = senderIdentityMasked ? true : like.ageMasked;
     const showIdentity = variant === 'unlocked' || variant === 'visible_by_entitlement';
     const showGhostActions = variant === 'visible_ghost';
@@ -304,13 +305,13 @@ const MatchesScreen: React.FC = () => {
             ? 'text-white/82 border-white/20 bg-white/8'
             : 'text-cyan-100 border-cyan-300/35 bg-cyan-500/12';
     const badgeLabel =
-      variant === 'locked_ghost'
-        ? t('likes.shadowGhostTag')
-        : variant === 'unlockable_icebreaker' || variant === 'unlockable_ghost' || variant === 'locked_standard'
-          ? t('likes.unlock.locked')
-          : variant === 'visible_by_entitlement'
-            ? t('likes.states.unlocked')
-            : t('likes.unlocked');
+      variant === 'unlockable_icebreaker' || variant === 'unlockable_ghost' || variant === 'locked_standard'
+        ? t('likes.unlock.locked')
+        : variant === 'visible_by_entitlement'
+          ? t('likes.states.unlocked')
+          : t('likes.unlocked');
+    const showGhostOnlyBadge =
+      variant === 'locked_ghost' || variant === 'unlockable_ghost' || variant === 'visible_ghost';
 
     if (showIdentity) {
       return (
@@ -330,7 +331,14 @@ const MatchesScreen: React.FC = () => {
           <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
             <div className="flex items-center justify-between">
               <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white`}>
-                {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
+                {senderIdentityMasked ? (
+                  <>
+                    <Ghost size={12} className="text-fuchsia-200" />
+                    <span className="sr-only">{maskedName}</span>
+                  </>
+                ) : (
+                  displayAgeMasked ? displayName : `${displayName}, ${like.age}`
+                )}
               </span>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{t('chat.online')}</span>
@@ -392,15 +400,13 @@ const MatchesScreen: React.FC = () => {
             className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
           >
             <Ghost size={10} />
-            <span>{badgeLabel}</span>
+            <span className="sr-only">{t('likes.shadowGhostTag')}</span>
           </div>
           <div className={`absolute left-3 right-3 ${compact ? 'bottom-3' : 'bottom-4'} space-y-2`}>
             <div className="flex items-center justify-between">
               <span className={`${compact ? 'text-sm' : 'text-base'} font-black text-white/90`}>
-                {displayName}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-100/80">
-                {t('likes.shadowGhostTag')}
+                <Ghost size={12} className="text-fuchsia-200" />
+                <span className="sr-only">{maskedName}</span>
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -447,7 +453,8 @@ const MatchesScreen: React.FC = () => {
           className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
         >
           {variant === 'locked_ghost' || variant === 'unlockable_ghost' ? <Ghost size={10} /> : null}
-          <span>{badgeLabel}</span>
+          {!showGhostOnlyBadge && <span>{badgeLabel}</span>}
+          {showGhostOnlyBadge && <span className="sr-only">{t('likes.shadowGhostTag')}</span>}
         </div>
         {showUnlockAction && (
           <div className="absolute left-3 right-3 bottom-10">
@@ -465,7 +472,14 @@ const MatchesScreen: React.FC = () => {
 
         <div className="absolute bottom-3 left-3 right-3 text-white/70">
           <span className={`${compact ? 'text-xs' : 'text-sm'} font-bold text-white/72`}>
-            {displayAgeMasked ? displayName : `${displayName}, ${like.age}`}
+            {senderIdentityMasked ? (
+              <>
+                <Ghost size={12} className="text-fuchsia-200" />
+                <span className="sr-only">{maskedName}</span>
+              </>
+            ) : (
+              displayAgeMasked ? displayName : `${displayName}, ${like.age}`
+            )}
           </span>
         </div>
       </>

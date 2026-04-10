@@ -289,6 +289,17 @@ const shouldFallbackToRuntime = (error: unknown) => {
   return statusCode >= 500;
 };
 
+const makeIdempotencyKey = (prefix: string) => {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return `${prefix}:${crypto.randomUUID()}`;
+    }
+  } catch {
+    // ignore
+  }
+  return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+};
+
 const syncRuntimeSettingsFromAuthProfile = (
   payload: ProfileMeData | undefined,
 ) => {
@@ -481,14 +492,21 @@ export const appApi = {
   async swipe(profileId: string, decision: SwipeDecision, feedCursor?: string): Promise<SwipeResponse> {
     if (DISCOVER_API_URL) {
       try {
-        return await discoverRequest<SwipeResponse>('/discover/swipe', {
+        const response = await discoverRequest<SwipeResponse>('/discover/swipe', {
           method: 'POST',
+          headers: {
+            'x-idempotency-key': makeIdempotencyKey('swipe'),
+          },
           body: JSON.stringify({
             profileId,
             decision,
             feedCursor: feedCursor ?? `feed-${Date.now()}`,
           }),
         });
+        if (typeof response.superlikesLeft === 'number') {
+          runtimeApi.patchBalances({ superlikesLeft: response.superlikesLeft });
+        }
+        return response;
       } catch (error) {
         if (!shouldFallbackToRuntime(error)) throw error;
         // Fallback keeps swipe flow available while service stabilizes.
@@ -501,10 +519,20 @@ export const appApi = {
     if (DISCOVER_API_URL) {
       return discoverRequest<RewindResponse>('/discover/rewind', {
         method: 'POST',
+        headers: {
+          'x-idempotency-key': makeIdempotencyKey('rewind'),
+        },
         body: JSON.stringify({
           feedCursor: feedCursor ?? `feed-${Date.now()}`,
         }),
-      }).catch((error) => {
+      })
+        .then((response) => {
+          if (typeof response.rewindsLeft === 'number') {
+            runtimeApi.patchBalances({ rewindsLeft: response.rewindsLeft });
+          }
+          return response;
+        })
+        .catch((error) => {
         if (!shouldFallbackToRuntime(error)) {
           return Promise.reject(error);
         }
@@ -515,10 +543,44 @@ export const appApi = {
   },
 
   getBoostStatus(): Promise<BoostStatus> {
+    if (DISCOVER_API_URL) {
+      return discoverRequest<BoostStatus>('/discover/boost/status')
+        .then((response) => {
+          runtimeApi.applyBoostStatus(response);
+          return response;
+        })
+        .catch((error) => {
+        if (!shouldFallbackToRuntime(error)) {
+          return Promise.reject(error);
+        }
+        return withLatency(runtimeApi.getBoostStatus(), 40);
+      });
+    }
     return withLatency(runtimeApi.getBoostStatus(), 40);
   },
 
   activateBoost(): Promise<ActivateBoostResponse> {
+    if (DISCOVER_API_URL) {
+      return discoverRequest<ActivateBoostResponse>('/discover/boost/activate', {
+        method: 'POST',
+        headers: {
+          'x-idempotency-key': makeIdempotencyKey('boost'),
+        },
+        body: JSON.stringify({}),
+      })
+        .then((response) => {
+          if (response.boost) {
+            runtimeApi.applyBoostStatus(response.boost);
+          }
+          return response;
+        })
+        .catch((error) => {
+        if (!shouldFallbackToRuntime(error)) {
+          return Promise.reject(error);
+        }
+        return withLatency(runtimeApi.activateBoost(), 60);
+      });
+    }
     return withLatency(runtimeApi.activateBoost(), 60);
   },
 
@@ -547,12 +609,7 @@ export const appApi = {
         body: JSON.stringify({ action: request.action }),
       });
     }
-    return withLatency({
-      ok: true,
-      likeId: request.likeId,
-      status: request.action === 'like_back' ? 'matched' : 'refused',
-      matched: request.action === 'like_back',
-    });
+    return withLatency(runtimeApi.decideIncomingLike(request), 80);
   },
 
   useLikesIceBreaker(likeId: string): Promise<UseIceBreakerResponse> {

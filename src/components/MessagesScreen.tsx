@@ -9,6 +9,7 @@ import { appApi, subscribeConversationRelationChange } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { ConversationSummary, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
+import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
@@ -67,8 +68,15 @@ const MessagesScreen = () => {
   const { isDesktop, isTablet, isTouch } = useDevice();
   const { t } = useI18n();
   const planTier = useRuntimeSelector((payload) => payload.planTier);
+  const settings = useRuntimeSelector((payload) => payload.settings);
   const isLarge = isDesktop || isTablet;
   const canSeeOnlinePresence = hasSubscriptionBenefit(planTier, 'messages_see_online');
+  const shadowGhostAccess = resolveShadowGhostAccess({
+    planTier,
+    entitlementSource: settings.preferences.shadowGhostEntitlementSource,
+    entitlementExpiresAtIso: settings.preferences.shadowGhostEntitlementExpiresAtIso,
+  });
+  const shadowGhostActive = shadowGhostAccess.canUse && settings.privacy.shadowGhost;
   const showDesktopRail =
     isDesktop &&
     !isTablet &&
@@ -102,7 +110,7 @@ const MessagesScreen = () => {
     Promise.all([appApi.getConversations(), appApi.getLikes()])
       .then(([items, likesResponse]) => {
         setConversationItems(items);
-        setLikesCount(likesResponse.inventory.visibleLikes.length + likesResponse.inventory.hiddenCount);
+        setLikesCount(likesResponse.inventory.visibleLikes.length);
         if (!urlUserId) {
           setSelectedUserId((prev) => prev ?? items[0]?.peer.id ?? null);
         }
@@ -141,7 +149,7 @@ const MessagesScreen = () => {
         ]);
         if (isCancelled) return;
         setConversationItems(items);
-        setLikesCount(likesResponse.inventory.visibleLikes.length + likesResponse.inventory.hiddenCount);
+        setLikesCount(likesResponse.inventory.visibleLikes.length);
         failureCount = 0;
       } catch {
         // Ignore transient live errors; manual retry keeps explicit recovery path.
@@ -349,7 +357,15 @@ const MessagesScreen = () => {
       {/* List Area (Master) */}
       <div className={`group/messages-pane relative flex flex-col ${isLarge ? (isTablet ? 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]' : 'w-full md:w-[var(--messages-pane-width-md)] xl:w-[var(--messages-pane-width-lg)]') + ' border-r border-white/5 overflow-hidden pb-6 pt-6' : 'w-full overflow-y-auto no-scrollbar pt-[var(--messages-header-top)]'} h-full px-[var(--messages-page-x)]`}>
         <div className={`flex items-center justify-between ${isLarge ? (isTablet ? 'mb-6' : 'mb-8') : 'mb-[var(--messages-header-gap)]'}`}>
-          <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>{t('messages.title')}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className={`${isLarge ? (isTablet ? 'text-[2.2rem]' : 'text-3xl') : 'text-[length:var(--messages-title-size)]'} font-bold tracking-tight`}>{t('messages.title')}</h2>
+            {shadowGhostActive && (
+              <span className="inline-flex items-center rounded-full border border-violet-300/30 bg-violet-500/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.18em] font-black text-violet-100">
+                <ICONS.Ghost size={12} className="text-violet-200" />
+                <span className="sr-only">{t('profile.stateOn')}</span>
+              </span>
+            )}
+          </div>
           <button onClick={() => navigate('/settings')} className={`glass rounded-full hover-effect flex items-center justify-center ${isLarge ? 'w-12 h-12' : 'w-11 h-11'}`}><ICONS.Settings size={isLarge ? 20 : 18} /></button>
         </div>
         {safetyFeedback && (
@@ -413,10 +429,14 @@ const MessagesScreen = () => {
                   />
                 </div>
                 <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider inline-flex items-center gap-1.5">
-                  {isShadowGhostConversation(conversation)
-                    ? t('likes.shadowGhostMaskedName')
-                    : `${conversation.peer.name}, ${conversation.peer.age}`}
-                  {isShadowGhostConversation(conversation) && <ICONS.Ghost size={11} className="text-fuchsia-200" />}
+                  {isShadowGhostConversation(conversation) ? (
+                    <>
+                      <ICONS.Ghost size={11} className="text-fuchsia-200" />
+                      <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+                    </>
+                  ) : (
+                    `${conversation.peer.name}, ${conversation.peer.age}`
+                  )}
                 </span>
               </div>
             ))}
@@ -536,7 +556,9 @@ const MessagesScreen = () => {
                             conversation.peer.flags.shortPassTier,
                           )}
                           size={isTablet ? 'md' : 'lg'}
-                          textClassName="truncate max-w-[var(--messages-conv-name-max)]"
+                          textClassName={`truncate max-w-[var(--messages-conv-name-max)] ${
+                            isShadowGhostConversation(conversation) ? 'sr-only' : ''
+                          }`}
                           className="min-w-0 flex-1"
                           premiumBadgeMode="dense"
                           badgeClassName={isTablet ? 'scale-90' : ''}

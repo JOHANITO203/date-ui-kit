@@ -17,10 +17,16 @@ const swipeSchema = z.object({
   profileId: z.string().min(1),
   decision: z.enum(["like", "dislike", "superlike"]),
   feedCursor: z.string().min(1),
+  idempotencyKey: z.string().min(1).optional(),
 });
 
 const rewindSchema = z.object({
   feedCursor: z.string().min(1),
+  idempotencyKey: z.string().min(1).optional(),
+});
+
+const boostActivateSchema = z.object({
+  idempotencyKey: z.string().min(1).optional(),
 });
 
 const decideIncomingLikeSchema = z.object({
@@ -28,6 +34,15 @@ const decideIncomingLikeSchema = z.object({
 });
 
 type DiscoverLikeStatus = "pending" | "matched" | "passed";
+type BoostAvailability = "active" | "available" | "out_of_tokens";
+type BoostStatus = {
+  active: boolean;
+  activeUntilIso?: string;
+  remainingSeconds: number;
+  boostsLeft: number;
+  availability: BoostAvailability;
+  durationSeconds: number;
+};
 type DiscoverLikeRow = {
   id: string;
   liker_user_id: string;
@@ -84,6 +99,7 @@ const verifyInternalToken = createVerifier({
 
 const dismissedByUser = new Map<string, string[]>();
 const swipeHistoryByUser = new Map<string, string[]>();
+const consumptionIdempotencyCache = new Map<string, number>();
 const discoverCandidatesCache = new Map<
   string,
   { expiresAtMs: number; candidates: FeedCandidate[]; userGeoPointKey: string }
@@ -125,6 +141,156 @@ const resolveAuthenticatedUserId = (request: FastifyRequest, reply: FastifyReply
     reply.status(401);
     return null;
   }
+};
+
+const BOOST_DURATION_SECONDS = 30 * 60;
+
+const idempotencyKeyFromRequest = (request: FastifyRequest) => {
+  const header = request.headers["x-idempotency-key"];
+  if (typeof header === "string" && header.trim().length > 0) return header.trim();
+  return undefined;
+};
+
+const isDuplicateKeyError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+  const message =
+    "message" in error ? String((error as { message?: unknown }).message ?? "").toLowerCase() : "";
+  return code === "23505" || message.includes("duplicate key");
+};
+
+const registerConsumptionIdempotency = async (input: {
+  userId: string;
+  idempotencyKey: string;
+  action: "superlike" | "rewind" | "boost";
+}): Promise<{ duplicate: boolean }> => {
+  const cacheKey = `${input.userId}:${input.idempotencyKey}`;
+  if (!supabaseAdminClient) {
+    if (consumptionIdempotencyCache.has(cacheKey)) {
+      return { duplicate: true };
+    }
+    consumptionIdempotencyCache.set(cacheKey, Date.now());
+    if (consumptionIdempotencyCache.size > 2000) {
+      const cutoff = Date.now() - 1000 * 60 * 60;
+      for (const [key, ts] of consumptionIdempotencyCache.entries()) {
+        if (ts < cutoff) consumptionIdempotencyCache.delete(key);
+      }
+    }
+    return { duplicate: false };
+  }
+
+  const result = await supabaseAdminClient.from("entitlement_consumptions").insert({
+    user_id: input.userId,
+    idempotency_key: input.idempotencyKey,
+    action: input.action,
+  });
+  if (result.error) {
+    if (isDuplicateKeyError(result.error)) {
+      return { duplicate: true };
+    }
+    throw result.error;
+  }
+  return { duplicate: false };
+};
+
+const consumeBalance = async (input: {
+  userId: string;
+  field: "superlikesLeft" | "rewindsLeft" | "boostsLeft";
+  amount: number;
+  action: "superlike" | "rewind" | "boost";
+  idempotencyKey?: string;
+}): Promise<{
+  ok: boolean;
+  duplicate: boolean;
+  balancesLeft: number;
+  snapshot: EntitlementSnapshot | null;
+}> => {
+  const snapshot = (await getUserEntitlementSnapshot(input.userId)) ?? {};
+  const current = Math.max(0, snapshot.balancesDelta?.[input.field] ?? 0);
+  if (current < input.amount) {
+    return { ok: false, duplicate: false, balancesLeft: current, snapshot };
+  }
+
+  const key = input.idempotencyKey;
+  if (key) {
+    const idempotency = await registerConsumptionIdempotency({
+      userId: input.userId,
+      idempotencyKey: key,
+      action: input.action,
+    });
+    if (idempotency.duplicate) {
+      const latest = await getUserEntitlementSnapshot(input.userId);
+      const latestLeft = Math.max(0, latest?.balancesDelta?.[input.field] ?? current);
+      return {
+        ok: true,
+        duplicate: true,
+        balancesLeft: latestLeft,
+        snapshot: latest ?? snapshot,
+      };
+    }
+  }
+
+  const nextSnapshot: EntitlementSnapshot = {
+    ...snapshot,
+    balancesDelta: {
+      ...(snapshot.balancesDelta ?? {}),
+      [input.field]: Math.max(0, current - input.amount),
+    },
+  };
+  await saveUserEntitlementSnapshot(input.userId, nextSnapshot);
+
+  return {
+    ok: true,
+    duplicate: false,
+    balancesLeft: Math.max(0, nextSnapshot.balancesDelta?.[input.field] ?? 0),
+    snapshot: nextSnapshot,
+  };
+};
+
+const resolveBoostStatus = (input: {
+  boostsLeft: number;
+  activeUntilIso?: string | null;
+}): BoostStatus => {
+  const nowMs = Date.now();
+  const activeUntilMs = input.activeUntilIso ? new Date(input.activeUntilIso).getTime() : 0;
+  const active = Boolean(input.activeUntilIso) && activeUntilMs > nowMs;
+  const remainingSeconds = active ? Math.max(0, Math.floor((activeUntilMs - nowMs) / 1000)) : 0;
+  const availability: BoostStatus["availability"] = active
+    ? "active"
+    : input.boostsLeft > 0
+      ? "available"
+      : "out_of_tokens";
+  return {
+    active,
+    activeUntilIso: active ? input.activeUntilIso ?? undefined : undefined,
+    remainingSeconds,
+    boostsLeft: input.boostsLeft,
+    availability,
+    durationSeconds: BOOST_DURATION_SECONDS,
+  };
+};
+
+const getUserBoostRow = async (userId: string) => {
+  if (!supabaseAdminClient) return null;
+  const result = await supabaseAdminClient
+    .from("user_boosts")
+    .select("active_until")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return result.data as { active_until: string | null } | null;
+};
+
+const setUserBoostActiveUntil = async (userId: string, activeUntilIso: string | null) => {
+  if (!supabaseAdminClient) return;
+  const { error } = await supabaseAdminClient.from("user_boosts").upsert(
+    {
+      user_id: userId,
+      active_until: activeUntilIso,
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) throw error;
 };
 
 const isIsoActive = (value?: string | null) => {
@@ -1027,6 +1193,33 @@ export const buildServer = () => {
     }
 
     const { profileId, decision } = parsed.data;
+    let superlikesLeft: number | undefined;
+    if (decision === "superlike") {
+      const key =
+        parsed.data.idempotencyKey ??
+        idempotencyKeyFromRequest(request) ??
+        `swipe:${parsed.data.feedCursor}:${profileId}:${decision}`;
+      try {
+        const consumption = await consumeBalance({
+          userId,
+          field: "superlikesLeft",
+          amount: 1,
+          action: "superlike",
+          idempotencyKey: key,
+        });
+        if (!consumption.ok) {
+          return {
+            matched: false,
+            code: "SUPERLIKE_EMPTY",
+          };
+        }
+        superlikesLeft = consumption.balancesLeft;
+      } catch (error) {
+        app.log.warn({ err: error, userId }, "discover.superlike_consume_failed");
+        reply.status(503);
+        return { code: "ENTITLEMENT_CONSUME_FAILED" };
+      }
+    }
     const dismissed = dismissedByUser.get(userId) ?? [];
     if (!dismissed.includes(profileId)) {
       dismissed.push(profileId);
@@ -1105,6 +1298,7 @@ export const buildServer = () => {
     return {
       matched,
       conversationId,
+      superlikesLeft,
     };
   });
 
@@ -1121,12 +1315,36 @@ export const buildServer = () => {
     }
 
     const history = swipeHistoryByUser.get(userId) ?? [];
-    const restoredProfileId = history.pop();
-    swipeHistoryByUser.set(userId, history);
-
+    const restoredProfileId = history[history.length - 1];
     if (!restoredProfileId) {
       return { restoredProfileId: undefined, rewindsLeft: 0 };
     }
+
+    const key =
+      parsed.data.idempotencyKey ??
+      idempotencyKeyFromRequest(request) ??
+      `rewind:${parsed.data.feedCursor}`;
+    let rewindsLeft = 0;
+    try {
+      const consumption = await consumeBalance({
+        userId,
+        field: "rewindsLeft",
+        amount: 1,
+        action: "rewind",
+        idempotencyKey: key,
+      });
+      if (!consumption.ok) {
+        return { restoredProfileId: undefined, rewindsLeft: consumption.balancesLeft };
+      }
+      rewindsLeft = consumption.balancesLeft;
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.rewind_consume_failed");
+      reply.status(503);
+      return { code: "ENTITLEMENT_CONSUME_FAILED" };
+    }
+
+    history.pop();
+    swipeHistoryByUser.set(userId, history);
 
     const dismissed = dismissedByUser.get(userId) ?? [];
     dismissedByUser.set(
@@ -1134,7 +1352,96 @@ export const buildServer = () => {
       dismissed.filter((profileId) => profileId !== restoredProfileId),
     );
 
-    return { restoredProfileId, rewindsLeft: 0 };
+    return { restoredProfileId, rewindsLeft };
+  });
+
+  app.get("/discover/boost/status", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+    if (!supabaseAdminClient) {
+      return resolveBoostStatus({ boostsLeft: 0 });
+    }
+
+    try {
+      const snapshot = await getUserEntitlementSnapshot(userId);
+      const boostsLeft = Math.max(0, snapshot?.balancesDelta?.boostsLeft ?? 0);
+      const boostRow = await getUserBoostRow(userId);
+      return resolveBoostStatus({
+        boostsLeft,
+        activeUntilIso: boostRow?.active_until ?? undefined,
+      });
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.boost_status_failed");
+      reply.status(503);
+      return { code: "BOOST_STATUS_UNAVAILABLE" };
+    }
+  });
+
+  app.post("/discover/boost/activate", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+    if (!supabaseAdminClient) {
+      reply.status(503);
+      return { code: "DISCOVER_BOOST_UNAVAILABLE" };
+    }
+
+    const parsed = boostActivateSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { code: "INVALID_PAYLOAD", message: "Invalid boost payload." };
+    }
+
+    const key =
+      parsed.data.idempotencyKey ??
+      idempotencyKeyFromRequest(request) ??
+      `boost:${Date.now()}`;
+
+    try {
+      const currentBoost = await getUserBoostRow(userId);
+      if (isIsoActive(currentBoost?.active_until ?? null)) {
+        const snapshot = await getUserEntitlementSnapshot(userId);
+        const boostsLeft = Math.max(0, snapshot?.balancesDelta?.boostsLeft ?? 0);
+        return {
+          status: "already_active",
+          boost: resolveBoostStatus({
+            boostsLeft,
+            activeUntilIso: currentBoost?.active_until ?? undefined,
+          }),
+        };
+      }
+      const consumption = await consumeBalance({
+        userId,
+        field: "boostsLeft",
+        amount: 1,
+        action: "boost",
+        idempotencyKey: key,
+      });
+      if (!consumption.ok) {
+        return {
+          status: "no_tokens",
+          boost: resolveBoostStatus({
+            boostsLeft: consumption.balancesLeft,
+          }),
+        };
+      }
+      const activeUntilIso = new Date(Date.now() + BOOST_DURATION_SECONDS * 1000).toISOString();
+      await setUserBoostActiveUntil(userId, activeUntilIso);
+      return {
+        status: "activated",
+        boost: resolveBoostStatus({
+          boostsLeft: consumption.balancesLeft,
+          activeUntilIso,
+        }),
+      };
+    } catch (error) {
+      app.log.error({ err: error, userId }, "discover.boost_consume_failed");
+      reply.status(503);
+      return { code: "ENTITLEMENT_CONSUME_FAILED" };
+    }
   });
 
   return app;

@@ -673,6 +673,7 @@ export const translations: Record<Locale, Dictionary> = {
         lockedTitle: 'Travel Pass access required',
         lockedBody:
           'Server switching is available with an active Travel Pass, or via packs that include Travel Pass benefits.',
+        lockedCity: 'Launch is locked to {city} for now.',
         unlockCta: 'View travel options',
         currentAccess: 'Travel Pass access',
         changeServerCta: 'Change server',
@@ -1392,6 +1393,7 @@ export const translations: Record<Locale, Dictionary> = {
         lockedTitle: 'Нужен доступ Travel Pass',
         lockedBody:
           'Смена сервера доступна при активном Travel Pass или в пакетах, где это преимущество включено.',
+        lockedCity: 'Запуск сейчас закреплён за городом {city}.',
         unlockCta: 'Посмотреть travel-опции',
         currentAccess: 'Доступ Travel Pass',
         changeServerCta: 'Сменить сервер',

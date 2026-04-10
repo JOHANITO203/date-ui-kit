@@ -11,6 +11,7 @@ import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { OfferItem } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
+import { TRAVEL_PASS_ENABLED } from '../domain/travelPass';
 
 type CatalogView = 'instant' | 'passes' | 'bundles';
 type TierId = 'essential' | 'gold' | 'platinum' | 'elite';
@@ -273,6 +274,12 @@ const bundleLabelById: Record<string, string> = {
   datingpro: 'DATING PRO',
   premiumplus: 'PREMIUM+',
 };
+const resolvedInstantProducts = TRAVEL_PASS_ENABLED
+  ? instantProducts
+  : instantProducts.filter((item) => item.id !== 'travel-pass');
+const resolvedTimePacks = TRAVEL_PASS_ENABLED
+  ? timePacks
+  : timePacks.filter((item) => item.id !== 'travel-pass-plus');
 const tierBenefitFlags = (tier: TierId) => ({
   discover: hasSubscriptionBenefit(tier, 'discover_advanced_filters'),
   profile: hasSubscriptionBenefit(tier, 'profile_hide_age_distance'),
@@ -909,17 +916,13 @@ const BoostScreen = () => {
                             label: t('chat.online'),
                             enabled: benefits.online,
                           },
-                        ];
+                        ].filter((chip) => chip.enabled);
                         return chips.map((chip) => (
                           <span
                             key={`${tier.id}-${chip.label}`}
-                            className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] border ${
-                              chip.enabled
-                                ? 'border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
-                                : 'border-white/12 bg-white/5 text-white/45'
-                            }`}
+                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] border border-emerald-300/35 bg-emerald-500/12 text-emerald-100"
                           >
-                            {chip.enabled ? 'ON' : 'OFF'} {chip.label}
+                            {chip.label}
                           </span>
                         ));
                       })()}
@@ -1053,9 +1056,11 @@ const BoostScreen = () => {
                 </li>
               ))}
             </ul>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/65">
-              {t('boost.badges.travelPassRule')}
-            </p>
+            {TRAVEL_PASS_ENABLED && (
+              <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/65">
+                {t('boost.badges.travelPassRule')}
+              </p>
+            )}
           </div>
         </section>
 
@@ -1085,7 +1090,7 @@ const BoostScreen = () => {
 
           {catalogView === 'instant' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
-              {instantProducts.map((item) => (
+              {resolvedInstantProducts.map((item) => (
                 <motion.div
                   whileTap={tapGlow(item.glowToken, 0.42)}
                   whileHover={{ ...glowShadow(item.glowToken, 0.34, 34), scale: 1.01 }}
@@ -1144,7 +1149,7 @@ const BoostScreen = () => {
           {catalogView === 'passes' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[var(--grid-gap)]">
-                {timePacks.map((item) => (
+                {resolvedTimePacks.map((item) => (
                   <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-black text-lg tracking-tight uppercase">
@@ -1187,9 +1192,11 @@ const BoostScreen = () => {
                   </motion.div>
                 ))}
               </div>
-              <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/45">
-                {t('boost.badges.travelPassRule')}
-              </p>
+              {TRAVEL_PASS_ENABLED && (
+                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/45">
+                  {t('boost.badges.travelPassRule')}
+                </p>
+              )}
             </>
           )}
 

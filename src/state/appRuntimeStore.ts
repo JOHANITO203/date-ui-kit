@@ -8,6 +8,8 @@ import type {
   GetReceivedLikesResponse,
   ActivateBoostResponse,
   BoostStatus,
+  DecideIncomingLikeRequest,
+  DecideIncomingLikeResponse,
   LikesInventory,
   PatchSettingsRequest,
   DeepPartial,
@@ -27,7 +29,11 @@ import type {
   EntitlementSnapshot,
 } from '../contracts';
 import { clearTrackedEvents, trackEvent } from '../services/analytics';
-import { resolveTravelPassServerAccess } from '../domain/travelPass';
+import {
+  resolveTravelPassServerAccess,
+  TRAVEL_PASS_ENABLED,
+  TRAVEL_PASS_LOCKED_CITY,
+} from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 
@@ -49,6 +55,7 @@ type RuntimeState = {
   iceBreaker: {
     unlockedLikeIds: string[];
   };
+  incomingLikeStates: Record<string, 'matched' | 'refused'>;
   settings: UserSettings;
   feedSource: ProfileCard[];
   dismissedProfileIds: string[];
@@ -96,7 +103,7 @@ const defaultSettings: UserSettings = {
     ageMax: 35,
     genderPreference: 'everyone',
     language: 'en',
-    travelPassCity: undefined,
+    travelPassCity: TRAVEL_PASS_LOCKED_CITY,
     travelPassEntitlementSource: 'none',
     shadowGhostEntitlementSource: 'none',
   },
@@ -106,6 +113,19 @@ const defaultSettings: UserSettings = {
   },
 };
 
+const applyTravelPassLock = (settings: UserSettings): UserSettings => {
+  if (TRAVEL_PASS_ENABLED) return settings;
+  return {
+    ...settings,
+    preferences: {
+      ...settings.preferences,
+      travelPassCity: TRAVEL_PASS_LOCKED_CITY,
+      travelPassEntitlementSource: 'none',
+      travelPassEntitlementExpiresAtIso: undefined,
+    },
+  };
+};
+
 const readPersistedSettings = (): UserSettings | null => {
   if (typeof window === 'undefined') return null;
   try {
@@ -113,7 +133,7 @@ const readPersistedSettings = (): UserSettings | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as UserSettings;
     if (!parsed || typeof parsed !== 'object') return null;
-    return {
+    const merged: UserSettings = {
       ...defaultSettings,
       ...parsed,
       account: { ...defaultSettings.account, ...(parsed.account ?? {}) },
@@ -122,6 +142,7 @@ const readPersistedSettings = (): UserSettings | null => {
       preferences: { ...defaultSettings.preferences, ...(parsed.preferences ?? {}) },
       translation: { ...defaultSettings.translation, ...(parsed.translation ?? {}) },
     };
+    return applyTravelPassLock(merged);
   } catch {
     return null;
   }
@@ -146,6 +167,7 @@ const createInitialState = (): RuntimeState => ({
   iceBreaker: {
     unlockedLikeIds: [],
   },
+  incomingLikeStates: {},
   settings: readPersistedSettings() ?? defaultSettings,
   feedSource: [],
   dismissedProfileIds: [],
@@ -464,7 +486,7 @@ export const runtimeApi = {
       entitlementSource: state.settings.preferences.shadowGhostEntitlementSource,
       entitlementExpiresAtIso: state.settings.preferences.shadowGhostEntitlementExpiresAtIso,
     });
-    const effectiveSettings = shadowGhostAccess.canUse
+    let effectiveSettings = shadowGhostAccess.canUse
       ? state.settings
       : {
           ...state.settings,
@@ -473,6 +495,9 @@ export const runtimeApi = {
             shadowGhost: false,
           },
         };
+    if (!TRAVEL_PASS_ENABLED) {
+      effectiveSettings = applyTravelPassLock(effectiveSettings);
+    }
 
     return {
       userId: state.currentUserId,
@@ -671,15 +696,45 @@ export const runtimeApi = {
     };
   },
 
+  applyBoostStatus(status: BoostStatus) {
+    setState((prev) => ({
+      ...prev,
+      boost: {
+        ...prev.boost,
+        activeUntilIso: status.activeUntilIso,
+      },
+      balances: {
+        ...prev.balances,
+        boostsLeft: Math.max(0, status.boostsLeft),
+      },
+    }));
+    return status;
+  },
+
+  patchBalances(patch: Partial<RuntimeState['balances']>) {
+    setState((prev) => ({
+      ...prev,
+      balances: {
+        ...prev.balances,
+        ...patch,
+      },
+    }));
+  },
+
   getLikes(): GetReceivedLikesResponse {
     const entitlementUnlocked = state.likesUnlocked || canUnlockLikes(state.planTier);
     const unlockedLikeSet = new Set(state.iceBreaker.unlockedLikeIds);
-    const visibleLikes = state.likes.map((entry) => ({
-      ...entry,
-      state: 'pending_incoming_like' as const,
-      hiddenByShadowGhost: Boolean(entry.profile.flags.shadowGhost),
-      blurredLocked: !(entitlementUnlocked || unlockedLikeSet.has(entry.id)),
-    }));
+    const visibleLikes = state.likes
+      .map((entry) => {
+        const decision = state.incomingLikeStates[entry.id];
+        return {
+          ...entry,
+          state: decision ?? ('pending_incoming_like' as const),
+          hiddenByShadowGhost: Boolean(entry.profile.flags.shadowGhost),
+          blurredLocked: !(entitlementUnlocked || unlockedLikeSet.has(entry.id)),
+        };
+      })
+      .filter((entry) => entry.state !== 'refused');
     const hiddenCount = visibleLikes.filter((entry) => entry.blurredLocked).length;
 
     const inventory: LikesInventory = {
@@ -751,6 +806,13 @@ export const runtimeApi = {
         inventory: this.getLikes().inventory,
       };
     }
+    if (state.incomingLikeStates[likeId]) {
+      return {
+        ok: false as const,
+        state: this.getLikes().state,
+        inventory: this.getLikes().inventory,
+      };
+    }
     if (state.iceBreaker.unlockedLikeIds.includes(likeId)) {
       return {
         ok: false as const,
@@ -775,6 +837,80 @@ export const runtimeApi = {
       ok: true as const,
       state: likes.state,
       inventory: likes.inventory,
+    };
+  },
+
+  decideIncomingLike(request: DecideIncomingLikeRequest): DecideIncomingLikeResponse {
+    const { likeId, action } = request;
+    const existing = state.likes.find((entry) => entry.id === likeId);
+    if (!existing) {
+      return {
+        ok: false,
+        likeId,
+        status: 'pending_incoming_like',
+        matched: false,
+      };
+    }
+
+    const nextStatus = action === 'like_back' ? 'matched' : 'refused';
+    const decisionAlready = state.incomingLikeStates[likeId];
+    if (decisionAlready) {
+      return {
+        ok: true,
+        likeId,
+        status: decisionAlready,
+        matched: decisionAlready === 'matched',
+        conversationId:
+          decisionAlready === 'matched' ? toConversationId(existing.profile.id) : undefined,
+        peerOnline: existing.profile.online,
+      };
+    }
+
+    const matched = nextStatus === 'matched';
+    const conversationId = matched
+      ? ensureConversationForProfile(existing.profile.id, existing.wasSuperLike)
+      : undefined;
+
+    setState((prev) => {
+      const nextLiked =
+        matched && !prev.likedProfileIds.includes(existing.profile.id)
+          ? [...prev.likedProfileIds, existing.profile.id]
+          : prev.likedProfileIds;
+      const nextLikes =
+        nextStatus === 'refused'
+          ? prev.likes.filter((entry) => entry.id !== likeId)
+          : prev.likes;
+      const nextLikedBy =
+        nextStatus === 'refused'
+          ? prev.likedByProfileIds.filter((id) => id !== existing.profile.id)
+          : prev.likedByProfileIds;
+
+      return {
+        ...prev,
+        likes: nextLikes,
+        likedByProfileIds: nextLikedBy,
+        likedProfileIds: nextLiked,
+        incomingLikeStates: { ...prev.incomingLikeStates, [likeId]: nextStatus },
+      };
+    });
+
+    if (matched && conversationId) {
+      trackEvent('match_created', {
+        userId: state.currentUserId,
+        sourceScreen: 'likes',
+        targetId: existing.profile.id,
+        conversationId,
+        metadata: { via: 'like_back' },
+      });
+    }
+
+    return {
+      ok: true,
+      likeId,
+      status: nextStatus,
+      matched,
+      conversationId,
+      peerOnline: existing.profile.online,
     };
   },
 
@@ -966,7 +1102,10 @@ export const runtimeApi = {
   },
 
   patchSettings(request: PatchSettingsRequest) {
-    const nextSettings = mergeSettings(state.settings, request.patch);
+    let nextSettings = mergeSettings(state.settings, request.patch);
+    if (!TRAVEL_PASS_ENABLED) {
+      nextSettings = applyTravelPassLock(nextSettings);
+    }
     const shadowGhostAccess = resolveShadowGhostAccess({
       planTier: state.planTier,
       entitlementSource: nextSettings.preferences.shadowGhostEntitlementSource,
@@ -994,9 +1133,12 @@ export const runtimeApi = {
         preferences: {
           ...prev.settings.preferences,
           travelPassEntitlementSource:
-            snapshot?.travelPass?.source ?? 'none',
+            TRAVEL_PASS_ENABLED ? snapshot?.travelPass?.source ?? 'none' : 'none',
           travelPassEntitlementExpiresAtIso:
-            snapshot?.travelPass?.expiresAtIso ?? undefined,
+            TRAVEL_PASS_ENABLED ? snapshot?.travelPass?.expiresAtIso ?? undefined : undefined,
+          travelPassCity: TRAVEL_PASS_ENABLED
+            ? prev.settings.preferences.travelPassCity
+            : TRAVEL_PASS_LOCKED_CITY,
           shadowGhostEntitlementSource:
             snapshot?.shadowGhost?.source ?? 'none',
           shadowGhostEntitlementExpiresAtIso:

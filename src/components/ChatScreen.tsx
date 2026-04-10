@@ -10,6 +10,7 @@ import { appApi, authApi, subscribeConversationRelationChange } from '../service
 import { useRuntimeSelector } from '../state';
 import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
+import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 
 interface ChatScreenProps {
   embedded?: boolean;
@@ -54,6 +55,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const navigate = useNavigate();
   const { locale, t } = useI18n();
   const planTier = useRuntimeSelector((payload) => payload.planTier);
+  const settings = useRuntimeSelector((payload) => payload.settings);
   const { isTablet, isTouch } = useDevice();
   const { keyboardInset, isKeyboardOpen } = useKeyboardInset(isTouch);
   const [showTranslation, setShowTranslation] = useState(false);
@@ -72,6 +74,12 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   );
   const userId = propUserId || routeUserId;
   const canUseChatTranslation = hasSubscriptionBenefit(planTier, 'messages_translation');
+  const shadowGhostAccess = resolveShadowGhostAccess({
+    planTier,
+    entitlementSource: settings.preferences.shadowGhostEntitlementSource,
+    entitlementExpiresAtIso: settings.preferences.shadowGhostEntitlementExpiresAtIso,
+  });
+  const shadowGhostActive = shadowGhostAccess.canUse && settings.privacy.shadowGhost;
 
   const containerProps = embedded
     ? {
@@ -424,8 +432,15 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               size="md"
               premiumBadgeMode="dense"
               className="w-fit"
+              textClassName={shadowGhostMasked ? 'sr-only' : ''}
             />
             {shadowGhostMasked && <ICONS.Ghost size={12} className="text-fuchsia-200" />}
+            {shadowGhostActive && (
+              <span className="inline-flex items-center rounded-full border border-violet-300/30 bg-violet-500/10 px-2 py-0.5 text-[8px] uppercase tracking-[0.18em] font-black text-violet-100">
+                <ICONS.Ghost size={10} className="text-violet-200" />
+                <span className="sr-only">{t('profile.stateOn')}</span>
+              </span>
+            )}
             <span
               className={`pl-0.5 text-[9px] uppercase font-black tracking-widest ${
                 relationState === 'active'
@@ -599,8 +614,19 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
               key={message.id}
               className="flex flex-col items-end gap-1.5 ml-auto max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]"
             >
-              <div className="gradient-premium p-4 rounded-[24px] rounded-br-none text-sm leading-relaxed shadow-lg shadow-pink-500/10">
+              <div
+                className={`relative p-4 rounded-[24px] rounded-br-none text-sm leading-relaxed shadow-lg ${
+                  shadowGhostActive
+                    ? 'bg-gradient-to-br from-violet-500/60 via-fuchsia-500/55 to-sky-500/55 shadow-violet-500/20'
+                    : 'gradient-premium shadow-pink-500/10'
+                }`}
+              >
                 {message.originalText}
+                {shadowGhostActive && (
+                  <span className="pointer-events-none absolute -bottom-2 -right-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/60 border border-violet-300/30">
+                    <ICONS.Ghost size={12} className="text-violet-200" />
+                  </span>
+                )}
               </div>
               <span className="text-[9px] font-bold text-secondary pr-2 uppercase tracking-widest">
                 {message.readAtIso

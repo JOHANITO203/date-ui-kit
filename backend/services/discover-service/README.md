@@ -9,6 +9,9 @@ Implemented endpoints:
 - `GET /discover/feed`
 - `POST /discover/swipe`
 - `POST /discover/rewind`
+- `GET /discover/boost/status`
+- `POST /discover/boost/activate`
+- `POST /discover/boost/activate`
 - `GET /discover/likes/incoming`
 - `POST /discover/likes/:likeId/decision`
 - `GET /health`
@@ -25,3 +28,4 @@ Runtime:
   - `SUPABASE_SERVICE_ROLE`
   - `STORAGE_PROFILE_PHOTOS_BUCKET` (default `profile-photos`)
   - `STORAGE_SIGNED_URL_TTL_SEC` (default 7 days)
+  - `entitlement_consumptions` table for idempotent balance decrements

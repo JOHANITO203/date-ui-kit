@@ -1,9 +1,8 @@
 import type { AnalyticsEvent } from '../contracts';
 
-const MONITORING_ENDPOINT =
-  (import.meta.env.VITE_MONITORING_LOG_ENDPOINT as string | undefined)?.trim() ?? '';
-const ANALYTICS_ENDPOINT =
-  (import.meta.env.VITE_ANALYTICS_ENDPOINT as string | undefined)?.trim() ?? '';
+const env = (import.meta as { env?: Record<string, string> } | undefined)?.env ?? {};
+const MONITORING_ENDPOINT = (env.VITE_MONITORING_LOG_ENDPOINT ?? '').trim();
+const ANALYTICS_ENDPOINT = (env.VITE_ANALYTICS_ENDPOINT ?? '').trim();
 
 type MonitoringLevel = 'info' | 'warn' | 'error';
 
@@ -99,4 +98,3 @@ export const initMonitoring = () => {
     window.removeEventListener('unhandledrejection', onUnhandledRejection);
   };
 };
-

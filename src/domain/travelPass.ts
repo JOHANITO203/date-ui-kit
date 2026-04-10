@@ -2,6 +2,9 @@ import type { PlanTier } from '../contracts';
 import type { TravelPassEntitlementSource, TravelPassServerAccessSource } from '../contracts/settings.contract';
 import { hasSubscriptionBenefit } from './subscriptionBenefits';
 
+export const TRAVEL_PASS_ENABLED = false;
+export const TRAVEL_PASS_LOCKED_CITY = 'voronezh' as const;
+
 type ResolveTravelPassServerAccessInput = {
   planTier: PlanTier;
   entitlementSource?: TravelPassEntitlementSource;
@@ -24,6 +27,13 @@ export const resolveTravelPassServerAccess = ({
   entitlementSource = 'none',
   entitlementExpiresAtIso,
 }: ResolveTravelPassServerAccessInput): TravelPassServerAccess => {
+  if (!TRAVEL_PASS_ENABLED) {
+    return {
+      canChangeServer: false,
+      source: 'none',
+    };
+  }
+
   if (hasSubscriptionBenefit(planTier, 'travel_pass_included')) {
     return {
       canChangeServer: true,

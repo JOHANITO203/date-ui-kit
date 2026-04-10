@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
@@ -8,7 +8,11 @@ import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, getTrackedEvents } from '../services';
 import { useRuntimeSelector } from '../state';
-import { resolveTravelPassServerAccess } from '../domain/travelPass';
+import {
+  resolveTravelPassServerAccess,
+  TRAVEL_PASS_ENABLED,
+  TRAVEL_PASS_LOCKED_CITY,
+} from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { useAuth } from '../auth/AuthProvider';
 import { getOnboardingProfileSnapshot, hydrateProfileSeed } from '../domain/profileHydration';
@@ -93,11 +97,34 @@ const ProfileScreen = () => {
     entitlementExpiresAtIso: settings.preferences.shadowGhostEntitlementExpiresAtIso,
   });
   const shadowGhostLocked = !shadowGhostAccess.canUse;
+  const shadowGhostActive = !shadowGhostLocked && settings.privacy.shadowGhost;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [profileScrollProgress, setProfileScrollProgress] = useState(0);
   const [profileScrollThumb, setProfileScrollThumb] = useState(28);
   const planTitle = t(`settings.plan.${previewPlan}`);
+  const planPalette = useMemo(() => {
+    if (previewPlan === 'elite') {
+      return { hue: 292, comp: 192, sat: '78%', light: '60%' };
+    }
+    if (previewPlan === 'platinum') {
+      return { hue: 192, comp: 305, sat: '74%', light: '56%' };
+    }
+    if (previewPlan === 'free') {
+      return { hue: 220, comp: 20, sat: '12%', light: '58%' };
+    }
+    return { hue: 40, comp: 210, sat: '82%', light: '56%' };
+  }, [previewPlan]);
+  const planColorVars = useMemo(
+    () =>
+      ({
+        '--plan-hue': String(planPalette.hue),
+        '--plan-comp-hue': String(planPalette.comp),
+        '--plan-sat': planPalette.sat,
+        '--plan-light': planPalette.light,
+      }) as CSSProperties,
+    [planPalette],
+  );
   const planBadgeLabel =
     previewPlan === 'elite'
       ? t('badges.premiumPlus')
@@ -139,6 +166,7 @@ const ProfileScreen = () => {
     entitlementSource: settings.preferences.travelPassEntitlementSource,
     entitlementExpiresAtIso: settings.preferences.travelPassEntitlementExpiresAtIso,
   });
+  const travelPassUiLocked = !TRAVEL_PASS_ENABLED || !travelPassServerAccess.canChangeServer;
   const travelPassCityLabel =
     settings.preferences.travelPassCity === 'voronezh'
       ? t('settings.cities.voronezh')
@@ -154,11 +182,16 @@ const ProfileScreen = () => {
     const launchCity = snapshot?.city?.trim();
     return launchCity ? normalizeCityLabel(launchCity, t) : null;
   }, [t, user?.id]);
-  const currentServerCityLabel =
-    (travelPassServerAccess.canChangeServer ? travelPassCityLabel : null) ??
-    profileCity ??
-    onboardingLaunchCityLabel ??
-    t('settings.cities.moscow');
+  const lockedServerCityLabel =
+    TRAVEL_PASS_LOCKED_CITY === 'voronezh'
+      ? t('settings.cities.voronezh')
+      : t('settings.cities.moscow');
+  const currentServerCityLabel = TRAVEL_PASS_ENABLED
+    ? (travelPassServerAccess.canChangeServer ? travelPassCityLabel : null) ??
+      profileCity ??
+      onboardingLaunchCityLabel ??
+      t('settings.cities.moscow')
+    : lockedServerCityLabel;
   const travelPassSourceLabel = t(`settings.travelPass.sources.${travelPassServerAccess.source}`);
   const boostActive = useMemo(() => {
     if (!boostActiveUntilIso) return false;
@@ -207,11 +240,10 @@ const ProfileScreen = () => {
     [profilePhotoUrl],
   );
   const openServerSettings = () => {
-    if (travelPassServerAccess.canChangeServer) {
+    if (TRAVEL_PASS_ENABLED && travelPassServerAccess.canChangeServer) {
       navigate('/settings/privacy/travel-pass-city');
       return;
     }
-    navigate('/boost');
   };
 
   useEffect(() => {
@@ -282,7 +314,7 @@ const ProfileScreen = () => {
             : fallbackMatches;
         const viewedByOthers =
           likesResult.status === 'fulfilled'
-            ? likesResult.value.inventory.visibleLikes.length + likesResult.value.inventory.hiddenCount
+            ? likesResult.value.inventory.visibleLikes.length
             : 0;
         const computedViews = Math.round((ownDiscoverViews + viewedByOthers) * 1.35);
 
@@ -398,18 +430,38 @@ const ProfileScreen = () => {
   };
 
   return (
-    <div ref={scrollRef} className={`relative group/profile h-full flex flex-col ${isLarge ? 'py-10 pr-8' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}>
+    <div
+      ref={scrollRef}
+      style={planColorVars}
+      className={`relative group/profile h-full flex flex-col ${isLarge ? 'py-10 pr-8' : 'py-6 pb-nav'} overflow-y-auto no-scrollbar bg-black`}
+    >
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(1200px 800px at 12% 8%, hsl(var(--plan-hue) var(--plan-sat) var(--plan-light) / 0.22), transparent 60%), radial-gradient(1000px 700px at 88% -10%, hsl(var(--plan-comp-hue) 68% 58% / 0.18), transparent 55%), linear-gradient(180deg, hsl(var(--plan-hue) var(--plan-sat) 8% / 0.65), #000 60%)',
+        }}
+      />
       {/* Header Section */}
       <div className="flex items-center justify-between mb-8 md:mb-10 px-[var(--page-x)]">
         <div>
           <h2 className="text-4xl font-black tracking-tighter mb-1">{t('profile.title')}</h2>
-          <p className="text-secondary text-xs uppercase tracking-[0.3em] font-bold">{t('profile.subtitle')}</p>
+          <p
+            className="text-xs uppercase tracking-[0.3em] font-bold"
+            style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 70% / 0.65)' }}
+          >
+            {t('profile.subtitle')}
+          </p>
         </div>
         <div className="flex gap-3">
           {isDesktop && (
             <button
               onClick={openServerSettings}
-              className="hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5 hover:border-cyan-300/35 transition-colors"
+              disabled={travelPassUiLocked}
+              aria-disabled={travelPassUiLocked}
+              className={`hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5 transition-colors ${
+                travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:border-cyan-300/35'
+              }`}
             >
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-[10px] text-secondary uppercase tracking-widest font-black">
@@ -418,7 +470,7 @@ const ProfileScreen = () => {
               <span className="text-[9px] text-cyan-100/75 uppercase tracking-[0.14em] font-black">
                 {travelPassSourceLabel}
               </span>
-              {!travelPassServerAccess.canChangeServer && <ICONS.Lock size={12} className="text-amber-300" />}
+              {travelPassUiLocked && <ICONS.Lock size={12} className="text-amber-300" />}
             </button>
           )}
           <button 
@@ -430,7 +482,7 @@ const ProfileScreen = () => {
         </div>
       </div>
 
-      <div className={`${isLarge ? 'container-dashboard screen-template-dashboard density-comfortable' : ''}`}>
+      <div className={`${isLarge ? 'container-dashboard screen-template-dashboard density-comfortable' : ''} relative z-10`}>
       <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)] density-comfortable' : 'grid-cols-1 gap-[var(--section-gap)]'}`}>
         {/* Left Column: Identity & Status */}
         <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
@@ -444,8 +496,18 @@ const ProfileScreen = () => {
               whileHover={!isTouch ? { scale: 1.02 } : {}}
               className="relative z-10"
             >
-              <div className="aspect-square rounded-[var(--card-radius)] overflow-hidden border border-white/10 shadow-2xl">
-                {profilePhotoUrl ? (
+              <div
+                className="aspect-square rounded-[var(--card-radius)] overflow-hidden border shadow-2xl"
+                style={{ borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)' }}
+              >
+                {shadowGhostActive ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-600/25 via-black/70 to-sky-500/25 text-white">
+                    <div className="flex flex-col items-center gap-2">
+                      <ICONS.Ghost size={48} className="text-violet-200" />
+                      <span className="sr-only">{t('profile.stateOn')}</span>
+                    </div>
+                  </div>
+                ) : profilePhotoUrl ? (
                   <img
                     src={profilePhotoAttrs.src}
                     srcSet={profilePhotoAttrs.srcSet}
@@ -499,6 +561,10 @@ const ProfileScreen = () => {
               sectionRefs.current[1] = el;
             }}
             className={`relative overflow-hidden product-card-base cursor-pointer ${planToneClass}`}
+            style={{
+              borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.32)',
+              boxShadow: '0 0 30px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.24)',
+            }}
           >
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
@@ -566,7 +632,11 @@ const ProfileScreen = () => {
 
               <GlassButton
                 onClick={() => navigate('/boost')}
-                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 text-black border-0"
+                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-black border-0"
+                style={{
+                  background:
+                    'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 64% / 0.95), hsl(var(--plan-comp-hue) 72% 60% / 0.95))',
+                }}
               >
                 {t('settings.plan.manage')}
               </GlassButton>
@@ -585,13 +655,27 @@ const ProfileScreen = () => {
           >
             <div
               className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-blue-400/35 transition-colors"
-              style={{ boxShadow: '0 0 18px rgb(var(--glow-blue) / 0.16)' }}
+              style={{
+                boxShadow: '0 0 18px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.18)',
+                borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)',
+              }}
             >
               <div className="flex justify-between items-start">
-                <div className="p-3 rounded-2xl bg-blue-500/12 text-blue-300 group-hover:scale-110 transition-transform">
+                <div
+                  className="p-3 rounded-2xl group-hover:scale-110 transition-transform"
+                  style={{
+                    backgroundColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.14)',
+                    color: 'hsl(var(--plan-hue) var(--plan-sat) 70% / 0.9)',
+                  }}
+                >
                   <ICONS.Eye size={24} />
                 </div>
-                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">+35%</span>
+                <span
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 70% / 0.8)' }}
+                >
+                  +35%
+                </span>
               </div>
               <div>
                 <span className="text-4xl font-black tracking-tighter block">{profileViewsCount.toLocaleString()}</span>
@@ -601,13 +685,27 @@ const ProfileScreen = () => {
             
             <div
               className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-pink-400/35 transition-colors"
-              style={{ boxShadow: '0 0 18px rgb(var(--glow-pink) / 0.16)' }}
+              style={{
+                boxShadow: '0 0 18px hsl(var(--plan-comp-hue) 68% 58% / 0.18)',
+                borderColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.24)',
+              }}
             >
               <div className="flex justify-between items-start">
-                <div className="p-3 rounded-2xl bg-pink-500/12 text-pink-300 group-hover:scale-110 transition-transform">
+                <div
+                  className="p-3 rounded-2xl group-hover:scale-110 transition-transform"
+                  style={{
+                    backgroundColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.14)',
+                    color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.95)',
+                  }}
+                >
                   <ICONS.Heart size={24} />
                 </div>
-                <span className="text-[10px] font-black text-pink-400 uppercase tracking-widest">Exact</span>
+                <span
+                  className="text-[10px] font-black uppercase tracking-widest"
+                  style={{ color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.85)' }}
+                >
+                  Exact
+                </span>
               </div>
               <div>
                 <span className="text-4xl font-black tracking-tighter block">{matchesCount.toLocaleString()}</span>
@@ -622,7 +720,10 @@ const ProfileScreen = () => {
               sectionRefs.current[3] = el;
             }}
             className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-violet-400/30 space-y-8 relative overflow-hidden transition-colors"
-            style={{ boxShadow: '0 0 18px rgb(var(--glow-silver) / 0.14)' }}
+            style={{
+              boxShadow: '0 0 18px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.14)',
+              borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)',
+            }}
           >
             <div className="flex justify-between items-end relative z-10">
               <div className="space-y-2">
@@ -630,7 +731,12 @@ const ProfileScreen = () => {
                 <p className="text-secondary text-sm">{t('profile.visibilitySubtitle')}</p>
               </div>
               <div className="text-right">
-                <span className="text-5xl font-black tracking-tighter text-pink-500">{visibilityScore}%</span>
+                <span
+                  className="text-5xl font-black tracking-tighter"
+                  style={{ color: 'hsl(var(--plan-comp-hue) 68% 62% / 0.95)' }}
+                >
+                  {visibilityScore}%
+                </span>
               </div>
             </div>
             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden relative z-10">
@@ -638,19 +744,32 @@ const ProfileScreen = () => {
                 initial={{ width: 0 }}
                 animate={{ width: `${visibilityScore}%` }}
                 transition={{ duration: 1.5, ease: "circOut" }}
-                className="h-full bg-gradient-to-r from-pink-500 to-violet-500 rounded-full shadow-[0_0_20px_rgba(236,72,153,0.3)]" 
+                className="h-full rounded-full"
+                style={{
+                  background:
+                    'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 62% / 0.9), hsl(var(--plan-comp-hue) 68% 60% / 0.9))',
+                  boxShadow: '0 0 20px hsl(var(--plan-comp-hue) 68% 60% / 0.35)',
+                }}
               />
             </div>
             <div className="flex gap-4 relative z-10">
               <button
                 onClick={() => navigate('/profile/edit')}
-                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest hover:border-pink-400/35 hover:shadow-[0_0_16px_rgba(236,72,153,0.25)] transition-all"
+                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest transition-all"
+                style={{
+                  borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.28)',
+                  boxShadow: '0 0 16px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.16)',
+                }}
               >
                 {t('profile.improve')}
               </button>
               <button
                 onClick={() => navigate('/discover')}
-                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest hover:border-blue-400/35 hover:shadow-[0_0_16px_rgba(59,130,246,0.25)] transition-all"
+                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest transition-all"
+                style={{
+                  borderColor: 'hsl(var(--plan-comp-hue) 68% 60% / 0.3)',
+                  boxShadow: '0 0 16px hsl(var(--plan-comp-hue) 68% 60% / 0.18)',
+                }}
               >
                 {t('profile.preview')}
               </button>
@@ -658,7 +777,13 @@ const ProfileScreen = () => {
           </div>
 
           {/* Special Access Panel */}
-          <div className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-cyan-400/30 space-y-6 transition-colors" style={{ boxShadow: '0 0 16px rgb(var(--glow-blue) / 0.1)' }}>
+          <div
+            className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-6 transition-colors"
+            style={{
+              boxShadow: '0 0 16px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.12)',
+              borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.2)',
+            }}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h4 className="text-xl font-black italic uppercase tracking-tight">{t('profile.controlTitle')}</h4>
@@ -666,7 +791,10 @@ const ProfileScreen = () => {
             </div>
 
             <div className={`grid gap-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              <div className="rounded-2xl glass-panel-soft p-4 space-y-4 hover:border-pink-400/25 transition-colors">
+              <div
+                className="rounded-2xl glass-panel-soft p-4 space-y-4 transition-colors"
+                style={{ borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)' }}
+              >
                 <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.privacyLabel')}</div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold">{t('settings.items.hideAge')}</span>
@@ -725,11 +853,21 @@ const ProfileScreen = () => {
                 </button>
               </div>
 
-              <div className="rounded-2xl glass-panel-soft p-4 space-y-4 hover:border-blue-400/25 transition-colors">
+              <div
+                className="rounded-2xl glass-panel-soft p-4 space-y-4 transition-colors"
+                style={{ borderColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.22)' }}
+              >
                 <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.benefits')}</div>
                 <div className="flex items-center justify-between rounded-xl glass-panel-soft px-3 py-2">
-                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/12 border border-violet-300/25 shadow-[0_0_14px_rgba(167,139,250,0.35)]">
-                    <ICONS.Ghost size={22} className="text-violet-200" />
+                  <span
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-xl border shadow-[0_0_14px_rgba(167,139,250,0.35)]"
+                    style={{
+                      backgroundColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.14)',
+                      borderColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.25)',
+                      color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.95)',
+                    }}
+                  >
+                    <ICONS.Ghost size={22} className="text-current" />
                   </span>
                   <button
                     onClick={() => {
@@ -748,11 +886,14 @@ const ProfileScreen = () => {
                     className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
                   >
                     {shadowGhostLocked && <ICONS.Lock size={12} className="text-amber-300" />}
-                    {shadowGhostLocked
-                      ? t('profile.locked')
-                      : settings.privacy.shadowGhost
-                        ? t('profile.stateOn')
-                        : t('profile.stateOff')}
+                    <ICONS.Ghost size={12} className="text-violet-200" />
+                    <span className="sr-only">
+                      {shadowGhostLocked
+                        ? t('profile.locked')
+                        : settings.privacy.shadowGhost
+                          ? t('profile.stateOn')
+                          : t('profile.stateOff')}
+                    </span>
                   </button>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -777,9 +918,13 @@ const ProfileScreen = () => {
                     </div>
                     <button
                       onClick={openServerSettings}
-                      className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
+                      disabled={travelPassUiLocked}
+                      aria-disabled={travelPassUiLocked}
+                      className={`h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary transition-colors inline-flex items-center gap-1.5 ${
+                        travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/12'
+                      }`}
                     >
-                      {!travelPassServerAccess.canChangeServer && <ICONS.Lock size={12} className="text-amber-300" />}
+                      {travelPassUiLocked && <ICONS.Lock size={12} className="text-amber-300" />}
                       {t('settings.travelPass.changeServerCta')}
                     </button>
                   </div>

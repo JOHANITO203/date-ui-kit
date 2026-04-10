@@ -34,6 +34,7 @@ export interface SwipeRequest {
 export interface SwipeResponse {
   matched: boolean;
   conversationId?: string;
+  superlikesLeft?: number;
 }
 
 export interface SuperLikeRequest {

@@ -10,6 +10,7 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { appApi } from '../services';
 import type { SettingsEnvelope, BlockEntry } from '../contracts';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
+import { TRAVEL_PASS_ENABLED, TRAVEL_PASS_LOCKED_CITY } from '../domain/travelPass';
 import { useAuth } from '../auth/AuthProvider';
 
 type SectionId = 'account' | 'privacy' | 'notifications' | 'preferences';
@@ -196,8 +197,9 @@ const AccountSettingsScreen = () => {
 
   const selectedLanguageOption = `locale.${profileMe?.settings?.language ?? locale}`;
 
-  const selectedTravelCityOption =
-    settings?.preferences.travelPassCity === 'voronezh'
+  const selectedTravelCityOption = !TRAVEL_PASS_ENABLED
+    ? 'settings.cities.voronezh'
+    : settings?.preferences.travelPassCity === 'voronezh'
       ? 'settings.cities.voronezh'
       : settings?.preferences.travelPassCity === 'saint-petersburg'
         ? 'settings.cities.saintPetersburg'
@@ -472,6 +474,7 @@ const AccountSettingsScreen = () => {
     }
 
     if (itemId === 'travel-pass-city') {
+      if (!TRAVEL_PASS_ENABLED) return;
       if (!travelPassServerAccess?.canChangeServer) return;
       const nextCity =
         optionKey === 'settings.cities.voronezh'
@@ -737,13 +740,25 @@ const AccountSettingsScreen = () => {
                     <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4">
                       <p className="text-sm font-black text-amber-100">{t('settings.travelPass.lockedTitle')}</p>
                       <p className="mt-2 text-xs text-white/75">{t('settings.travelPass.lockedBody')}</p>
+                      {!TRAVEL_PASS_ENABLED && (
+                        <p className="mt-3 text-xs text-white/60">
+                          {t('settings.travelPass.lockedCity', {
+                            city:
+                              TRAVEL_PASS_LOCKED_CITY === 'voronezh'
+                                ? t('settings.cities.voronezh')
+                                : t('settings.cities.moscow'),
+                          })}
+                        </p>
+                      )}
                     </div>
-                    <GlassButton
-                      onClick={() => navigate('/boost')}
-                      className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.16em]"
-                    >
-                      {t('settings.travelPass.unlockCta')}
-                    </GlassButton>
+                    {TRAVEL_PASS_ENABLED && (
+                      <GlassButton
+                        onClick={() => navigate('/boost')}
+                        className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-[0.16em]"
+                      >
+                        {t('settings.travelPass.unlockCta')}
+                      </GlassButton>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3">
