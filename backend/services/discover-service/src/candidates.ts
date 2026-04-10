@@ -81,6 +81,135 @@ const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) =
   if (version) params.set("v", String(version));
   return `${base}?${params.toString()}`;
 };
+
+const SIGNED_URL_CACHE_VERSION = "v2-card";
+const signedPhotoUrlCache = new Map<string, { url: string; expiresAtMs: number }>();
+const signedPhotoCacheKey = (storagePath: string) => `${SIGNED_URL_CACHE_VERSION}:${storagePath}`;
+
+const getCachedSignedPhotoUrl = (storagePath: string): string | null => {
+  const key = signedPhotoCacheKey(storagePath);
+  const cached = signedPhotoUrlCache.get(key);
+  if (!cached) return null;
+  if (Date.now() >= cached.expiresAtMs) {
+    signedPhotoUrlCache.delete(key);
+    return null;
+  }
+  return cached.url;
+};
+
+const setCachedSignedPhotoUrl = (storagePath: string, signedUrl: string) => {
+  const key = signedPhotoCacheKey(storagePath);
+  const safeTtlSec = Math.max(60, env.STORAGE_SIGNED_URL_TTL_SEC - 30);
+  signedPhotoUrlCache.set(key, {
+    url: signedUrl,
+    expiresAtMs: Date.now() + safeTtlSec * 1000,
+  });
+};
+
+const chunkArray = <T>(items: T[], size: number) => {
+  if (items.length <= size) return [items];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
+const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, string>> => {
+  const result = new Map<string, string>();
+  if (!supabase || paths.length === 0) return result;
+
+  const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
+  const missingPaths: string[] = [];
+
+  for (const storagePath of uniquePaths) {
+    const cached = getCachedSignedPhotoUrl(storagePath);
+    if (cached) {
+      result.set(storagePath, cached);
+    } else {
+      missingPaths.push(storagePath);
+    }
+  }
+
+  if (missingPaths.length > 0) {
+    const chunks = chunkArray(missingPaths, 100);
+    for (const chunk of chunks) {
+      const signedBatch = await withTimeout(
+        supabase.storage
+          .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
+          .createSignedUrls(chunk, env.STORAGE_SIGNED_URL_TTL_SEC, {
+            transform: {
+              width: 960,
+              quality: 76,
+            },
+          } as any),
+        optionalQueryTimeoutMs,
+        "discover_create_signed_urls",
+      );
+
+      if (!signedBatch.error && Array.isArray(signedBatch.data)) {
+        for (const entry of signedBatch.data) {
+          if (!entry?.path || !entry?.signedUrl) continue;
+          result.set(entry.path, entry.signedUrl);
+          setCachedSignedPhotoUrl(entry.path, entry.signedUrl);
+        }
+      }
+    }
+  }
+
+  return result;
+};
+
+const publicBucketState = {
+  checkedAt: 0,
+  isPublic: false,
+};
+const PUBLIC_BUCKET_CHECK_TTL_MS = 60_000;
+
+const isPublicBucketEnabled = async () => {
+  if (!supabase) return false;
+  const now = Date.now();
+  if (publicBucketState.checkedAt > 0 && now - publicBucketState.checkedAt < PUBLIC_BUCKET_CHECK_TTL_MS) {
+    return publicBucketState.isPublic;
+  }
+  const result = await withTimeout(
+    supabase
+      .from("storage.buckets")
+      .select("public")
+      .eq("id", env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET)
+      .maybeSingle(),
+    optionalQueryTimeoutMs,
+    "discover_public_bucket_check",
+  );
+  publicBucketState.checkedAt = now;
+  publicBucketState.isPublic = Boolean(result.data?.public);
+  return publicBucketState.isPublic;
+};
+
+const fetchPublicVariantSet = async (paths: string[]): Promise<Set<string>> => {
+  const available = new Set<string>();
+  if (!supabase || paths.length === 0) return available;
+  const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
+  const chunks = chunkArray(uniquePaths, 100);
+  for (const chunk of chunks) {
+    const objectsResult = await withTimeout(
+      supabase
+        .from("storage.objects")
+        .select("name")
+        .eq("bucket_id", env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET)
+        .in("name", chunk),
+      optionalQueryTimeoutMs,
+      "discover_public_objects_query",
+    );
+    if (!objectsResult.error) {
+      for (const row of objectsResult.data ?? []) {
+        const name = (row as { name?: unknown }).name;
+        if (typeof name === "string" && name.length > 0) available.add(name);
+      }
+    }
+  }
+  return available;
+};
 const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -215,11 +344,16 @@ const mapProfileToCandidate = (
   };
 };
 
-const createPublicUrlsForPaths = (rows: ProfilePhotoRow[]): Map<string, string> => {
+const createPublicUrlsForPaths = (
+  rows: ProfilePhotoRow[],
+  available: Set<string>,
+): Map<string, string> => {
   const result = new Map<string, string>();
   for (const row of rows) {
     if (!row.storage_path) continue;
-    result.set(row.storage_path, buildPublicPhotoUrl(row.storage_path, row.updated_at));
+    if (available.has(row.storage_path)) {
+      result.set(row.storage_path, buildPublicPhotoUrl(row.storage_path, row.updated_at));
+    }
   }
   return result;
 };
@@ -333,14 +467,49 @@ export const loadCandidatesFromSupabase = async (input: {
       topPhotoPathsByUser.set(profile.user_id, topPaths);
       allTopPaths.push(...topPaths);
     }
+    const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
+    const publicAvailable = publicBucketEnabled
+      ? await fetchPublicVariantSet(allTopPaths).catch(() => new Set<string>())
+      : new Set<string>();
+    if (!publicBucketEnabled) {
+      input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
+    }
     const publicByPath = createPublicUrlsForPaths(
       photosRows.filter((row) => allTopPaths.includes(row.storage_path)),
+      publicAvailable,
     );
+    const missingPaths = allTopPaths.filter((path) => !publicByPath.has(path));
+    const signedByPath =
+      missingPaths.length > 0 ? await createSignedUrlsForPaths(missingPaths) : new Map<string, string>();
+    const resolvedCount = publicByPath.size + signedByPath.size;
+    if (allTopPaths.length > 0 && resolvedCount === 0) {
+      input.logger.error(
+        {
+          total: allTopPaths.length,
+          publicAvailable: publicByPath.size,
+          signedAvailable: signedByPath.size,
+          publicBucketEnabled,
+        },
+        "discover.photos_url_map_empty",
+      );
+    } else if (missingPaths.length > 0 && resolvedCount < allTopPaths.length) {
+      input.logger.warn(
+        {
+          total: allTopPaths.length,
+          resolved: resolvedCount,
+          missing: allTopPaths.length - resolvedCount,
+          publicAvailable: publicByPath.size,
+          signedAvailable: signedByPath.size,
+          publicBucketEnabled,
+        },
+        "discover.photos_url_map_partial",
+      );
+    }
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => publicByPath.get(storagePath))
+        .map((storagePath) => publicByPath.get(storagePath) ?? signedByPath.get(storagePath))
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(
@@ -465,14 +634,49 @@ export const loadCandidatesByProfileIds = async (input: {
       allTopPaths.push(...topPaths);
     }
 
+    const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
+    const publicAvailable = publicBucketEnabled
+      ? await fetchPublicVariantSet(allTopPaths).catch(() => new Set<string>())
+      : new Set<string>();
+    if (!publicBucketEnabled) {
+      input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
+    }
     const publicByPath = createPublicUrlsForPaths(
       photosRows.filter((row) => allTopPaths.includes(row.storage_path)),
+      publicAvailable,
     );
+    const missingPaths = allTopPaths.filter((path) => !publicByPath.has(path));
+    const signedByPath =
+      missingPaths.length > 0 ? await createSignedUrlsForPaths(missingPaths) : new Map<string, string>();
+    const resolvedCount = publicByPath.size + signedByPath.size;
+    if (allTopPaths.length > 0 && resolvedCount === 0) {
+      input.logger.error(
+        {
+          total: allTopPaths.length,
+          publicAvailable: publicByPath.size,
+          signedAvailable: signedByPath.size,
+          publicBucketEnabled,
+        },
+        "discover.photos_url_map_empty",
+      );
+    } else if (missingPaths.length > 0 && resolvedCount < allTopPaths.length) {
+      input.logger.warn(
+        {
+          total: allTopPaths.length,
+          resolved: resolvedCount,
+          missing: allTopPaths.length - resolvedCount,
+          publicAvailable: publicByPath.size,
+          signedAvailable: signedByPath.size,
+          publicBucketEnabled,
+        },
+        "discover.photos_url_map_partial",
+      );
+    }
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => publicByPath.get(storagePath))
+        .map((storagePath) => publicByPath.get(storagePath) ?? signedByPath.get(storagePath))
         .filter((value): value is string => typeof value === "string" && value.length > 0);
       candidates.push(
         mapProfileToCandidate(

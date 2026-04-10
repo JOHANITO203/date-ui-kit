@@ -108,6 +108,15 @@ const encodeStoragePath = (value: string) =>
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
+const chunkArray = <T,>(items: T[], size: number) => {
+  if (items.length <= size) return [items];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const buildPublicPhotoUrl = (storagePath: string, updatedAtIso: string | null) => {
   if (!env.SUPABASE_URL) return "/placeholder.svg";
   const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
@@ -183,58 +192,65 @@ const loadPeerProfiles = async (peerIds: string[]): Promise<Map<string, ProfileC
   const missing = peerIds.filter((peerId) => !byId.has(peerId));
   if (missing.length === 0) return byId;
 
-  const profileResult = await supabaseServiceClient
-    .from("profiles")
-    .select("user_id,first_name,birth_date,city,languages,bio,interests,verified_opt_in")
-    .in("user_id", missing);
-
-  if (profileResult.error) return byId;
-
   const primaryPathByUser = new Map<string, string>();
   const primaryUrlByUser = new Map<string, string>();
-  const photoResult = await supabaseServiceClient
-    .from("profile_photos")
-    .select("user_id,storage_path,sort_order,is_primary,updated_at")
-    .in("user_id", missing)
-    .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1")
-    .order("is_primary", { ascending: false })
-    .order("sort_order", { ascending: true })
-    .limit(Math.max(200, missing.length * 3));
+  const profileRows: {
+    user_id: string;
+    first_name: string | null;
+    birth_date: string | null;
+    city: string | null;
+    languages: string[] | null;
+    bio: string | null;
+    interests: string[] | null;
+    verified_opt_in: boolean | null;
+  }[] = [];
 
-  if (!photoResult.error) {
-    const rows = (photoResult.data ?? []) as ProfilePhotoRow[];
-    for (const row of rows) {
-      if (!primaryPathByUser.has(row.user_id) && typeof row.storage_path === "string" && row.storage_path.length > 0) {
-        primaryPathByUser.set(row.user_id, row.storage_path);
-      }
+  for (const chunk of chunkArray(missing, 100)) {
+    const profileResult = await supabaseServiceClient
+      .from("profiles")
+      .select("user_id,first_name,birth_date,city,languages,bio,interests,verified_opt_in")
+      .in("user_id", chunk);
+
+    if (!profileResult.error) {
+      profileRows.push(...((profileResult.data ?? []) as typeof profileRows));
     }
-    for (const row of rows) {
-      if (!primaryPathByUser.has(row.user_id) && row.storage_path) {
-        primaryPathByUser.set(row.user_id, row.storage_path);
-        primaryUrlByUser.set(
-          row.user_id,
-          buildPublicPhotoUrl(row.storage_path, row.updated_at ?? null),
-        );
+  }
+
+  for (const chunk of chunkArray(missing, 100)) {
+    const photoResult = await supabaseServiceClient
+      .from("profile_photos")
+      .select("user_id,storage_path,sort_order,is_primary,updated_at")
+      .in("user_id", chunk)
+      .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1")
+      .order("is_primary", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .limit(Math.max(200, chunk.length * 3));
+
+    if (!photoResult.error) {
+      const rows = (photoResult.data ?? []) as ProfilePhotoRow[];
+      for (const row of rows) {
+        if (!primaryPathByUser.has(row.user_id) && typeof row.storage_path === "string" && row.storage_path.length > 0) {
+          primaryPathByUser.set(row.user_id, row.storage_path);
+        }
+      }
+      for (const row of rows) {
+        if (!primaryPathByUser.has(row.user_id) && row.storage_path) {
+          primaryPathByUser.set(row.user_id, row.storage_path);
+          primaryUrlByUser.set(
+            row.user_id,
+            buildPublicPhotoUrl(row.storage_path, row.updated_at ?? null),
+          );
+        }
       }
     }
   }
 
-  for (const row of profileResult.data ?? []) {
-    const typedRow = row as {
-      user_id: string;
-      first_name: string | null;
-      birth_date: string | null;
-      city: string | null;
-      languages: string[] | null;
-      bio: string | null;
-      interests: string[] | null;
-      verified_opt_in: boolean | null;
-    };
-    const primarySignedUrl = primaryUrlByUser.get(typedRow.user_id);
+  for (const row of profileRows) {
+    const primarySignedUrl = primaryUrlByUser.get(row.user_id);
     byId.set(
-      typedRow.user_id,
+      row.user_id,
       buildPeerCardFromSupabase({
-        ...typedRow,
+        ...row,
         photos: primarySignedUrl ? [primarySignedUrl] : [],
       }),
     );
