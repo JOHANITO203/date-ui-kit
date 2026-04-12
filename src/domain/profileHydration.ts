@@ -122,12 +122,24 @@ export const saveOnboardingProfileSnapshot = (payload: {
   );
 };
 
+export const clearOnboardingProfileSnapshot = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(ONBOARDING_PROFILE_SNAPSHOT_STORAGE_KEY);
+};
+
+export const clearOnboardingDraft = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+};
+
 export const hydrateProfileSeed = (
   apiProfile: ProfileLike | null | undefined,
   sessionProfile: SessionProfileLike,
+  options: { allowOnboardingFallback?: boolean } = {},
 ): HydratedProfileSeed => {
-  const draft = readOnboardingDraft();
-  const snapshot = readOnboardingProfileSnapshot();
+  const { allowOnboardingFallback = true } = options;
+  const draft = allowOnboardingFallback ? readOnboardingDraft() : null;
+  const snapshot = allowOnboardingFallback ? readOnboardingProfileSnapshot() : null;
   const session = (sessionProfile ?? {}) as Record<string, unknown>;
 
   const firstName =

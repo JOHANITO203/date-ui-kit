@@ -5,6 +5,11 @@ export interface ProfileMeData {
     locale?: string | null;
     bio?: string | null;
     city?: string | null;
+    birth_date?: string | null;
+    intent?: string | null;
+    interests?: string[] | null;
+    origin_country?: string | null;
+    languages?: string[] | null;
     verified_opt_in?: boolean | null;
   } | null;
   settings: {
@@ -35,7 +40,13 @@ export interface PatchProfileMeRequest {
   last_name?: string;
   locale?: string;
   bio?: string;
+  birth_date?: string;
   city?: string;
+  intent?: string;
+  interests?: string[];
+  origin_country?: string;
+  languages?: string[];
+  verified_opt_in?: boolean;
   settings?: {
     language?: 'en' | 'ru';
     targetLang?: 'en' | 'ru' | 'fr';

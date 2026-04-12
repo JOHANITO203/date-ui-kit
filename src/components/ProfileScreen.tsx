@@ -15,7 +15,11 @@ import {
 } from '../domain/travelPass';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { useAuth } from '../auth/AuthProvider';
-import { getOnboardingProfileSnapshot, hydrateProfileSeed } from '../domain/profileHydration';
+import {
+  clearOnboardingDraft,
+  clearOnboardingProfileSnapshot,
+  hydrateProfileSeed,
+} from '../domain/profileHydration';
 import { computeVisibilityScore } from '../domain/visibilityScore';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
@@ -177,11 +181,6 @@ const ProfileScreen = () => {
           : settings.preferences.travelPassCity === 'moscow'
             ? t('settings.cities.moscow')
             : null;
-  const onboardingLaunchCityLabel = useMemo(() => {
-    const snapshot = getOnboardingProfileSnapshot();
-    const launchCity = snapshot?.city?.trim();
-    return launchCity ? normalizeCityLabel(launchCity, t) : null;
-  }, [t, user?.id]);
   const lockedServerCityLabel =
     TRAVEL_PASS_LOCKED_CITY === 'voronezh'
       ? t('settings.cities.voronezh')
@@ -189,7 +188,6 @@ const ProfileScreen = () => {
   const currentServerCityLabel = TRAVEL_PASS_ENABLED
     ? (travelPassServerAccess.canChangeServer ? travelPassCityLabel : null) ??
       profileCity ??
-      onboardingLaunchCityLabel ??
       t('settings.cities.moscow')
     : lockedServerCityLabel;
   const travelPassSourceLabel = t(`settings.travelPass.sources.${travelPassServerAccess.source}`);
@@ -274,6 +272,7 @@ const ProfileScreen = () => {
     const optimisticSeed = hydrateProfileSeed(
       null,
       user?.profile as Record<string, unknown> | null | undefined,
+      { allowOnboardingFallback: false },
     );
     const optimisticName = optimisticSeed.firstName || fallbackNameFromSession || 'User';
     if (optimisticName) setProfileName(optimisticName);
@@ -322,8 +321,14 @@ const ProfileScreen = () => {
         setMatchesCount(matches);
 
         if (profileResult.status === 'fulfilled' && profileResult.value.ok && profileResult.value.data?.profile) {
+          clearOnboardingProfileSnapshot();
+          clearOnboardingDraft();
           const profile = profileResult.value.data.profile;
-          const seed = hydrateProfileSeed(profile, user?.profile as Record<string, unknown> | null | undefined);
+          const seed = hydrateProfileSeed(
+            profile,
+            user?.profile as Record<string, unknown> | null | undefined,
+            { allowOnboardingFallback: false },
+          );
           setVerifiedIdentity(seed.verifiedOptIn);
           setProfileName(seed.firstName || fallbackNameFromSession || 'User');
           setProfileBio(seed.bio);
@@ -344,8 +349,6 @@ const ProfileScreen = () => {
                       ? t('settings.cities.moscow')
                       : null;
             setProfileCity(cityLabel);
-          } else if (onboardingLaunchCityLabel) {
-            setProfileCity(onboardingLaunchCityLabel);
           } else if (settings.privacy.preciseLocation && typeof window !== 'undefined' && 'geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
               (position) => {
@@ -364,12 +367,12 @@ const ProfileScreen = () => {
                 setProfileCity(cityLabel);
               },
               () => {
-                setProfileCity(onboardingLaunchCityLabel ?? t('settings.cities.moscow'));
+                setProfileCity(t('settings.cities.moscow'));
               },
               { enableHighAccuracy: true, timeout: 3000, maximumAge: 10 * 60 * 1000 },
             );
           } else {
-            setProfileCity(onboardingLaunchCityLabel ?? t('settings.cities.moscow'));
+            setProfileCity(t('settings.cities.moscow'));
           }
         } else {
           setProfileName(fallbackNameFromSession || 'User');
@@ -379,7 +382,7 @@ const ProfileScreen = () => {
       } catch {
         if (!isCancelled) {
           setProfileName((prev) => prev || fallbackNameFromSession || 'User');
-          setProfileCity((prev) => prev || onboardingLaunchCityLabel || t('settings.cities.moscow'));
+          setProfileCity((prev) => prev || t('settings.cities.moscow'));
         }
       }
     };
@@ -390,7 +393,6 @@ const ProfileScreen = () => {
       isCancelled = true;
     };
   }, [
-    onboardingLaunchCityLabel,
     settings.preferences.travelPassCity,
     settings.privacy.preciseLocation,
     t,

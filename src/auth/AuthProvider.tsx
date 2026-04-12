@@ -1,7 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionUser } from '../contracts';
 import { appApi, authApi } from '../services';
-import { getOnboardingProfileSnapshot } from '../domain/profileHydration';
+import {
+  clearOnboardingDraft,
+  clearOnboardingProfileSnapshot,
+  getOnboardingProfileSnapshot,
+} from '../domain/profileHydration';
 
 type AuthStatus = 'loading' | 'authenticated' | 'guest';
 
@@ -146,8 +150,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           patch.verified_opt_in = true;
         }
 
-        if (Object.keys(patch).length === 0) return;
+        if (Object.keys(patch).length === 0) {
+          clearOnboardingProfileSnapshot();
+          clearOnboardingDraft();
+          return;
+        }
         await authApi.patchProfileMe(patch);
+        clearOnboardingProfileSnapshot();
+        clearOnboardingDraft();
       } catch {
         // Silent backfill best-effort: do not block auth flow.
       }
@@ -249,6 +259,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
+    if (import.meta.env.DEV) {
+      console.error('useAuth must be used within AuthProvider');
+      return {
+        status: 'loading' as const,
+        user: null,
+        isAuthenticated: false,
+        ephemeralAccessEnabled: false,
+        enableEphemeralAccess: () => {},
+        disableEphemeralAccess: () => {},
+        refreshSession: async () => {},
+        logout: async () => {},
+      };
+    }
     throw new Error('useAuth must be used within AuthProvider');
   }
   return context;

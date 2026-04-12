@@ -6,9 +6,13 @@ import { useDevice } from '../hooks/useDevice';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import GlassButton from './ui/GlassButton';
 import { useI18n } from '../i18n/I18nProvider';
-import { authApi } from '../services';
+import { appApi, authApi } from '../services';
 import { useAuth } from '../auth/AuthProvider';
-import { hydrateProfileSeed, saveOnboardingProfileSnapshot } from '../domain/profileHydration';
+import {
+  clearOnboardingDraft,
+  clearOnboardingProfileSnapshot,
+  hydrateProfileSeed,
+} from '../domain/profileHydration';
 import type { AuthErrorResponse, AuthResponse } from '../contracts';
 
 type UploadedPhoto = {
@@ -72,7 +76,11 @@ const EditProfileScreen = () => {
 
         if (profilePayload.ok && profilePayload.data?.profile) {
           const profile = profilePayload.data.profile;
-          const seed = hydrateProfileSeed(profile, user?.profile as Record<string, unknown> | null | undefined);
+          const seed = hydrateProfileSeed(
+            profile,
+            user?.profile as Record<string, unknown> | null | undefined,
+            { allowOnboardingFallback: fromOnboarding },
+          );
           setFirstName(seed.firstName);
           setCity(seed.city);
           setAbout(seed.bio);
@@ -108,22 +116,14 @@ const EditProfileScreen = () => {
     setErrorText('');
     setSuccessText('');
     try {
-      const response = await authApi.patchProfileMe({
+      await appApi.patchProfileMe({
         first_name: firstName.trim(),
         city: city.trim(),
         bio: about.trim(),
         interests,
       });
-      if (isAuthError(response)) {
-        setErrorText(response.message ?? t('editProfile.saveError'));
-        return;
-      }
-      saveOnboardingProfileSnapshot({
-        firstName: firstName.trim(),
-        city: city.trim(),
-        bio: about.trim(),
-        interests,
-      });
+      clearOnboardingProfileSnapshot();
+      clearOnboardingDraft();
       setSuccessText(t('editProfile.saved'));
     } catch {
       setErrorText(t('editProfile.saveError'));

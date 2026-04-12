@@ -846,6 +846,11 @@ export const appApi = {
                 locale: response.data.profile.locale ?? null,
                 bio: response.data.profile.bio ?? null,
                 city: response.data.profile.city ?? null,
+                birth_date: response.data.profile.birth_date ?? null,
+                intent: response.data.profile.intent ?? null,
+                interests: response.data.profile.interests ?? null,
+                origin_country: response.data.profile.origin_country ?? null,
+                languages: response.data.profile.languages ?? null,
                 verified_opt_in: response.data.profile.verified_opt_in ?? null,
               }
             : null,
@@ -900,7 +905,11 @@ export const appApi = {
         last_name: payload.last_name,
         locale: payload.locale,
         bio: payload.bio,
+        birth_date: payload.birth_date,
         city: payload.city,
+        intent: payload.intent,
+        interests: payload.interests,
+        verified_opt_in: payload.verified_opt_in,
         settings: payload.settings
           ? {
               language: payload.settings.language,
@@ -940,6 +949,11 @@ export const appApi = {
                 locale: response.data.profile.locale ?? null,
                 bio: response.data.profile.bio ?? null,
                 city: response.data.profile.city ?? null,
+                birth_date: response.data.profile.birth_date ?? null,
+                intent: response.data.profile.intent ?? null,
+                interests: response.data.profile.interests ?? null,
+                origin_country: response.data.profile.origin_country ?? null,
+                languages: response.data.profile.languages ?? null,
                 verified_opt_in: response.data.profile.verified_opt_in ?? null,
               }
             : null,
