@@ -409,32 +409,44 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             </button>
           )}
           <div className="relative">
-            <img
-              src={shadowGhostMasked ? '/placeholder.svg' : resolvePhotoUrl(activePeer.photos)}
-              className="w-10 h-10 rounded-[14px] object-cover"
-              alt={activePeer.name}
-              referrerPolicy="no-referrer"
-            />
+            {shadowGhostMasked ? (
+              <div className="w-10 h-10 rounded-[14px] bg-gradient-to-br from-violet-500/30 via-black/70 to-sky-500/30 flex items-center justify-center text-white">
+                <ICONS.Ghost size={16} className="text-violet-200" />
+                <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+              </div>
+            ) : (
+              <img
+                src={resolvePhotoUrl(activePeer.photos)}
+                className="w-10 h-10 rounded-[14px] object-cover"
+                alt={activePeer.name}
+                referrerPolicy="no-referrer"
+              />
+            )}
             {conversation?.online && (
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
             )}
           </div>
           <div className="flex flex-col items-start gap-0.5">
-            <NameWithBadge
-              name={shadowGhostMasked ? t('likes.shadowGhostMaskedName') : activePeer.name}
-              age={activePeer.age}
-              ageMasked={shadowGhostMasked || activePeer.flags.hideAge}
-              verified={activePeer.flags.verifiedIdentity}
-              premiumTier={resolveDisplayPremiumTier(
-                activePeer.flags.premiumTier,
-                activePeer.flags.shortPassTier,
-              )}
-              size="md"
-              premiumBadgeMode="dense"
-              className="w-fit"
-              textClassName={shadowGhostMasked ? 'sr-only' : ''}
-            />
-            {shadowGhostMasked && <ICONS.Ghost size={12} className="text-fuchsia-200" />}
+            {shadowGhostMasked ? (
+              <span className="inline-flex items-center gap-1.5 text-fuchsia-200">
+                <ICONS.Ghost size={12} />
+                <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+              </span>
+            ) : (
+              <NameWithBadge
+                name={activePeer.name}
+                age={activePeer.age}
+                ageMasked={activePeer.flags.hideAge}
+                verified={activePeer.flags.verifiedIdentity}
+                premiumTier={resolveDisplayPremiumTier(
+                  activePeer.flags.premiumTier,
+                  activePeer.flags.shortPassTier,
+                )}
+                size="md"
+                premiumBadgeMode="dense"
+                className="w-fit"
+              />
+            )}
             {shadowGhostActive && (
               <span className="inline-flex items-center rounded-full border border-violet-300/30 bg-violet-500/10 px-2 py-0.5 text-[8px] uppercase tracking-[0.18em] font-black text-violet-100">
                 <ICONS.Ghost size={10} className="text-violet-200" />
@@ -584,13 +596,20 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           if (isIncoming) {
             return (
               <div key={message.id} className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
-                <img
-                  src={shadowGhostMasked ? '/placeholder.svg' : resolvePhotoUrl(activePeer.photos)}
-                  className="w-8 h-8 rounded-xl object-cover self-end shrink-0"
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                />
+                {shadowGhostMasked ? (
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/30 via-black/70 to-sky-500/30 flex items-center justify-center text-white self-end shrink-0">
+                    <ICONS.Ghost size={12} className="text-violet-200" />
+                    <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+                  </div>
+                ) : (
+                  <img
+                    src={resolvePhotoUrl(activePeer.photos)}
+                    className="w-8 h-8 rounded-xl object-cover self-end shrink-0"
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                  />
+                )}
                 <div className="space-y-1.5">
                   <div className="p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed bg-[#111319] border border-white/10">
                     {message.originalText}

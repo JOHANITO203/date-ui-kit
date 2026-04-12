@@ -9,7 +9,7 @@ import { translations } from '../i18n/translations';
 import { useAuth } from '../auth/AuthProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
-import type { OfferItem } from '../contracts';
+import type { EntitlementSnapshot, OfferItem } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { TRAVEL_PASS_ENABLED } from '../domain/travelPass';
 
@@ -390,6 +390,7 @@ const BoostScreen = () => {
   const [pspMode, setPspMode] = useState<'yookassa' | 'mock'>('mock');
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const boostsLeft = useRuntimeSelector((payload) => payload.balances.boostsLeft);
+  const settings = useRuntimeSelector((payload) => payload.settings);
   const pendingCheckoutRef = useRef<string | null>(null);
   const pollingRef = useRef<number | null>(null);
 
@@ -564,6 +565,22 @@ const BoostScreen = () => {
     });
   };
 
+  const maybeEnableShadowGhost = async (snapshot?: EntitlementSnapshot | null) => {
+    if (!snapshot?.shadowGhost?.enablePrivacy) return;
+    if (settings.privacy.shadowGhost) return;
+    try {
+      await appApi.patchSettings({ patch: { privacy: { shadowGhost: true } } });
+    } catch {
+      // Leave silent; settings can still be toggled manually in privacy UI.
+    }
+  };
+
+  const applyEntitlementSnapshot = async (snapshot?: EntitlementSnapshot | null) => {
+    if (!snapshot) return;
+    await appApi.applyEntitlementSnapshot(snapshot);
+    await maybeEnableShadowGhost(snapshot);
+  };
+
   const startCheckoutPolling = (checkoutId: string, userId: string) => {
     if (pollingRef.current) window.clearInterval(pollingRef.current);
     pendingCheckoutRef.current = checkoutId;
@@ -582,7 +599,7 @@ const BoostScreen = () => {
         })
         .then((status) => {
           if (status.status === 'paid' && status.entitlementSnapshot) {
-            void appApi.applyEntitlementSnapshot(status.entitlementSnapshot);
+            void applyEntitlementSnapshot(status.entitlementSnapshot);
             setPaymentFeedback(t('boost.checkout.paid'));
             setCheckoutStatus('success');
             setPollingStatus('success');
@@ -680,7 +697,7 @@ const BoostScreen = () => {
       }
 
       if (response.status === 'paid' && response.entitlementSnapshot) {
-        await appApi.applyEntitlementSnapshot(response.entitlementSnapshot);
+        await applyEntitlementSnapshot(response.entitlementSnapshot);
         setPaymentFeedback(t('boost.checkout.paid'));
         setCheckoutStatus('success');
         setPollingStatus('idle');

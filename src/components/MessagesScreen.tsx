@@ -31,12 +31,13 @@ type AvatarImageProps = {
   name: string;
   className: string;
   imgClassName: string;
+  ghost?: boolean;
 };
 
-const AvatarImage = ({ src, name, className, imgClassName }: AvatarImageProps) => {
+const AvatarImage = ({ src, name, className, imgClassName, ghost = false }: AvatarImageProps) => {
   const [failed, setFailed] = useState(false);
   const initial = (name?.trim()?.[0] ?? '?').toUpperCase();
-  const canRenderImage = !failed && src !== '/placeholder.svg';
+  const canRenderImage = !ghost && !failed && src !== '/placeholder.svg';
   const imageAttrs = buildResponsiveImageAttrs(src, 'avatar', '64px');
 
   return (
@@ -53,6 +54,11 @@ const AvatarImage = ({ src, name, className, imgClassName }: AvatarImageProps) =
           decoding="async"
           onError={() => setFailed(true)}
         />
+      ) : ghost ? (
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500/30 via-black/70 to-sky-500/30 text-white/85">
+          <ICONS.Ghost size={18} className="text-violet-200" />
+          <span className="sr-only">{name}</span>
+        </div>
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-fuchsia-500/30 to-blue-500/30 text-white/85 font-black">
           {initial}
@@ -414,32 +420,36 @@ const MessagesScreen = () => {
                 {t('messages.likesCounter', { count: likesCount })}
               </span>
             </div>
-            {newMatchItems.map((conversation) => (
-              <div 
-                key={conversation.id}
-                className={`flex flex-col items-center ${isLarge ? (isTablet ? 'gap-2' : 'gap-3') : 'gap-3'} cursor-pointer group`} 
-                onClick={() => handleUserSelect(conversation.peer.id)}
-              >
-                <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
-                  <AvatarImage
-                    src={isShadowGhostConversation(conversation) ? '/placeholder.svg' : resolvePhotoUrl(conversation.peer.photos)}
-                    name={isShadowGhostConversation(conversation) ? t('likes.shadowGhostMaskedName') : conversation.peer.name}
-                    className="w-full h-full rounded-full"
-                    imgClassName="w-full h-full object-cover object-[center_22%]"
-                  />
+            {newMatchItems.map((conversation) => {
+              const isGhost = isShadowGhostConversation(conversation);
+              return (
+                <div 
+                  key={conversation.id}
+                  className={`flex flex-col items-center ${isLarge ? (isTablet ? 'gap-2' : 'gap-3') : 'gap-3'} cursor-pointer group`} 
+                  onClick={() => handleUserSelect(conversation.peer.id)}
+                >
+                  <div className={`${isLarge ? (isTablet ? 'w-14 h-14' : 'w-20 h-20') : 'w-[var(--messages-match-avatar)] h-[var(--messages-match-avatar)]'} rounded-full overflow-hidden border-2 border-pink-500/30 group-hover:border-pink-500 group-hover:scale-110 transition-all`}>
+                    <AvatarImage
+                      ghost={isGhost}
+                      src={isGhost ? '/placeholder.svg' : resolvePhotoUrl(conversation.peer.photos)}
+                      name={isGhost ? t('likes.shadowGhostMaskedName') : conversation.peer.name}
+                      className="w-full h-full rounded-full"
+                      imgClassName="w-full h-full object-cover object-[center_22%]"
+                    />
+                  </div>
+                  <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider inline-flex items-center gap-1.5">
+                    {isGhost ? (
+                      <>
+                        <ICONS.Ghost size={11} className="text-fuchsia-200" />
+                        <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+                      </>
+                    ) : (
+                      `${conversation.peer.name}, ${conversation.peer.age}`
+                    )}
+                  </span>
                 </div>
-                <span className="max-w-[6.5rem] truncate text-[10px] font-bold tracking-wider inline-flex items-center gap-1.5">
-                  {isShadowGhostConversation(conversation) ? (
-                    <>
-                      <ICONS.Ghost size={11} className="text-fuchsia-200" />
-                      <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
-                    </>
-                  ) : (
-                    `${conversation.peer.name}, ${conversation.peer.age}`
-                  )}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
           )}
           {showDesktopRail && showContent && hasMatches && (
@@ -510,6 +520,7 @@ const MessagesScreen = () => {
             style={{ touchAction: 'pan-y' }}
           >
             {conversationListItems.map((conversation) => {
+                const isGhost = isShadowGhostConversation(conversation);
                 return (
                   <div
                     key={conversation.id}
@@ -524,15 +535,16 @@ const MessagesScreen = () => {
                     <div className="relative shrink-0">
                       <AvatarImage
                         src={
-                          isShadowGhostConversation(conversation)
+                          isGhost
                             ? '/placeholder.svg'
                             : resolvePhotoUrl(conversation.peer.photos)
                         }
                         name={
-                          isShadowGhostConversation(conversation)
+                          isGhost
                             ? t('likes.shadowGhostMaskedName')
                             : conversation.peer.name
                         }
+                        ghost={isGhost}
                         className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'}`}
                         imgClassName="w-full h-full object-cover object-[center_20%]"
                       />
@@ -542,29 +554,27 @@ const MessagesScreen = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="mb-1 flex items-start justify-between gap-[var(--messages-conv-header-gap)]">
-                        <NameWithBadge
-                          name={
-                            isShadowGhostConversation(conversation)
-                              ? t('likes.shadowGhostMaskedName')
-                              : conversation.peer.name
-                          }
-                          age={conversation.peer.age}
-                          ageMasked={isShadowGhostConversation(conversation) || conversation.peer.flags.hideAge}
-                          verified={conversation.peer.flags.verifiedIdentity}
-                          premiumTier={resolveDisplayPremiumTier(
-                            conversation.peer.flags.premiumTier,
-                            conversation.peer.flags.shortPassTier,
-                          )}
-                          size={isTablet ? 'md' : 'lg'}
-                          textClassName={`truncate max-w-[var(--messages-conv-name-max)] ${
-                            isShadowGhostConversation(conversation) ? 'sr-only' : ''
-                          }`}
-                          className="min-w-0 flex-1"
-                          premiumBadgeMode="dense"
-                          badgeClassName={isTablet ? 'scale-90' : ''}
-                        />
-                        {isShadowGhostConversation(conversation) && (
-                          <ICONS.Ghost size={12} className="mt-1 text-fuchsia-200 shrink-0" />
+                        {isGhost ? (
+                          <span className="inline-flex items-center gap-1.5 text-fuchsia-200">
+                            <ICONS.Ghost size={12} className="shrink-0" />
+                            <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+                          </span>
+                        ) : (
+                          <NameWithBadge
+                            name={conversation.peer.name}
+                            age={conversation.peer.age}
+                            ageMasked={conversation.peer.flags.hideAge}
+                            verified={conversation.peer.flags.verifiedIdentity}
+                            premiumTier={resolveDisplayPremiumTier(
+                              conversation.peer.flags.premiumTier,
+                              conversation.peer.flags.shortPassTier,
+                            )}
+                            size={isTablet ? 'md' : 'lg'}
+                            textClassName="truncate max-w-[var(--messages-conv-name-max)]"
+                            className="min-w-0 flex-1"
+                            premiumBadgeMode="dense"
+                            badgeClassName={isTablet ? 'scale-90' : ''}
+                          />
                         )}
                         <span className="min-w-[var(--messages-conv-time-min-w)] pt-0.5 text-right text-[10px] leading-none text-secondary font-bold shrink-0">
                           {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {

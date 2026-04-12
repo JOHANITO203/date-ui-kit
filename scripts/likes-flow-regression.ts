@@ -14,6 +14,7 @@ type LikeRow = {
 const rows: LikeRow[] = [];
 const unlockedByUser = new Map<string, Set<string>>();
 const inventoryByUser = new Map<string, { icebreakersLeft: number; planTier: 'free' | 'essential' | 'gold' | 'platinum' | 'elite' }>();
+const ghostActiveByUser = new Map<string, boolean>();
 
 const upsertLike = (input: {
   liker: string;
@@ -66,10 +67,18 @@ const setPlanTier = (userId: string, planTier: 'free' | 'essential' | 'gold' | '
 };
 
 const getInventory = (userId: string) => inventoryByUser.get(userId) ?? { icebreakersLeft: 0, planTier: 'free' as const };
+const setGhostActive = (userId: string, active: boolean) => {
+  ghostActiveByUser.set(userId, active);
+};
+const isGhostActive = (userId: string) => ghostActiveByUser.get(userId) ?? false;
 
 const getVisibility = (userId: string, like: LikeRow) => {
   const inv = getInventory(userId);
   if (like.hiddenByShadowGhost) {
+    if (!isGhostActive(like.liker)) {
+      const unlocked = inv.planTier !== 'free' || (unlockedByUser.get(userId)?.has(like.id) ?? false);
+      return { hiddenByShadowGhost: false, blurredLocked: !unlocked };
+    }
     const unlocked = inv.planTier !== 'free' || (unlockedByUser.get(userId)?.has(like.id) ?? false);
     return { hiddenByShadowGhost: true, blurredLocked: !unlocked };
   }
@@ -101,8 +110,10 @@ const run = () => {
   assert.equal(incomingFor('B')[0].status, 'pending');
 
   // Case 2: A like B with ShadowGhost -> identity masked.
+  setGhostActive('C', true);
   upsertLike({ liker: 'C', liked: 'D', hiddenByShadowGhost: true });
   assert.equal(incomingFor('D')[0].hiddenByShadowGhost, true);
+  assert.equal(getVisibility('D', incomingFor('D')[0]).hiddenByShadowGhost, true);
 
   // Case 3: B like back while A online -> matched.
   const case3 = decideIncoming('B', 'A', 'like_back');
@@ -154,6 +165,7 @@ const run = () => {
 
   // Case 8: ShadowGhost incoming can exist while identity remains hidden and can be unlocked unitary.
   setPlanTier('J', 'free');
+  setGhostActive('K', true);
   upsertLike({ liker: 'K', liked: 'J', hiddenByShadowGhost: true });
   const shadowLike = hiddenIncomingFor('J')[0];
   assert.ok(shadowLike);
@@ -163,6 +175,10 @@ const run = () => {
   assert.equal(shadowUse.ok, true);
   assert.equal(getVisibility('J', shadowLike).blurredLocked, false);
   assert.equal(getInventory('J').icebreakersLeft, 0);
+
+  // Case 8b: ShadowGhost deactivated -> previously ghosted like should unmask.
+  setGhostActive('K', false);
+  assert.equal(getVisibility('J', shadowLike).hiddenByShadowGhost, false);
 
   // Case 9: after one card is unlocked, new incoming likes must not relock or "remove" it logically.
   setPlanTier('J', 'free');

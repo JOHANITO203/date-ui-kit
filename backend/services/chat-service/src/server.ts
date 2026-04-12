@@ -617,7 +617,8 @@ export const buildServer = () => {
         .map((row) => {
           const peer = peerMap.get(row.peer_profile_id) ?? null;
           if (!peer) return null;
-          const shadowGhostMasked = shadowGhostPeerSet.has(row.peer_profile_id);
+          const shadowGhostMasked =
+            shadowGhostPeerSet.has(row.peer_profile_id) && Boolean(peer.flags.shadowGhost);
           let relationState = normalizeRelationState(row.relation_state);
           if (relationState === "blocked_by_me" && !blockedByMeSet.has(row.peer_profile_id)) {
             relationState = "active";
@@ -629,7 +630,7 @@ export const buildServer = () => {
               ...peer,
               flags: {
                 ...peer.flags,
-                shadowGhost: shadowGhostMasked || peer.flags.shadowGhost,
+                shadowGhost: peer.flags.shadowGhost,
               },
             },
             shadowGhostMasked,
