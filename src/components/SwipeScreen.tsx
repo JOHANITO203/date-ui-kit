@@ -124,7 +124,18 @@ const SwipeScreen = () => {
   const [matchedProfileIds, setMatchedProfileIds] = useState<string[]>([]);
   const [isSwipePending, setIsSwipePending] = useState(false);
   const [swipeError, setSwipeError] = useState(false);
+  const swipeErrorTimerRef = useRef<number | null>(null);
   const imagePreloadCacheRef = useRef<Set<string>>(new Set());
+  const showTransientSwipeError = () => {
+    setSwipeError(true);
+    if (swipeErrorTimerRef.current) {
+      window.clearTimeout(swipeErrorTimerRef.current);
+    }
+    swipeErrorTimerRef.current = window.setTimeout(() => {
+      setSwipeError(false);
+      swipeErrorTimerRef.current = null;
+    }, 2800);
+  };
   const quickFilters = [
     { id: 'all', labelKey: 'discover.quickFilters.all' },
     { id: 'nearby', labelKey: 'discover.quickFilters.nearby' },
@@ -175,6 +186,14 @@ const SwipeScreen = () => {
       .catch(() => undefined);
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (swipeErrorTimerRef.current) {
+        window.clearTimeout(swipeErrorTimerRef.current);
+      }
     };
   }, []);
 
@@ -333,7 +352,7 @@ const SwipeScreen = () => {
         y.set(0);
       })
       .catch(() => {
-        setSwipeError(true);
+        showTransientSwipeError();
       })
       .finally(() => {
         setIsSwipePending(false);
@@ -341,17 +360,57 @@ const SwipeScreen = () => {
   };
 
   const rewindLastSwipe = () => {
-    void appApi.rewind(feedCursor).then((response) => {
-      if (!response.restoredProfileId) return;
-      const lastDismissed = dismissedCandidates[dismissedCandidates.length - 1];
-      if (!lastDismissed || lastDismissed.id !== response.restoredProfileId) return;
-      setDismissedCandidates((prev) => prev.slice(0, -1));
-      setFeedCandidates((prev) => [lastDismissed, ...prev]);
-      setCurrentIndex(0);
-      setPhotoIndex(0);
-      x.set(0);
-      y.set(0);
-    });
+    void appApi
+      .rewind(feedCursor)
+      .then((response) => {
+        if (!response.restoredProfileId) return;
+        const restoredCandidate = dismissedCandidates.find(
+          (candidate) => candidate.id === response.restoredProfileId,
+        );
+        if (!restoredCandidate) {
+          // Local dismissed cache can be stale after refresh/navigation while backend rewind history persists.
+          void appApi
+            .getFeed(activeFilterIds)
+            .then((nextFeed) => {
+              const candidates = nextFeed.window.candidates.filter(
+                (candidate) => !matchedProfileIds.includes(candidate.id),
+              );
+              const restoredFromFeed = candidates.find(
+                (candidate) => candidate.id === response.restoredProfileId,
+              );
+              const nextCandidates = restoredFromFeed
+                ? [restoredFromFeed, ...candidates.filter((candidate) => candidate.id !== restoredFromFeed.id)]
+                : candidates;
+              setFeedCandidates(nextCandidates);
+              setFeedCursor(nextFeed.window.cursor);
+              setCurrentIndex(0);
+              setPhotoIndex(0);
+              setSwipeError(false);
+              setFeedStatus('success');
+              x.set(0);
+              y.set(0);
+            })
+            .catch(() => {
+              showTransientSwipeError();
+            });
+          return;
+        }
+        setDismissedCandidates((prev) =>
+          prev.filter((candidate) => candidate.id !== response.restoredProfileId),
+        );
+        setFeedCandidates((prev) => [
+          restoredCandidate,
+          ...prev.filter((candidate) => candidate.id !== response.restoredProfileId),
+        ]);
+        setCurrentIndex(0);
+        setPhotoIndex(0);
+        x.set(0);
+        y.set(0);
+        setSwipeError(false);
+      })
+      .catch(() => {
+        showTransientSwipeError();
+      });
   };
 
   const handlePhotoNav = (e: React.MouseEvent) => {

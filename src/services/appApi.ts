@@ -184,18 +184,35 @@ const getPreciseGeoPoint = async (enabled: boolean): Promise<{ lat: number; lng:
 };
 
 const discoverRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const internalToken = await resolveInternalToken();
-  const headers = new Headers(init?.headers ?? {});
-  headers.set('Authorization', `Bearer ${internalToken}`);
-  if (!(init?.body instanceof FormData) && init?.body !== undefined && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
+  const buildHeadersWithToken = (token: string) => {
+    const headers = new Headers(init?.headers ?? {});
+    headers.set('Authorization', `Bearer ${token}`);
+    if (!(init?.body instanceof FormData) && init?.body !== undefined && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    return headers;
+  };
 
-  const response = await fetch(`${DISCOVER_API_URL}${path}`, {
-    credentials: 'include',
-    headers,
-    ...init,
-  });
+  const execute = async (token: string) => {
+    return fetch(`${DISCOVER_API_URL}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: buildHeadersWithToken(token),
+    });
+  };
+
+  let internalToken = await resolveInternalToken();
+  let response = await execute(internalToken);
+
+  if ((response.status === 401 || response.status === 403) && DISCOVER_API_URL) {
+    cachedInternalToken = null;
+    const refresh = await authApi.refreshInternalToken().catch(() => ({ ok: false } as const));
+    if (refresh.ok && refresh.data?.token) {
+      internalToken = refresh.data.token;
+      cachedInternalToken = { value: refresh.data.token, fetchedAt: Date.now() };
+      response = await execute(internalToken);
+    }
+  }
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
@@ -245,9 +262,9 @@ const serviceRequest = async <T>(baseUrl: string, path: string, init?: RequestIn
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
     credentials: 'include',
     headers,
-    ...init,
   });
 
   if (!response.ok) {
@@ -531,13 +548,7 @@ export const appApi = {
             runtimeApi.patchBalances({ rewindsLeft: response.rewindsLeft });
           }
           return response;
-        })
-        .catch((error) => {
-        if (!shouldFallbackToRuntime(error)) {
-          return Promise.reject(error);
-        }
-        return withLatency(runtimeApi.rewind(), 80);
-      });
+        });
     }
     return withLatency(runtimeApi.rewind(), 80);
   },

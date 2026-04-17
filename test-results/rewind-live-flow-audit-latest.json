@@ -1,0 +1,10 @@
+{
+    "testedAt":  "2026-04-17T23:29:27.6010341+03:00",
+    "firstProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+    "rewindRestoredProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+    "rewindRewindsLeft":  281,
+    "restoredPresentInFeedAfter":  true,
+    "feedAfterTopProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+    "feedAfterCount":  11,
+    "verdict":  "pass"
+}

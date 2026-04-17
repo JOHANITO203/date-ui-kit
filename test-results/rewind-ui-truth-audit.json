@@ -1,0 +1,31 @@
+{
+    "auditedAt":  "2026-04-17T23:37:24.3513710+03:00",
+    "corsAllowHeaders":  "Content-Type, Authorization, X-Idempotency-Key",
+    "cycles":  [
+                   {
+                       "label":  "cycle-1",
+                       "firstProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                       "restoredProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                       "rewindsLeft":  280,
+                       "restoredPresentInFeedAfter":  true,
+                       "topAfter":  "bf835702-2480-41d8-a009-bd0ec97f9710"
+                   },
+                   {
+                       "label":  "cycle-2",
+                       "firstProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                       "restoredProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                       "rewindsLeft":  279,
+                       "restoredPresentInFeedAfter":  true,
+                       "topAfter":  "bf835702-2480-41d8-a009-bd0ec97f9710"
+                   }
+               ],
+    "deltaFromCycle1To2":  1,
+    "verdict":  {
+                    "preflightAllowsIdempotencyHeader":  true,
+                    "cycle1Restored":  true,
+                    "cycle2Restored":  true,
+                    "cycle1VisibleAfter":  true,
+                    "cycle2VisibleAfter":  true,
+                    "rewindCounterDecrementsAcrossCycles":  true
+                }
+}

@@ -1,0 +1,56 @@
+﻿{
+    "generatedAt":  "2026-04-17T22:54:04.2934530+03:00",
+    "startedAt":  "2026-04-17T22:54:00.6807003+03:00",
+    "scope":  "Rewind runtime validation (live)",
+    "services":  {
+                     "discover":  "http://127.0.0.1:8788",
+                     "payments":  "http://127.0.0.1:4025"
+                 },
+    "calls":  {
+                  "swipe":  {
+                                "method":  "POST",
+                                "path":  "/discover/swipe",
+                                "payload":  {
+                                                "profileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                                                "feedCursor":  "cursor_962a08ca-89f6-4245-8879-2aaef4c2fe29_1776455643211",
+                                                "decision":  "dislike"
+                                            },
+                                "response":  {
+                                                 "matched":  false
+                                             }
+                            },
+                  "rewind":  {
+                                 "method":  "POST",
+                                 "path":  "/discover/rewind",
+                                 "payload":  {
+                                                 "feedCursor":  "cursor_962a08ca-89f6-4245-8879-2aaef4c2fe29_1776455643211"
+                                             },
+                                 "response":  {
+                                                  "restoredProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                                                  "rewindsLeft":  295
+                                              }
+                             }
+              },
+    "frontendRuntimeState":  {
+                                 "expectedPreviousProfileId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                                 "profileActuallyRestoredId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                                 "profileReDisplayedTopId":  "bf835702-2480-41d8-a009-bd0ec97f9710"
+                             },
+    "counter":  {
+                    "before":  296,
+                    "expectedAfter":  295,
+                    "rewindResponseAfter":  295,
+                    "entitlementsAfter":  295
+                },
+    "reloadPersistence":  {
+                              "entitlementsAfterReload":  295,
+                              "restoredProfilePresentInReloadFeed":  true,
+                              "reloadFeedCursor":  "cursor_962a08ca-89f6-4245-8879-2aaef4c2fe29_1776455644259"
+                          },
+    "assertions":  {
+                       "condition1_previousProfileRestored":  true,
+                       "condition2_counterDecremented":  true,
+                       "condition3_persistedAfterReload":  true,
+                       "allPassed":  true
+                   }
+}

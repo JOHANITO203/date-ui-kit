@@ -866,17 +866,31 @@ export const loadCandidatesByProfileIds = async (input: {
 
     let settingsRows: SettingsRow[] = [];
     try {
-      const settingsResult = await withTimeout(
-        supabase
-          .from("settings")
-          .select("user_id,hide_age,hide_distance,shadow_ghost")
-          .in("user_id", profileIds)
-          .limit(Math.max(64, profileIds.length * 2)),
-        optionalQueryTimeoutMs,
-        "discover_settings_by_ids_query",
-      );
-      if (settingsResult.error) throw settingsResult.error;
-      settingsRows = (settingsResult.data ?? []) as SettingsRow[];
+      const cachedSettings: SettingsRow[] = [];
+      const missingIds: string[] = [];
+      for (const profileId of profileIds) {
+        const cached = getCachedSettings(profileId);
+        if (cached) cachedSettings.push(cached);
+        else missingIds.push(profileId);
+      }
+
+      if (missingIds.length > 0) {
+        const settingsResult = await withTimeout(
+          supabase
+            .from("settings")
+            .select("user_id,hide_age,hide_distance,shadow_ghost")
+            .in("user_id", missingIds)
+            .limit(Math.max(64, missingIds.length * 2)),
+          settingsQueryTimeoutMs,
+          "discover_settings_by_ids_query",
+        );
+        if (settingsResult.error) throw settingsResult.error;
+        const fresh = (settingsResult.data ?? []) as SettingsRow[];
+        for (const row of fresh) setCachedSettings(row);
+        settingsRows = [...cachedSettings, ...fresh];
+      } else {
+        settingsRows = cachedSettings;
+      }
     } catch (error) {
       input.logger.warn({ err: error }, "discover.settings_by_ids_query_failed_continue_with_defaults");
     }

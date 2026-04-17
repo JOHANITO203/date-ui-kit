@@ -630,6 +630,7 @@ export const runtimeApi = {
     if (!lastDismissedId || state.balances.rewindsLeft <= 0) {
       return { restoredProfileId: undefined, rewindsLeft: state.balances.rewindsLeft };
     }
+    const nextRewindsLeft = Math.max(0, state.balances.rewindsLeft - 1);
 
     trackEvent('rewind_used', {
       userId: state.currentUserId,
@@ -640,12 +641,12 @@ export const runtimeApi = {
     setState((prev) => ({
       ...prev,
       dismissedProfileIds: prev.dismissedProfileIds.slice(0, -1),
-      balances: { ...prev.balances, rewindsLeft: Math.max(0, prev.balances.rewindsLeft - 1) },
+      balances: { ...prev.balances, rewindsLeft: nextRewindsLeft },
     }));
 
     return {
       restoredProfileId: lastDismissedId,
-      rewindsLeft: state.balances.rewindsLeft,
+      rewindsLeft: nextRewindsLeft,
     };
   },
 

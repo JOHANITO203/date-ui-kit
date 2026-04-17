@@ -674,7 +674,8 @@ export const buildServer = () => {
     origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    // Discover client sends this header for swipe/rewind/boost idempotency.
+    allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key"],
   });
 
   app.get("/health", async () => ({
@@ -1229,6 +1230,15 @@ export const buildServer = () => {
     const history = swipeHistoryByUser.get(userId) ?? [];
     history.push(profileId);
     swipeHistoryByUser.set(userId, history.slice(-120));
+    app.log.info(
+      {
+        userId,
+        profileId,
+        decision,
+        historySize: Math.min(history.length, 120),
+      },
+      "discover.swipe_recorded_for_rewind",
+    );
 
     if (decision === "dislike") {
       return {
@@ -1317,7 +1327,21 @@ export const buildServer = () => {
     const history = swipeHistoryByUser.get(userId) ?? [];
     const restoredProfileId = history[history.length - 1];
     if (!restoredProfileId) {
-      return { restoredProfileId: undefined, rewindsLeft: 0 };
+      const snapshot = await getUserEntitlementSnapshot(userId);
+      app.log.info(
+        {
+          userId,
+          restoredProfileId: null,
+          historySize: history.length,
+          rewindsLeft: Math.max(0, snapshot?.balancesDelta?.rewindsLeft ?? 0),
+          reason: "no_history",
+        },
+        "discover.rewind_result",
+      );
+      return {
+        restoredProfileId: undefined,
+        rewindsLeft: Math.max(0, snapshot?.balancesDelta?.rewindsLeft ?? 0),
+      };
     }
 
     const key =
@@ -1350,6 +1374,16 @@ export const buildServer = () => {
     dismissedByUser.set(
       userId,
       dismissed.filter((profileId) => profileId !== restoredProfileId),
+    );
+    app.log.info(
+      {
+        userId,
+        restoredProfileId,
+        historySize: history.length,
+        rewindsLeft,
+        reason: "restored",
+      },
+      "discover.rewind_result",
     );
 
     return { restoredProfileId, rewindsLeft };

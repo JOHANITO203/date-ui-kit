@@ -1,0 +1,10 @@
+{
+    "auditedAt":  "2026-04-17T23:48:24.7574826+03:00",
+    "window":  "last_300_log_lines",
+    "observedPostSwipeCalls":  7,
+    "observedPostRewindCalls":  3,
+    "observedSwipe401Responses":  5,
+    "observedRewind401Responses":  1,
+    "conclusion":  "manual UI flow was failing on auth 401 for swipe/rewind",
+    "fixedBy":  "frontend discoverRequest retries once after refreshInternalToken on 401/403"
+}
