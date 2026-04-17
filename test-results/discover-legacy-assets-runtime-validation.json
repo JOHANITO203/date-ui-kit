@@ -1,0 +1,93 @@
+{
+  "checkedAt": "2026-04-17T11:32:04.183Z",
+  "targets": [
+    "seed/seedA.jpg",
+    "seed/seedB.jpg"
+  ],
+  "runs": [
+    {
+      "run": 1,
+      "status": 200,
+      "latencyMs": 755,
+      "totalCandidates": 13,
+      "publicCount": 13,
+      "signedCount": 0,
+      "placeholderCount": 0,
+      "targetPathHits": [],
+      "targetNameHits": [],
+      "invalidUrlCandidates": []
+    },
+    {
+      "run": 2,
+      "status": 200,
+      "latencyMs": 111,
+      "totalCandidates": 13,
+      "publicCount": 13,
+      "signedCount": 0,
+      "placeholderCount": 0,
+      "targetPathHits": [],
+      "targetNameHits": [],
+      "invalidUrlCandidates": []
+    },
+    {
+      "run": 3,
+      "status": 200,
+      "latencyMs": 70720,
+      "totalCandidates": 25,
+      "publicCount": 25,
+      "signedCount": 0,
+      "placeholderCount": 0,
+      "targetPathHits": [],
+      "targetNameHits": [],
+      "invalidUrlCandidates": []
+    },
+    {
+      "run": 4,
+      "status": 200,
+      "latencyMs": 99,
+      "totalCandidates": 13,
+      "publicCount": 13,
+      "signedCount": 0,
+      "placeholderCount": 0,
+      "targetPathHits": [],
+      "targetNameHits": [],
+      "invalidUrlCandidates": []
+    },
+    {
+      "run": 5,
+      "status": 200,
+      "latencyMs": 124,
+      "totalCandidates": 13,
+      "publicCount": 13,
+      "signedCount": 0,
+      "placeholderCount": 0,
+      "targetPathHits": [],
+      "targetNameHits": [],
+      "invalidUrlCandidates": []
+    },
+    {
+      "run": 6,
+      "status": 200,
+      "latencyMs": 71471,
+      "totalCandidates": 25,
+      "publicCount": 25,
+      "signedCount": 0,
+      "placeholderCount": 0,
+      "targetPathHits": [],
+      "targetNameHits": [],
+      "invalidUrlCandidates": []
+    }
+  ],
+  "aggregate": {
+    "runs": 6,
+    "avgLatencyMs": 23880,
+    "minLatencyMs": 99,
+    "maxLatencyMs": 71471,
+    "totalCandidatesSeen": 102,
+    "totalPublic": 102,
+    "totalSigned": 0,
+    "totalPlaceholder": 0,
+    "totalTargetPathHits": 0,
+    "totalTargetNameHits": 0
+  }
+}

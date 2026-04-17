@@ -1,0 +1,56 @@
+{
+  "executedAt": "2026-04-17T11:28:58.389Z",
+  "targets": [
+    "seed/seedA.jpg",
+    "seed/seedB.jpg"
+  ],
+  "privateBucket": "profile-photos",
+  "publicBucket": "profile-photos-public",
+  "beforeCount": 2,
+  "beforeRows": [
+    {
+      "id": "d0195545-bed8-477b-9801-4891ab4c51bb",
+      "user_id": "7af13bf8-a0c0-452b-b4f8-7c5a757056dd",
+      "storage_path": "seed/seedA.jpg"
+    },
+    {
+      "id": "51d25b34-e778-4341-a5c0-1d28a230c6c1",
+      "user_id": "24efd4e9-8e66-45f9-a171-7a3d8d2b1dc2",
+      "storage_path": "seed/seedB.jpg"
+    }
+  ],
+  "deletedRowsCount": 2,
+  "deletedRows": [
+    {
+      "id": "d0195545-bed8-477b-9801-4891ab4c51bb",
+      "user_id": "7af13bf8-a0c0-452b-b4f8-7c5a757056dd",
+      "storage_path": "seed/seedA.jpg"
+    },
+    {
+      "id": "51d25b34-e778-4341-a5c0-1d28a230c6c1",
+      "user_id": "24efd4e9-8e66-45f9-a171-7a3d8d2b1dc2",
+      "storage_path": "seed/seedB.jpg"
+    }
+  ],
+  "deleteRowsError": null,
+  "privateRemoveError": null,
+  "publicRemoveError": null,
+  "afterCount": 0,
+  "afterRows": [],
+  "listRemovedTargets": {
+    "privatePathsAttempted": [
+      "seed/seedA.jpg",
+      "seed/seedB.jpg"
+    ],
+    "publicPathsAttempted": [
+      "seed/seedA.jpg",
+      "variants/card/seed/seedA.jpg",
+      "variants/avatar/seed/seedA.jpg",
+      "variants/profile/seed/seedA.jpg",
+      "seed/seedB.jpg",
+      "variants/card/seed/seedB.jpg",
+      "variants/avatar/seed/seedB.jpg",
+      "variants/profile/seed/seedB.jpg"
+    ]
+  }
+}

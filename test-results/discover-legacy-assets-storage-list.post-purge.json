@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-04-17T11:32:19.774Z",
+  "checks": [
+    {
+      "bucket": "profile-photos",
+      "prefix": "seed",
+      "search": "seedA.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos",
+      "prefix": "seed",
+      "search": "seedB.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "seed",
+      "search": "seedA.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "seed",
+      "search": "seedB.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "variants/card/seed",
+      "search": "seedA.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "variants/card/seed",
+      "search": "seedB.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "variants/avatar/seed",
+      "search": "seedA.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "variants/avatar/seed",
+      "search": "seedB.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "variants/profile/seed",
+      "search": "seedA.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    },
+    {
+      "bucket": "profile-photos-public",
+      "prefix": "variants/profile/seed",
+      "search": "seedB.jpg",
+      "count": 0,
+      "names": [],
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-04-17T11:32:01.751Z",
+  "count": 0,
+  "rows": [],
+  "error": {
+    "message": "Invalid schema: storage",
+    "code": "PGRST106",
+    "details": null
+  }
+}
