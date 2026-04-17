@@ -1,0 +1,82 @@
+﻿{
+    "endpoint":  "http://127.0.0.1:8788/discover/feed?quickFilters=all",
+    "runs":  [
+                 {
+                     "run":  1,
+                     "latency_ms":  154,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  2,
+                     "latency_ms":  145,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  3,
+                     "latency_ms":  133,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  4,
+                     "latency_ms":  134,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  5,
+                     "latency_ms":  150,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  6,
+                     "latency_ms":  142,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  7,
+                     "latency_ms":  129,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  8,
+                     "latency_ms":  153,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  9,
+                     "latency_ms":  147,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 },
+                 {
+                     "run":  10,
+                     "latency_ms":  125,
+                     "candidates":  0,
+                     "public_urls":  0,
+                     "signed_urls":  0
+                 }
+             ],
+    "p50_ms":  142,
+    "p95_ms":  153,
+    "non_empty_runs":  0,
+    "min_candidates":  0,
+    "max_candidates":  0,
+    "total_public_urls":  0,
+    "total_signed_urls":  0
+}

@@ -64,6 +64,10 @@ const optionalQueryTimeoutMs = Math.min(
   env.DISCOVER_SUPABASE_TIMEOUT_MS,
   env.DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS,
 );
+const settingsQueryTimeoutMs = Math.min(
+  env.DISCOVER_SUPABASE_TIMEOUT_MS,
+  env.DISCOVER_SETTINGS_QUERY_TIMEOUT_MS,
+);
 const encodeStoragePath = (value: string) =>
   value
     .split("/")
@@ -109,6 +113,23 @@ const setCachedSignedPhotoUrl = (storagePath: string, signedUrl: string) => {
   signedPhotoUrlCache.set(key, {
     url: signedUrl,
     expiresAtMs: Date.now() + safeTtlSec * 1000,
+  });
+};
+
+const settingsCache = new Map<string, { value: SettingsRow; expiresAtMs: number }>();
+const getCachedSettings = (userId: string): SettingsRow | null => {
+  const entry = settingsCache.get(userId);
+  if (!entry) return null;
+  if (Date.now() >= entry.expiresAtMs) {
+    settingsCache.delete(userId);
+    return null;
+  }
+  return entry.value;
+};
+const setCachedSettings = (row: SettingsRow) => {
+  settingsCache.set(row.user_id, {
+    value: row,
+    expiresAtMs: Date.now() + env.DISCOVER_SETTINGS_CACHE_TTL_MS,
   });
 };
 
@@ -183,7 +204,7 @@ const checkPublicBucketViaStorageApi = async (): Promise<boolean> => {
         Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}`,
       },
     }),
-    optionalQueryTimeoutMs,
+    Math.min(env.DISCOVER_SUPABASE_TIMEOUT_MS, env.DISCOVER_PUBLIC_BUCKET_CHECK_TIMEOUT_MS),
     "discover_public_bucket_storage_api",
   );
   if (!response.ok) return false;
@@ -193,6 +214,7 @@ const checkPublicBucketViaStorageApi = async (): Promise<boolean> => {
 };
 
 const isPublicBucketEnabled = async () => {
+  if (env.DISCOVER_PUBLIC_BUCKET_ASSUME_ENABLED) return true;
   const now = Date.now();
   if (publicBucketState.checkedAt > 0 && now - publicBucketState.checkedAt < PUBLIC_BUCKET_CHECK_TTL_MS) {
     return publicBucketState.isPublic;
@@ -200,7 +222,8 @@ const isPublicBucketEnabled = async () => {
   try {
     publicBucketState.isPublic = await checkPublicBucketViaStorageApi();
   } catch {
-    publicBucketState.isPublic = false;
+    // Keep last known state on transient failure to avoid false negatives.
+    publicBucketState.isPublic = publicBucketState.isPublic;
   }
   publicBucketState.checkedAt = now;
   return publicBucketState.isPublic;
@@ -405,17 +428,31 @@ export const loadCandidatesFromSupabase = async (input: {
 
     let settingsRows: SettingsRow[] = [];
     try {
-      const settingsResult = await withTimeout(
-        supabase
-          .from("settings")
-          .select("user_id,hide_age,hide_distance,shadow_ghost")
-          .in("user_id", profileIds)
-          .limit(500),
-        optionalQueryTimeoutMs,
-        "discover_settings_query",
-      );
-      if (settingsResult.error) throw settingsResult.error;
-      settingsRows = (settingsResult.data ?? []) as SettingsRow[];
+      const cachedSettings: SettingsRow[] = [];
+      const missingIds: string[] = [];
+      for (const profileId of profileIds) {
+        const cached = getCachedSettings(profileId);
+        if (cached) cachedSettings.push(cached);
+        else missingIds.push(profileId);
+      }
+
+      if (missingIds.length > 0) {
+        const settingsResult = await withTimeout(
+          supabase
+            .from("settings")
+            .select("user_id,hide_age,hide_distance,shadow_ghost")
+            .in("user_id", missingIds)
+            .limit(500),
+          settingsQueryTimeoutMs,
+          "discover_settings_query",
+        );
+        if (settingsResult.error) throw settingsResult.error;
+        const fresh = (settingsResult.data ?? []) as SettingsRow[];
+        for (const row of fresh) setCachedSettings(row);
+        settingsRows = [...cachedSettings, ...fresh];
+      } else {
+        settingsRows = cachedSettings;
+      }
     } catch (error) {
       input.logger.warn({ err: error }, "discover.settings_query_failed_continue_with_defaults");
     }

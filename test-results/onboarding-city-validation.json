@@ -1,0 +1,28 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "apiCity": "voronezh",
+  "profileResponseDelayed": true,
+  "results": [
+    {
+      "step": "initial_render",
+      "expected": "Voronezh",
+      "observed": "Voronezh (t=1200ms)",
+      "source": "optimistic_seed (onboarding snapshot)",
+      "result": "PASS"
+    },
+    {
+      "step": "after_profiles_me",
+      "expected": "snapshot_cleared",
+      "observed": "snapshot_cleared",
+      "source": "localStorage",
+      "result": "PASS"
+    },
+    {
+      "step": "after_reload",
+      "expected": "Voronezh",
+      "observed": "Voronezh",
+      "source": "/profiles/me",
+      "result": "PASS"
+    }
+  ]
+}

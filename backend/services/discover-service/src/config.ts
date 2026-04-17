@@ -24,8 +24,12 @@ const envSchema = z.object({
   STORAGE_SIGNED_URL_TTL_SEC: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
   DISCOVER_SUPABASE_TIMEOUT_MS: z.coerce.number().int().min(500).max(20000).default(3500),
   DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS: z.coerce.number().int().min(200).max(5000).default(900),
+  DISCOVER_SETTINGS_QUERY_TIMEOUT_MS: z.coerce.number().int().min(400).max(5000).default(1500),
+  DISCOVER_SETTINGS_CACHE_TTL_MS: z.coerce.number().int().min(1000).max(600000).default(60000),
   DISCOVER_CANDIDATES_CACHE_TTL_MS: z.coerce.number().int().min(500).max(30000).default(8000),
   DISCOVER_FEED_PROFILE_LIMIT: z.coerce.number().int().min(10).max(120).default(40),
+  DISCOVER_PUBLIC_BUCKET_ASSUME_ENABLED: z.coerce.boolean().default(false),
+  DISCOVER_PUBLIC_BUCKET_CHECK_TIMEOUT_MS: z.coerce.number().int().min(200).max(5000).default(1500),
   ACTOR_ENGINE_ACTOR_EMAIL_REGEX: z
     .string()
     .optional()

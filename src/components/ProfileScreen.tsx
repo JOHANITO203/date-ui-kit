@@ -272,7 +272,7 @@ const ProfileScreen = () => {
     const optimisticSeed = hydrateProfileSeed(
       null,
       user?.profile as Record<string, unknown> | null | undefined,
-      { allowOnboardingFallback: false },
+      { allowOnboardingFallback: true },
     );
     const optimisticName = optimisticSeed.firstName || fallbackNameFromSession || 'User';
     if (optimisticName) setProfileName(optimisticName);
