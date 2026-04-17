@@ -10,6 +10,8 @@ export type ProfileFlags = {
   shadowGhost: boolean;
 };
 
+export type CandidatePhotoStatus = "public" | "signed_fallback" | "placeholder";
+
 export type FeedCandidate = {
   id: string;
   name: string;
@@ -24,6 +26,10 @@ export type FeedCandidate = {
   compatibility: number;
   interests: string[];
   online: boolean;
+  photoStatus: CandidatePhotoStatus;
+  photoUrl: string;
+  photoReason: string;
+  photoStoragePath: string | null;
   flags: ProfileFlags;
   rankScore: number;
   scoreReason: string;
@@ -47,6 +53,11 @@ export const feedSeed: FeedCandidate[] = [
     compatibility: 94,
     interests: ["Art", "Travel", "Wine"],
     online: true,
+    photoStatus: "public",
+    photoUrl:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=800&q=80",
+    photoReason: "seed_photo_public",
+    photoStoragePath: null,
     flags: {
       verifiedIdentity: true,
       premiumTier: "gold",
@@ -73,6 +84,11 @@ export const feedSeed: FeedCandidate[] = [
     compatibility: 88,
     interests: ["Tech", "Coffee", "Design"],
     online: true,
+    photoStatus: "public",
+    photoUrl:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80",
+    photoReason: "seed_photo_public",
+    photoStoragePath: null,
     flags: {
       verifiedIdentity: true,
       premiumTier: "essential",
@@ -99,6 +115,11 @@ export const feedSeed: FeedCandidate[] = [
     compatibility: 91,
     interests: ["Architecture", "Photography"],
     online: false,
+    photoStatus: "public",
+    photoUrl:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80",
+    photoReason: "seed_photo_public",
+    photoStoragePath: null,
     flags: {
       verifiedIdentity: false,
       premiumTier: "free",

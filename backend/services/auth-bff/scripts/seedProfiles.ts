@@ -1,5 +1,6 @@
 import { config as loadEnv } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -148,6 +149,36 @@ const randomBirthDate = () => {
 const pickInterests = () => shuffle(interestsPool).slice(0, 4);
 
 const safeFileName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+type PhotoVariant = "card" | "avatar" | "profile";
+const VARIANT_PRESETS: Record<
+  PhotoVariant,
+  { width: number; height: number; fit: "inside" | "cover"; quality: number }
+> = {
+  card: { width: 720, height: 960, fit: "inside", quality: 76 },
+  avatar: { width: 256, height: 256, fit: "cover", quality: 72 },
+  profile: { width: 1080, height: 1440, fit: "inside", quality: 78 },
+};
+
+const toVariantPath = (storagePath: string, variant: PhotoVariant) => {
+  const clean = storagePath.replace(/^\/+/, "");
+  const withoutExt = clean.replace(/\.[^/.]+$/, "");
+  return `variants/${variant}/${withoutExt}.jpg`;
+};
+
+const optimizeVariant = async (buffer: Buffer, variant: PhotoVariant) => {
+  const preset = VARIANT_PRESETS[variant];
+  return sharp(buffer, { failOnError: false })
+    .rotate()
+    .resize({
+      width: preset.width,
+      height: preset.height,
+      fit: preset.fit,
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: preset.quality, mozjpeg: true })
+    .toBuffer();
+};
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -320,14 +351,19 @@ const uploadPrimaryPhoto = async (userId: string, localImagePath: string) => {
     if (insertPhotoError) throw insertPhotoError;
   });
 
-  await withRetry(`upload public variant for ${objectPath}`, async () => {
-    const { error: publicError } = await supabase.storage.from(publicBucket).upload(objectPath, fileBuffer, {
-      contentType,
-      cacheControl: "public, max-age=31536000, immutable",
-      upsert: true,
+  const variants: PhotoVariant[] = ["card", "avatar", "profile"];
+  for (const variant of variants) {
+    await withRetry(`upload public ${variant} variant for ${objectPath}`, async () => {
+      const optimized = await optimizeVariant(fileBuffer, variant);
+      const variantPath = toVariantPath(objectPath, variant);
+      const { error: publicError } = await supabase.storage.from(publicBucket).upload(variantPath, optimized, {
+        contentType: "image/jpeg",
+        cacheControl: "public, max-age=31536000, immutable",
+        upsert: true,
+      });
+      if (publicError) throw publicError;
     });
-    if (publicError) throw publicError;
-  });
+  }
 };
 
 const buildSeedUser = (server: LaunchServerConfig, index: number): SeedUser => {

@@ -28,6 +28,7 @@ const envSchema = z.object({
   DISCOVER_SETTINGS_CACHE_TTL_MS: z.coerce.number().int().min(1000).max(600000).default(60000),
   DISCOVER_CANDIDATES_CACHE_TTL_MS: z.coerce.number().int().min(500).max(30000).default(8000),
   DISCOVER_FEED_PROFILE_LIMIT: z.coerce.number().int().min(10).max(120).default(40),
+  DISCOVER_REQUIRE_PHOTO: z.coerce.boolean().default(true),
   DISCOVER_PUBLIC_BUCKET_ASSUME_ENABLED: z.coerce.boolean().default(false),
   DISCOVER_PUBLIC_BUCKET_CHECK_TIMEOUT_MS: z.coerce.number().int().min(200).max(5000).default(1500),
   ACTOR_ENGINE_ACTOR_EMAIL_REGEX: z

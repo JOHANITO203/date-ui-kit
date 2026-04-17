@@ -23,6 +23,8 @@ export interface ProfileFlags {
   shadowGhost: boolean;
 }
 
+export type CandidatePhotoStatus = 'public' | 'signed_fallback' | 'placeholder';
+
 export interface ProfileCard {
   id: string;
   name: string;
@@ -35,5 +37,9 @@ export interface ProfileCard {
   compatibility: number;
   interests: string[];
   online: boolean;
+  photoStatus?: CandidatePhotoStatus;
+  photoUrl?: string;
+  photoReason?: string;
+  photoStoragePath?: string | null;
   flags: ProfileFlags;
 }

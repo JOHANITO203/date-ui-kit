@@ -125,6 +125,26 @@ const toVariantPath = (storagePath: string, variant: PhotoVariant) => {
   return `variants/${variant}/${withoutExt}.jpg`;
 };
 
+const getVariantPaths = (storagePath: string): string[] => {
+  const variants: PhotoVariant[] = ["card", "avatar", "profile"];
+  return variants.map((variant) => toVariantPath(storagePath, variant));
+};
+
+const withRetry = async <T>(label: string, fn: () => Promise<T>, maxAttempts = 3): Promise<T> => {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 120 * attempt));
+      }
+    }
+  }
+  throw new Error(`${label}_failed_after_${maxAttempts}_attempts:${String(lastError)}`);
+};
+
 const buildPublicPhotoUrl = (
   storagePath: string,
   variant: PhotoVariant,
@@ -167,12 +187,22 @@ const uploadPublicVariantFromBuffer = async (storagePath: string, buffer: Buffer
   for (const variant of variants) {
     const optimized = await optimizeVariant(buffer, variant);
     const variantPath = toVariantPath(storagePath, variant);
-    await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).upload(variantPath, optimized.buffer, {
+    const upload = await supabaseServiceClient.storage
+      .from(PROFILE_PHOTOS_PUBLIC_BUCKET)
+      .upload(variantPath, optimized.buffer, {
       contentType: optimized.contentType,
       cacheControl: "public, max-age=31536000, immutable",
       upsert: true,
     });
+    if (upload.error) {
+      throw upload.error;
+    }
   }
+};
+
+const removePublicVariants = async (storagePath: string) => {
+  const targets = [...getVariantPaths(storagePath), storagePath];
+  await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).remove(targets);
 };
 
 const copyPublicVariantFromPrivate = async (storagePath: string) => {
@@ -475,9 +505,28 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         return sendAuthError(reply, 500, "PROFILE_PHOTO_INSERT_FAILED", "Unable to persist profile photo.");
       }
 
-      await uploadPublicVariantFromBuffer(storagePath, buffer).catch((error) => {
-        request.log.warn({ err: error, storagePath }, "profile.photos.public_variant_failed");
-      });
+      try {
+        await withRetry(
+          `profile.photos.public_variant.${storagePath}`,
+          () => uploadPublicVariantFromBuffer(storagePath, buffer),
+          3,
+        );
+      } catch (error) {
+        request.log.error(
+          { err: error, userId: session.user.id, storagePath },
+          "profile.photos.public_variant_failed_rollback",
+        );
+        await supabaseServiceClient.from("profile_photos").delete().eq("id", insertResult.data.id);
+        await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([storagePath]);
+        await removePublicVariants(storagePath);
+        await syncPhotosCount(session.user.id);
+        return sendAuthError(
+          reply,
+          503,
+          "PROFILE_PHOTO_VARIANT_GENERATION_FAILED",
+          "Unable to process photo variants. Please retry upload.",
+        );
+      }
 
       await syncPhotosCount(session.user.id);
       const signedByPath = await createSignedUrlsForPaths([storagePath]);
@@ -603,7 +652,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       }
 
       await supabaseServiceClient.storage.from(PROFILE_PHOTOS_BUCKET).remove([lookup.data.storage_path]);
-      await supabaseServiceClient.storage.from(PROFILE_PHOTOS_PUBLIC_BUCKET).remove([lookup.data.storage_path]);
+      await removePublicVariants(lookup.data.storage_path);
 
       const removeResult = await supabaseServiceClient
         .from("profile_photos")

@@ -47,6 +47,59 @@ const reshuffleCandidates = (candidates: FeedCandidate[]): FeedCandidate[] => {
   });
 };
 
+type DiscoverImageProps = {
+  attrs: ReturnType<typeof buildResponsiveImageAttrs> | null | undefined;
+  className: string;
+  label: string;
+  loading?: 'eager' | 'lazy';
+  fetchPriority?: 'high' | 'low' | 'auto';
+};
+
+const DiscoverImage = ({
+  attrs,
+  className,
+  label,
+  loading = 'lazy',
+  fetchPriority = 'auto',
+}: DiscoverImageProps) => {
+  const src = typeof attrs?.src === 'string' && attrs.src.trim().length > 0 ? attrs.src.trim() : '/placeholder.svg';
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
+  if (hasError) {
+    return (
+      <div
+        className="w-full h-full bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),rgba(20,20,20,0.96))] flex items-center justify-center"
+        aria-label={label}
+        role="img"
+      >
+        <div className="w-14 h-14 rounded-full border border-white/20 bg-black/45 backdrop-blur-md flex items-center justify-center">
+          <ICONS.Profile size={24} className="text-white/75" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      srcSet={attrs?.srcSet}
+      sizes={attrs?.sizes}
+      className={className}
+      alt=""
+      aria-label={label}
+      referrerPolicy="no-referrer"
+      loading={loading}
+      decoding="async"
+      fetchPriority={fetchPriority}
+      onError={() => setHasError(true)}
+    />
+  );
+};
+
 const SwipeScreen = () => {
   const navigate = useNavigate();
   const { isDesktop, isTablet } = useDevice();
@@ -633,15 +686,11 @@ const SwipeScreen = () => {
                   className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
                   style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
                 >
-                  <img
-                    src={nextPhotoAttrs?.src}
-                    srcSet={nextPhotoAttrs?.srcSet}
-                    sizes={nextPhotoAttrs?.sizes}
+                  <DiscoverImage
+                    attrs={nextPhotoAttrs}
                     className="w-full h-full object-cover object-[center_18%] grayscale-[0.3]"
-                    alt="next"
-                    referrerPolicy="no-referrer"
+                    label="Next candidate"
                     loading="lazy"
-                    decoding="async"
                   />
                 </motion.div>
               )}
@@ -656,22 +705,22 @@ const SwipeScreen = () => {
               onClick={handlePhotoNav}
             >
               <AnimatePresence mode="wait">
-                <motion.img
+                <motion.div
                   key={photoIndex}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.4 }}
-                  src={currentPhotoAttrs?.src}
-                  srcSet={currentPhotoAttrs?.srcSet}
-                  sizes={currentPhotoAttrs?.sizes}
-                  className="w-full h-full object-cover object-[center_18%] pointer-events-none"
-                  alt={user.name}
-                  referrerPolicy="no-referrer"
-                  loading="eager"
-                  decoding="async"
-                  fetchPriority="high"
-                />
+                  className="w-full h-full pointer-events-none"
+                >
+                  <DiscoverImage
+                    attrs={currentPhotoAttrs}
+                    className="w-full h-full object-cover object-[center_18%] pointer-events-none"
+                    label={user.name}
+                    loading="eager"
+                    fetchPriority="high"
+                  />
+                </motion.div>
               </AnimatePresence>
 
               <motion.div style={{ opacity: likeOpacity, scale: likeScale }} className="absolute top-20 left-10 w-16 h-16 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_20px_rgba(59,130,246,0.35)]">
@@ -786,15 +835,11 @@ const SwipeScreen = () => {
                   className="absolute inset-0 rounded-[36px] overflow-hidden bg-zinc-900"
                   style={{ scale: 0.96, y: 8, opacity: 0.4, zIndex: 0 }}
                 >
-                  <img
-                    src={nextPhotoAttrs?.src}
-                    srcSet={nextPhotoAttrs?.srcSet}
-                    sizes={nextPhotoAttrs?.sizes}
+                  <DiscoverImage
+                    attrs={nextPhotoAttrs}
                     className="w-full h-full object-cover object-[center_22%] grayscale-[0.3]"
-                    alt="next"
-                    referrerPolicy="no-referrer"
+                    label="Next candidate"
                     loading="lazy"
-                    decoding="async"
                   />
                 </motion.div>
               )}
@@ -809,22 +854,22 @@ const SwipeScreen = () => {
               onClick={handlePhotoNav}
             >
               <AnimatePresence mode="wait">
-                <motion.img
+                <motion.div
                   key={photoIndex}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.4 }}
-                  src={currentPhotoAttrs?.src}
-                  srcSet={currentPhotoAttrs?.srcSet}
-                  sizes={currentPhotoAttrs?.sizes}
-                  className="w-full h-full object-cover object-[center_22%] pointer-events-none"
-                  alt={user.name}
-                  referrerPolicy="no-referrer"
-                  loading="eager"
-                  decoding="async"
-                  fetchPriority="high"
-                />
+                  className="w-full h-full pointer-events-none"
+                >
+                  <DiscoverImage
+                    attrs={currentPhotoAttrs}
+                    className="w-full h-full object-cover object-[center_22%] pointer-events-none"
+                    label={user.name}
+                    loading="eager"
+                    fetchPriority="high"
+                  />
+                </motion.div>
               </AnimatePresence>
 
               <motion.div style={{ opacity: likeOpacity, scale: likeScale }} className="absolute top-20 left-10 w-14 h-14 rounded-full rotate-[-12deg] pointer-events-none z-30 flex items-center justify-center border-2 border-blue-400/70 shadow-[0_0_18px_rgba(59,130,246,0.35)]">

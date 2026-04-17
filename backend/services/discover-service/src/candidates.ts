@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./config";
 import type { FeedCandidate } from "./data";
+import type { CandidatePhotoStatus } from "./data";
 import type { FastifyBaseLogger } from "fastify";
 import type { PlanTier, ShortPassTier } from "./data";
 import type { ImageAccessPolicy } from "./imageAccessPolicy";
@@ -144,6 +145,14 @@ const chunkArray = <T>(items: T[], size: number) => {
 
 type PhotoAccessResolver = (profileId: string) => ImageAccessPolicy;
 
+type CandidatePhotoResolution = {
+  urls: string[];
+  status: CandidatePhotoStatus;
+  url: string;
+  reason: string;
+  storagePath: string | null;
+};
+
 const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, string>> => {
   const result = new Map<string, string>();
   if (!supabase || paths.length === 0) return result;
@@ -187,6 +196,65 @@ const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, st
   }
 
   return result;
+};
+
+const PUBLIC_VARIANT_HEALTH_TTL_MS = 10 * 60 * 1000;
+const MAX_PUBLIC_VARIANT_PROBES_PER_REQUEST = 256;
+const publicVariantHealthCache = new Map<string, { healthy: boolean; checkedAtMs: number }>();
+
+const probePublicVariantHealth = async (
+  publicByPath: Map<string, string>,
+  logger: FastifyBaseLogger,
+) => {
+  const now = Date.now();
+  const broken = new Set<string>();
+  const unknownEntries: Array<[string, string]> = [];
+
+  for (const [storagePath, url] of publicByPath.entries()) {
+    const cached = publicVariantHealthCache.get(storagePath);
+    if (cached && now - cached.checkedAtMs < PUBLIC_VARIANT_HEALTH_TTL_MS) {
+      if (!cached.healthy) broken.add(storagePath);
+      continue;
+    }
+    unknownEntries.push([storagePath, url]);
+  }
+
+  const toProbe = unknownEntries.slice(0, MAX_PUBLIC_VARIANT_PROBES_PER_REQUEST);
+  if (toProbe.length === 0) return broken;
+
+  const checks = await Promise.all(
+    toProbe.map(async ([storagePath, url]) => {
+      try {
+        const response = await withTimeout(
+          fetch(url, { method: "HEAD" }),
+          Math.min(env.DISCOVER_SUPABASE_TIMEOUT_MS, 700),
+          "discover_public_variant_probe",
+        );
+        return { storagePath, status: response.status, ok: response.ok };
+      } catch {
+        return { storagePath, status: 0, ok: false };
+      }
+    }),
+  );
+
+  for (const check of checks) {
+    publicVariantHealthCache.set(check.storagePath, {
+      healthy: check.ok,
+      checkedAtMs: now,
+    });
+    if (!check.ok) {
+      broken.add(check.storagePath);
+      logger.warn(
+        {
+          storagePath: check.storagePath,
+          status: check.status,
+        },
+        "discover.public_variant_unavailable_fallback_to_signed",
+      );
+    }
+  }
+
+  return broken;
 };
 
 const publicBucketState = {
@@ -319,9 +387,104 @@ const canUseShadowGhost = (snapshot: EntitlementSnapshot | null | undefined) => 
   return false;
 };
 
+const resolveCandidatePhoto = (input: {
+  topPaths: string[];
+  accessPolicy: ImageAccessPolicy;
+  publicByPath: Map<string, string>;
+  signedByPath: Map<string, string>;
+  brokenPublicPaths: Set<string>;
+}): CandidatePhotoResolution => {
+  const primaryPath = input.topPaths[0] ?? null;
+  if (!primaryPath) {
+    return {
+      urls: ["/placeholder.svg"],
+      status: "placeholder",
+      url: "/placeholder.svg",
+      reason: "missing_profile_photo",
+      storagePath: null,
+    };
+  }
+
+  const urls = input.topPaths
+    .map((storagePath) => {
+      if (input.accessPolicy === "public_stable") {
+        if (input.brokenPublicPaths.has(storagePath)) {
+          return input.signedByPath.get(storagePath) ?? "/placeholder.svg";
+        }
+        return input.publicByPath.get(storagePath) ?? input.signedByPath.get(storagePath) ?? "/placeholder.svg";
+      }
+      return input.signedByPath.get(storagePath) ?? "/placeholder.svg";
+    })
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+  const primaryUrl = urls[0] ?? "/placeholder.svg";
+  if (input.accessPolicy === "public_stable") {
+    if (input.brokenPublicPaths.has(primaryPath)) {
+      if (input.signedByPath.has(primaryPath)) {
+        return {
+          urls,
+          status: "signed_fallback",
+          url: primaryUrl,
+          reason: "public_variant_unavailable_signed_fallback",
+          storagePath: primaryPath,
+        };
+      }
+      return {
+        urls: ["/placeholder.svg"],
+        status: "placeholder",
+        url: "/placeholder.svg",
+        reason: "public_variant_unavailable_no_signed",
+        storagePath: primaryPath,
+      };
+    }
+    if (input.publicByPath.has(primaryPath)) {
+      return {
+        urls,
+        status: "public",
+        url: primaryUrl,
+        reason: "public_variant_ok",
+        storagePath: primaryPath,
+      };
+    }
+    if (input.signedByPath.has(primaryPath)) {
+      return {
+        urls,
+        status: "signed_fallback",
+        url: primaryUrl,
+        reason: "public_variant_missing_signed_fallback",
+        storagePath: primaryPath,
+      };
+    }
+    return {
+      urls: ["/placeholder.svg"],
+      status: "placeholder",
+      url: "/placeholder.svg",
+      reason: "public_candidate_unresolved",
+      storagePath: primaryPath,
+    };
+  }
+
+  if (input.signedByPath.has(primaryPath)) {
+    return {
+      urls,
+      status: "signed_fallback",
+      url: primaryUrl,
+      reason: "signed_policy_private",
+      storagePath: primaryPath,
+    };
+  }
+  return {
+    urls: ["/placeholder.svg"],
+    status: "placeholder",
+    url: "/placeholder.svg",
+    reason: "signed_policy_missing_source",
+    storagePath: primaryPath,
+  };
+};
+
 const mapProfileToCandidate = (
   profile: ProfileRow,
-  photoUrls: string[],
+  photoResolution: CandidatePhotoResolution,
   userGeoPoint: { lat: number; lng: number } | null,
   settings: SettingsRow | undefined,
   entitlement: UserEntitlementRow | undefined,
@@ -345,7 +508,11 @@ const mapProfileToCandidate = (
     distanceKm: effectiveDistanceKm,
     languages: profile.languages && profile.languages.length > 0 ? profile.languages : ["English", "Russian"],
     bio: profile.bio?.trim() || "Looking for meaningful connections.",
-    photos: photoUrls.length > 0 ? photoUrls : ["/placeholder.svg"],
+    photos: photoResolution.urls.length > 0 ? photoResolution.urls : ["/placeholder.svg"],
+    photoStatus: photoResolution.status,
+    photoUrl: photoResolution.url,
+    photoReason: photoResolution.reason,
+    photoStoragePath: photoResolution.storagePath,
     compatibility: 70 + (scoreSeed % 28),
     interests: profile.interests && profile.interests.length > 0 ? profile.interests : ["Travel", "Music"],
     online: scoreSeed % 3 !== 0,
@@ -529,7 +696,14 @@ export const loadCandidatesFromSupabase = async (input: {
         publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
       }
     }
-    const signedCandidates = [...signedPaths, ...(!publicBucketEnabled ? publicPaths : [])];
+    const brokenPublicPaths = publicBucketEnabled
+      ? await probePublicVariantHealth(publicByPath, input.logger)
+      : new Set<string>();
+    const signedCandidates = [
+      ...signedPaths,
+      ...(!publicBucketEnabled ? publicPaths : []),
+      ...(publicBucketEnabled ? [...brokenPublicPaths] : []),
+    ];
     const signedByPath =
       signedCandidates.length > 0 ? await createSignedUrlsForPaths(signedCandidates) : new Map<string, string>();
     const resolvedCount = publicByPath.size + signedByPath.size;
@@ -561,18 +735,17 @@ export const loadCandidatesFromSupabase = async (input: {
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
-      const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => {
-          if (accessPolicy === "public_stable") {
-            return publicByPath.get(storagePath) ?? signedByPath.get(storagePath);
-          }
-          return signedByPath.get(storagePath);
-        })
-        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      const photoResolution = resolveCandidatePhoto({
+        topPaths: topPhotoPathsByUser.get(profile.user_id) ?? [],
+        accessPolicy,
+        publicByPath,
+        signedByPath,
+        brokenPublicPaths,
+      });
       candidates.push(
         mapProfileToCandidate(
           profile,
-          signedUrls,
+          photoResolution,
           input.userGeoPoint,
           settingsByUser.get(profile.user_id),
           entitlementsByUser.get(profile.user_id),
@@ -580,7 +753,33 @@ export const loadCandidatesFromSupabase = async (input: {
       );
     }
 
-    return candidates;
+    const eligibleCandidates = env.DISCOVER_REQUIRE_PHOTO
+      ? candidates.filter((item) => item.photoStatus !== "placeholder")
+      : candidates;
+
+    if (candidates.length > 0) {
+      const statusCounts = candidates.reduce<Record<string, number>>((acc, item) => {
+        acc[item.photoStatus] = (acc[item.photoStatus] ?? 0) + 1;
+        return acc;
+      }, {});
+      const reasonCounts = candidates.reduce<Record<string, number>>((acc, item) => {
+        acc[item.photoReason] = (acc[item.photoReason] ?? 0) + 1;
+        return acc;
+      }, {});
+      input.logger.info(
+        {
+          candidates: candidates.length,
+          eligibleCandidates: eligibleCandidates.length,
+          droppedNoPhoto: candidates.length - eligibleCandidates.length,
+          requirePhoto: env.DISCOVER_REQUIRE_PHOTO,
+          photoStatus: statusCounts,
+          photoReason: reasonCounts,
+        },
+        "discover.photo_resolution_summary",
+      );
+    }
+
+    return eligibleCandidates;
   } catch (error) {
     input.logger.error({ err: error }, "discover.load_candidates_supabase_failed_no_static_fallback");
     return [];
@@ -722,7 +921,14 @@ export const loadCandidatesByProfileIds = async (input: {
         publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
       }
     }
-    const signedCandidates = [...signedPaths, ...(!publicBucketEnabled ? publicPaths : [])];
+    const brokenPublicPaths = publicBucketEnabled
+      ? await probePublicVariantHealth(publicByPath, input.logger)
+      : new Set<string>();
+    const signedCandidates = [
+      ...signedPaths,
+      ...(!publicBucketEnabled ? publicPaths : []),
+      ...(publicBucketEnabled ? [...brokenPublicPaths] : []),
+    ];
     const signedByPath =
       signedCandidates.length > 0 ? await createSignedUrlsForPaths(signedCandidates) : new Map<string, string>();
     const resolvedCount = publicByPath.size + signedByPath.size;
@@ -754,18 +960,17 @@ export const loadCandidatesByProfileIds = async (input: {
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
-      const signedUrls = (topPhotoPathsByUser.get(profile.user_id) ?? [])
-        .map((storagePath) => {
-          if (accessPolicy === "public_stable") {
-            return publicByPath.get(storagePath) ?? signedByPath.get(storagePath);
-          }
-          return signedByPath.get(storagePath);
-        })
-        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      const photoResolution = resolveCandidatePhoto({
+        topPaths: topPhotoPathsByUser.get(profile.user_id) ?? [],
+        accessPolicy,
+        publicByPath,
+        signedByPath,
+        brokenPublicPaths,
+      });
       candidates.push(
         mapProfileToCandidate(
           profile,
-          signedUrls,
+          photoResolution,
           input.userGeoPoint ?? null,
           settingsByUser.get(profile.user_id),
           entitlementsByUser.get(profile.user_id),
@@ -773,7 +978,33 @@ export const loadCandidatesByProfileIds = async (input: {
       );
     }
 
-    return candidates;
+    const eligibleCandidates = env.DISCOVER_REQUIRE_PHOTO
+      ? candidates.filter((item) => item.photoStatus !== "placeholder")
+      : candidates;
+
+    if (candidates.length > 0) {
+      const statusCounts = candidates.reduce<Record<string, number>>((acc, item) => {
+        acc[item.photoStatus] = (acc[item.photoStatus] ?? 0) + 1;
+        return acc;
+      }, {});
+      const reasonCounts = candidates.reduce<Record<string, number>>((acc, item) => {
+        acc[item.photoReason] = (acc[item.photoReason] ?? 0) + 1;
+        return acc;
+      }, {});
+      input.logger.info(
+        {
+          candidates: candidates.length,
+          eligibleCandidates: eligibleCandidates.length,
+          droppedNoPhoto: candidates.length - eligibleCandidates.length,
+          requirePhoto: env.DISCOVER_REQUIRE_PHOTO,
+          photoStatus: statusCounts,
+          photoReason: reasonCounts,
+        },
+        "discover.photo_resolution_summary",
+      );
+    }
+
+    return eligibleCandidates;
   } catch (error) {
     input.logger.error({ err: error }, "discover.load_candidates_by_ids_failed");
     return [];
