@@ -8,6 +8,7 @@ export type ProfileFlags = {
   hideAge: boolean;
   hideDistance: boolean;
   shadowGhost: boolean;
+  boostActive: boolean;
 };
 
 export type CandidatePhotoStatus = "public" | "signed_fallback" | "placeholder";
@@ -63,7 +64,8 @@ export const feedSeed: FeedCandidate[] = [
       premiumTier: "gold",
       hideAge: false,
       hideDistance: false,
-      shadowGhost: false
+      shadowGhost: false,
+      boostActive: false
     },
     rankScore: 99,
     scoreReason: "high_compatibility"
@@ -94,7 +96,8 @@ export const feedSeed: FeedCandidate[] = [
       premiumTier: "essential",
       hideAge: false,
       hideDistance: false,
-      shadowGhost: false
+      shadowGhost: false,
+      boostActive: false
     },
     rankScore: 93,
     scoreReason: "verified_priority"
@@ -126,7 +129,8 @@ export const feedSeed: FeedCandidate[] = [
       shortPassTier: "day",
       hideAge: true,
       hideDistance: false,
-      shadowGhost: false
+      shadowGhost: false,
+      boostActive: false
     },
     rankScore: 89,
     scoreReason: "balanced_discovery"

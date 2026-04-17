@@ -50,6 +50,11 @@ type UserEntitlementRow = {
   entitlement_snapshot: EntitlementSnapshot | null;
 };
 
+type UserBoostRow = {
+  user_id: string;
+  active_until: string | null;
+};
+
 const hasSupabase =
   typeof env.SUPABASE_URL === "string" &&
   env.SUPABASE_URL.length > 0 &&
@@ -488,6 +493,7 @@ const mapProfileToCandidate = (
   userGeoPoint: { lat: number; lng: number } | null,
   settings: SettingsRow | undefined,
   entitlement: UserEntitlementRow | undefined,
+  hasActiveBoost: boolean,
 ): FeedCandidate => {
   const city = profile.city?.trim() || "Moscow";
   const cityGeo = cityCoordinates[city];
@@ -497,6 +503,7 @@ const mapProfileToCandidate = (
   const planTier = resolveEntitlementPlanTier(entitlement?.entitlement_snapshot);
   const shortPassTier = resolveShortPassTier(entitlement?.entitlement_snapshot);
   const shadowGhostEnabledByUser = Boolean(settings?.shadow_ghost);
+  const boostRankBonus = hasActiveBoost ? env.DISCOVER_ACTIVE_BOOST_SCORE_BONUS : 0;
 
   return {
     id: profile.user_id,
@@ -523,9 +530,10 @@ const mapProfileToCandidate = (
       hideAge: Boolean(settings?.hide_age),
       hideDistance: Boolean(settings?.hide_distance),
       shadowGhost: shadowGhostEnabledByUser && canUseShadowGhost(entitlement?.entitlement_snapshot),
+      boostActive: hasActiveBoost,
     },
-    rankScore: 80 + (scoreSeed % 20),
-    scoreReason: "supabase_seed",
+    rankScore: 80 + (scoreSeed % 20) + boostRankBonus,
+    scoreReason: hasActiveBoost ? "supabase_seed_boost_active" : "supabase_seed",
   };
 };
 
@@ -641,6 +649,25 @@ export const loadCandidatesFromSupabase = async (input: {
       input.logger.warn({ err: error }, "discover.entitlements_query_failed_continue_with_free_tier");
     }
 
+    let boostedProfileIds = new Set<string>();
+    try {
+      const activeBoostResult = await withTimeout(
+        supabase
+          .from("user_boosts")
+          .select("user_id,active_until")
+          .in("user_id", profileIds)
+          .gt("active_until", new Date().toISOString())
+          .limit(500),
+        optionalQueryTimeoutMs,
+        "discover_boosts_query",
+      );
+      if (activeBoostResult.error) throw activeBoostResult.error;
+      const boostRows = (activeBoostResult.data ?? []) as UserBoostRow[];
+      boostedProfileIds = new Set(boostRows.map((row) => row.user_id));
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.boosts_query_failed_continue_without_boost_bonus");
+    }
+
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
     for (const row of photosRows) {
       const bucketRows = photosByUser.get(row.user_id) ?? [];
@@ -749,6 +776,7 @@ export const loadCandidatesFromSupabase = async (input: {
           input.userGeoPoint,
           settingsByUser.get(profile.user_id),
           entitlementsByUser.get(profile.user_id),
+          boostedProfileIds.has(profile.user_id),
         ),
       );
     }
@@ -870,6 +898,25 @@ export const loadCandidatesByProfileIds = async (input: {
       input.logger.warn({ err: error }, "discover.entitlements_by_ids_query_failed_continue_with_free_tier");
     }
 
+    let boostedProfileIds = new Set<string>();
+    try {
+      const activeBoostResult = await withTimeout(
+        supabase
+          .from("user_boosts")
+          .select("user_id,active_until")
+          .in("user_id", profileIds)
+          .gt("active_until", new Date().toISOString())
+          .limit(Math.max(64, profileIds.length * 2)),
+        optionalQueryTimeoutMs,
+        "discover_boosts_by_ids_query",
+      );
+      if (activeBoostResult.error) throw activeBoostResult.error;
+      const boostRows = (activeBoostResult.data ?? []) as UserBoostRow[];
+      boostedProfileIds = new Set(boostRows.map((row) => row.user_id));
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.boosts_by_ids_query_failed_continue_without_boost_bonus");
+    }
+
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
     for (const row of photosRows) {
       const bucketRows = photosByUser.get(row.user_id) ?? [];
@@ -974,6 +1021,7 @@ export const loadCandidatesByProfileIds = async (input: {
           input.userGeoPoint ?? null,
           settingsByUser.get(profile.user_id),
           entitlementsByUser.get(profile.user_id),
+          boostedProfileIds.has(profile.user_id),
         ),
       );
     }

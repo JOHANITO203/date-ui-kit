@@ -91,6 +91,22 @@ const normalizeYooKassaStatus = (status?: string): CheckoutState => {
   return "pending";
 };
 
+const isTransientNetworkError = (error: unknown) => {
+  const text = JSON.stringify(error ?? "").toLowerCase();
+  return (
+    text.includes("econnreset") ||
+    text.includes("etimedout") ||
+    text.includes("fetch failed") ||
+    text.includes("socket hang up") ||
+    text.includes("connection terminated")
+  );
+};
+
+const waitMs = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 const asRecord = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object") return {};
   return value as Record<string, unknown>;
@@ -505,6 +521,24 @@ export const buildServer = () => {
     return catalogResult.offers.find((offer) => offer.id === offerId);
   };
 
+  const withTransientRetry = async <T>(action: () => Promise<T>, context: string): Promise<T> => {
+    const delays = [200, 600];
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+      try {
+        return await action();
+      } catch (error) {
+        lastError = error;
+        if (!isTransientNetworkError(error) || attempt === delays.length) {
+          throw error;
+        }
+        app.log.warn({ err: error, context, attempt: attempt + 1 }, "payments.transient_retry");
+        await waitMs(delays[attempt]);
+      }
+    }
+    throw lastError;
+  };
+
   const attributeCheckout = async (checkout: CheckoutRow): Promise<CheckoutRow> => {
     if (checkout.attributed || checkout.status !== "paid") return checkout;
     const offer = await getOfferById(checkout.offer_id);
@@ -547,6 +581,27 @@ export const buildServer = () => {
       attributed: true,
       entitlement_snapshot: mergedSnapshot,
     };
+  };
+
+  const attributeCheckoutSafely = async (checkout: CheckoutRow, context: string) => {
+    try {
+      const attributed = await withTransientRetry(
+        () => attributeCheckout(checkout),
+        `attribute:${context}:${checkout.checkout_id}`,
+      );
+      return { checkout: attributed, pendingAttribution: false };
+    } catch (error) {
+      app.log.error(
+        {
+          err: error,
+          context,
+          checkoutId: checkout.checkout_id,
+          offerId: checkout.offer_id,
+        },
+        "payments.attribute_pending_reconciliation",
+      );
+      return { checkout, pendingAttribution: true };
+    }
   };
 
   app.get("/health", async () => ({
@@ -689,7 +744,8 @@ export const buildServer = () => {
       };
 
       await upsertCheckout(checkout);
-      checkout = await attributeCheckout(checkout);
+      const attributedResult = await attributeCheckoutSafely(checkout, "checkout_dev_auto");
+      checkout = attributedResult.checkout;
 
       return {
         mode: "mock",
@@ -700,7 +756,10 @@ export const buildServer = () => {
         attributed: checkout.attributed,
         entitlementSnapshot: checkout.entitlement_snapshot ?? undefined,
         effectiveBenefits: resolveEffectiveBenefitsSnapshot(checkout.entitlement_snapshot),
-        message: "DEV auto-grant mode enabled: purchase was instantly attributed.",
+        pendingAttribution: attributedResult.pendingAttribution,
+        message: attributedResult.pendingAttribution
+          ? "DEV auto-grant accepted; entitlement attribution is pending reconciliation."
+          : "DEV auto-grant mode enabled: purchase was instantly attributed.",
       };
     }
 
@@ -804,13 +863,15 @@ export const buildServer = () => {
         await patchCheckout(checkout.checkout_id, { status: "paid" });
         checkout.status = "paid";
       }
-      const attributed = await attributeCheckout(checkout);
+      const attributedResult = await attributeCheckoutSafely(checkout, "checkout_status_mock");
+      const attributed = attributedResult.checkout;
       return {
         checkoutId: attributed.checkout_id,
         status: attributed.status,
         attributed: attributed.attributed,
         entitlementSnapshot: attributed.entitlement_snapshot ?? undefined,
         effectiveBenefits: resolveEffectiveBenefitsSnapshot(attributed.entitlement_snapshot),
+        pendingAttribution: attributedResult.pendingAttribution,
       };
     }
 
@@ -834,7 +895,8 @@ export const buildServer = () => {
       checkout.provider_raw = payment as unknown as Record<string, unknown>;
     }
 
-    const attributed = await attributeCheckout(checkout);
+    const attributedResult = await attributeCheckoutSafely(checkout, "checkout_status_psp");
+    const attributed = attributedResult.checkout;
 
     return {
       checkoutId: attributed.checkout_id,
@@ -842,6 +904,7 @@ export const buildServer = () => {
       attributed: attributed.attributed,
       entitlementSnapshot: attributed.entitlement_snapshot ?? undefined,
       effectiveBenefits: resolveEffectiveBenefitsSnapshot(attributed.entitlement_snapshot),
+      pendingAttribution: attributedResult.pendingAttribution,
     };
   });
 
@@ -884,7 +947,8 @@ export const buildServer = () => {
     checkout.status = statusFromEvent;
     checkout.provider_raw = body;
 
-    const attributed = await attributeCheckout(checkout);
+    const attributedResult = await attributeCheckoutSafely(checkout, "yookassa_webhook");
+    const attributed = attributedResult.checkout;
 
     return {
       accepted: true,
@@ -893,6 +957,7 @@ export const buildServer = () => {
       checkoutId: attributed.checkout_id,
       status: attributed.status,
       attributed: attributed.attributed,
+      pendingAttribution: attributedResult.pendingAttribution,
     };
   });
 

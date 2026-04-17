@@ -1,0 +1,258 @@
+﻿{
+    "generatedAt":  "2026-04-17T22:14:46.2233847+03:00",
+    "scope":  "GOLD + BOOST targeted runtime validation",
+    "travelPass":  {
+                       "activeWork":  false,
+                       "note":  "kept prepared but disabled"
+                   },
+    "gold":  {
+                 "offerId":  "tier-gold-month",
+                 "runs":  [
+                              {
+                                  "run":  1,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  813,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453268498",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  2,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  441,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453269276",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  3,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  447,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453269718",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  4,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  494,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453270165",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  5,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  459,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453270659",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  6,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  457,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453271118",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  7,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  525,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453271576",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              },
+                              {
+                                  "run":  8,
+                                  "ok":  true,
+                                  "status":  200,
+                                  "elapsedMs":  478,
+                                  "pendingAttribution":  false,
+                                  "checkoutId":  "dev_tiergoldmonth_962a08ca89f6_1776453272102",
+                                  "attributed":  true,
+                                  "planTier":  "gold",
+                                  "effectiveFlags":  {
+                                                         "likes_identity_unlocked":  true,
+                                                         "discover_advanced_filters":  true,
+                                                         "profile_hide_age_distance":  true,
+                                                         "messages_translation":  true,
+                                                         "messages_see_online":  false,
+                                                         "travel_pass_included":  false,
+                                                         "shadowghost_included":  false,
+                                                         "premium_badge":  true
+                                                     },
+                                  "error":  null
+                              }
+                          ],
+                 "summary":  {
+                                 "totalRuns":  8,
+                                 "successCount":  8,
+                                 "failureCount":  0,
+                                 "pendingAttributionCount":  0,
+                                 "observerPlanTierAfter":  "gold",
+                                 "observerPlanExpiresAtIsoAfter":  "2026-05-17T19:14:32.238Z",
+                                 "observerBalancesAfter":  {
+                                                               "boostsLeft":  100,
+                                                               "rewindsLeft":  298,
+                                                               "superlikesLeft":  260,
+                                                               "icebreakersLeft":  3
+                                                           },
+                                 "verdict":  "fonctionne réellement"
+                             }
+             },
+    "boost":  {
+                  "offerId":  "instant-boost",
+                  "observerUserId":  "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+                  "targetCandidateId":  "bf835702-2480-41d8-a009-bd0ec97f9710",
+                  "targetBefore":  {
+                                       "rankScore":  91,
+                                       "scoreReason":  "supabase_seed_language_diversity",
+                                       "boostActiveFlag":  false
+                                   },
+                  "targetAfter":  {
+                                      "rankScore":  105,
+                                      "scoreReason":  "supabase_seed_boost_active_language_diversity",
+                                      "boostActiveFlag":  true
+                                  },
+                  "deltaRankScore":  14,
+                  "targetCheckout":  {
+                                         "ok":  true,
+                                         "status":  200,
+                                         "checkoutId":  "dev_instantboost_bf8357022480_1776453274193",
+                                         "attributed":  true,
+                                         "pendingAttribution":  false
+                                     },
+                  "targetEntitlementAfterCredit":  {
+                                                       "planTier":  "elite",
+                                                       "planExpiresAtIso":  "2027-04-10T17:26:53.893Z",
+                                                       "balancesDelta":  {
+                                                                             "boostsLeft":  19999,
+                                                                             "rewindsLeft":  19998,
+                                                                             "superlikesLeft":  19998,
+                                                                             "icebreakersLeft":  0
+                                                                         },
+                                                       "travelPass":  {
+                                                                          "source":  "bundle_included",
+                                                                          "expiresAtIso":  "2027-04-10T17:26:53.893Z"
+                                                                      },
+                                                       "shadowGhost":  {
+                                                                           "source":  "shadowghost_item",
+                                                                           "expiresAtIso":  "2027-04-10T17:26:53.893Z",
+                                                                           "enablePrivacy":  true
+                                                                       }
+                                                   },
+                  "activation":  {
+                                     "status":  "activated",
+                                     "boost":  {
+                                                   "active":  true,
+                                                   "activeUntilIso":  "2026-04-17T19:44:35.875Z",
+                                                   "remainingSeconds":  1799,
+                                                   "boostsLeft":  19998,
+                                                   "availability":  "active",
+                                                   "durationSeconds":  1800
+                                               }
+                                 },
+                  "boostStatus":  {
+                                      "active":  true,
+                                      "activeUntilIso":  "2026-04-17T19:44:35.875+00:00",
+                                      "remainingSeconds":  1799,
+                                      "boostsLeft":  19998,
+                                      "availability":  "active",
+                                      "durationSeconds":  1800
+                                  },
+                  "verdict":  "fonctionne réellement"
+              }
+}

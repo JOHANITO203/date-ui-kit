@@ -743,7 +743,7 @@ export const buildServer = () => {
       const mergePolicy = (current: ImageAccessPolicy | undefined, next: ImageAccessPolicy) =>
         current === "signed_private" || next === "signed_private" ? "signed_private" : "public_stable";
       for (const row of likesRows) {
-        let state = "locked_free" as const;
+        let state: "locked_free" | "shadowghost_active" | "visible_by_entitlement" | "unlocked_icebreaker" | "unlockable_icebreaker" = "locked_free";
         if (row.hidden_by_shadowghost) {
           state = "shadowghost_active";
         } else if (unlockedByPlan) {
