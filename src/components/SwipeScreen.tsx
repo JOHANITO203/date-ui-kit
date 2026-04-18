@@ -129,6 +129,7 @@ const SwipeScreen = () => {
   const [dismissedCandidates, setDismissedCandidates] = useState<FeedCandidate[]>([]);
   const [matchedProfileIds, setMatchedProfileIds] = useState<string[]>([]);
   const [isSwipePending, setIsSwipePending] = useState(false);
+  const [isFeedResetPending, setIsFeedResetPending] = useState(false);
   const [swipeError, setSwipeError] = useState(false);
   const swipeErrorTimerRef = useRef<number | null>(null);
   const superLikeConfirmationTimerRef = useRef<number | null>(null);
@@ -597,6 +598,7 @@ const SwipeScreen = () => {
       <p className="text-white/50 text-sm mt-2 max-w-[24ch]">{t('discover.emptySubtitle')}</p>
       <button
         onClick={() => {
+          if (isFeedResetPending) return;
           const reshuffled = reshuffleCandidates(
             [...feedCandidates, ...dismissedCandidates].filter(
               (candidate) => !matchedProfileIds.includes(candidate.id),
@@ -608,11 +610,38 @@ const SwipeScreen = () => {
             setCurrentIndex(0);
             setPhotoIndex(0);
             setSwipeError(false);
-            return;
+          } else {
+            setActiveFilterIds(['all']);
           }
-          setActiveFilterIds(['all']);
+
+          setIsFeedResetPending(true);
+          void appApi
+            .resetFeed(activeFilterIds)
+            .then((response) => {
+              const nextCandidates = response.window.candidates.filter(
+                (candidate) => !matchedProfileIds.includes(candidate.id),
+              );
+              setFeedCandidates(nextCandidates);
+              setFeedCursor(response.window.cursor);
+              setDismissedCandidates((prev) =>
+                prev.filter((candidate) => !matchedProfileIds.includes(candidate.id)),
+              );
+              setCurrentIndex(0);
+              setPhotoIndex(0);
+              setFeedStatus('success');
+              setSwipeError(false);
+              x.set(0);
+              y.set(0);
+            })
+            .catch(() => {
+              showTransientSwipeError();
+            })
+            .finally(() => {
+              setIsFeedResetPending(false);
+            });
         }}
-        className="mt-5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border border-white/20 bg-white/5 text-white/80 hover:bg-white/10 transition-colors"
+        disabled={isFeedResetPending}
+        className="mt-5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.18em] border border-white/20 bg-white/5 text-white/80 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {t('discover.resetFilters')}
       </button>

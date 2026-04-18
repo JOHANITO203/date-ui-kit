@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
-import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
+import { buildOptimizedImageUrl, buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
 type CardVariant =
   | 'locked_standard'
@@ -59,6 +59,19 @@ const MatchesScreen: React.FC = () => {
   const [iceBreakerBusy, setIceBreakerBusy] = useState(false);
   const [iceBreakerBusyLikeId, setIceBreakerBusyLikeId] = useState<string | null>(null);
   const [iceBreakerFeedback, setIceBreakerFeedback] = useState<string | null>(null);
+  const imagePreloadCacheRef = useRef<Set<string>>(new Set());
+
+  const preloadImage = (url: string | undefined | null) => {
+    const normalized = buildOptimizedImageUrl(url, 'card');
+    if (!normalized || normalized === '/placeholder.svg' || imagePreloadCacheRef.current.has(normalized)) {
+      return;
+    }
+    imagePreloadCacheRef.current.add(normalized);
+    const image = new Image();
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.src = normalized;
+  };
 
   const mapLikesCards = (
     visibleLikes: Array<{
@@ -81,7 +94,6 @@ const MatchesScreen: React.FC = () => {
   ) =>
     visibleLikes
       .map((entry) => {
-        const shouldRevealPhoto = !entry.blurredLocked && !entry.hiddenByShadowGhost;
         return ({
         id: entry.id,
         profileId: entry.profile.id,
@@ -90,7 +102,7 @@ const MatchesScreen: React.FC = () => {
         age: entry.profile.age,
         ageMasked: entry.profile.flags.hideAge,
         city: entry.profile.city,
-        photo: shouldRevealPhoto ? (entry.profile.photos[0] ?? '') : '/placeholder.svg',
+        photo: entry.profile.photos[0] ?? '/placeholder.svg',
         wasSuperLike: entry.wasSuperLike,
         state: entry.state,
         hiddenByShadowGhost: entry.hiddenByShadowGhost,
@@ -128,6 +140,14 @@ const MatchesScreen: React.FC = () => {
         setIsLoading(false);
       });
   }, [reloadNonce]);
+
+  useEffect(() => {
+    const warmup = likesCards.slice(0, 4);
+    for (const like of warmup) {
+      // Warm reveal source to make unlock transition near-instant for visible cards.
+      preloadImage(like.photo);
+    }
+  }, [likesCards]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -312,6 +332,8 @@ const MatchesScreen: React.FC = () => {
           : t('likes.unlocked');
     const showGhostOnlyBadge =
       variant === 'locked_ghost' || variant === 'unlockable_ghost' || variant === 'visible_ghost';
+    const isGhostVariant =
+      variant === 'locked_ghost' || variant === 'unlockable_ghost' || variant === 'visible_ghost';
 
     if (showIdentity) {
       return (
@@ -446,8 +468,14 @@ const MatchesScreen: React.FC = () => {
 
     return (
       <>
-        <div className="absolute inset-0 bg-black/44" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/52 to-black/14" />
+        <div className={`absolute inset-0 ${isGhostVariant ? 'bg-black/36' : 'bg-black/18'}`} />
+        <div
+          className={`absolute inset-0 ${
+            isGhostVariant
+              ? 'bg-gradient-to-t from-black/88 via-black/48 to-black/20'
+              : 'bg-gradient-to-t from-black/58 via-black/28 to-black/6'
+          }`}
+        />
 
         <div
           className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-panel-soft text-[9px] font-black uppercase tracking-[0.14em] border ${badgeToneClass}`}
@@ -483,6 +511,53 @@ const MatchesScreen: React.FC = () => {
           </span>
         </div>
       </>
+    );
+  };
+
+  const LikesCardImage = ({
+    src,
+    srcSet,
+    sizes,
+    alt,
+    className,
+    loading,
+    fetchPriority,
+  }: {
+    src: string;
+    srcSet?: string;
+    sizes: string;
+    alt: string;
+    className: string;
+    loading: 'eager' | 'lazy';
+    fetchPriority: 'high' | 'low';
+  }) => {
+    const [hasError, setHasError] = useState(false);
+    useEffect(() => {
+      setHasError(false);
+    }, [src]);
+
+    if (hasError) {
+      return (
+        <div
+          className="absolute inset-0 w-full h-full object-cover object-center scale-105 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,0.14),rgba(20,20,20,0.94))]"
+          aria-hidden
+        />
+      );
+    }
+
+    return (
+      <img
+        src={src}
+        srcSet={srcSet}
+        sizes={sizes}
+        alt={alt}
+        className={className}
+        referrerPolicy="no-referrer"
+        loading={loading}
+        fetchPriority={fetchPriority}
+        decoding="async"
+        onError={() => setHasError(true)}
+      />
     );
   };
 
@@ -594,22 +669,23 @@ const MatchesScreen: React.FC = () => {
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
                   {(() => {
+                    const lockedPreview = like.blurredLocked || like.hiddenByShadowGhost;
                     const imageAttrs = buildResponsiveImageAttrs(
-                      like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo,
-                      'card',
+                      like.photo,
+                      lockedPreview ? 'avatar' : 'card',
                       '(max-width: 1024px) 50vw, 360px',
                     );
                     return (
-                      <img
+                      <LikesCardImage
                         src={imageAttrs.src}
                         srcSet={imageAttrs.srcSet}
                         sizes={imageAttrs.sizes}
                         alt={like.name}
-                        className="absolute inset-0 w-full h-full object-cover object-center scale-105"
-                        referrerPolicy="no-referrer"
+                        className={`absolute inset-0 w-full h-full object-cover object-center transition-[filter,transform] duration-300 ${
+                          lockedPreview ? 'scale-110 blur-[10px] saturate-[0.85]' : 'scale-105'
+                        }`}
                         loading={index < 2 ? 'eager' : 'lazy'}
-                        fetchPriority={index < 2 ? 'high' : 'auto'}
-                        decoding="async"
+                        fetchPriority={index < 2 ? 'high' : 'low'}
                       />
                     );
                   })()}
@@ -656,22 +732,23 @@ const MatchesScreen: React.FC = () => {
                   className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
                 >
                   {(() => {
+                    const lockedPreview = like.blurredLocked || like.hiddenByShadowGhost;
                     const imageAttrs = buildResponsiveImageAttrs(
-                      like.hiddenByShadowGhost ? '/placeholder.svg' : like.photo,
-                      'card',
+                      like.photo,
+                      lockedPreview ? 'avatar' : 'card',
                       '(max-width: 1024px) 50vw, 360px',
                     );
                     return (
-                      <img
+                      <LikesCardImage
                         src={imageAttrs.src}
                         srcSet={imageAttrs.srcSet}
                         sizes={imageAttrs.sizes}
                         alt={like.name}
-                        className="absolute inset-0 w-full h-full object-cover object-center scale-105"
-                        referrerPolicy="no-referrer"
+                        className={`absolute inset-0 w-full h-full object-cover object-center transition-[filter,transform] duration-300 ${
+                          lockedPreview ? 'scale-110 blur-[10px] saturate-[0.85]' : 'scale-105'
+                        }`}
                         loading={index < 2 ? 'eager' : 'lazy'}
-                        fetchPriority={index < 2 ? 'high' : 'auto'}
-                        decoding="async"
+                        fetchPriority={index < 2 ? 'high' : 'low'}
                       />
                     );
                   })()}

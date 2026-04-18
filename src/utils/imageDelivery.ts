@@ -71,6 +71,9 @@ export const buildOptimizedImageUrl = (
     if (url.hostname.includes('images.unsplash.com')) {
       return withUnsplashTransform(url, options);
     }
+    // Keep storage object URLs untouched: the backend already returns
+    // the correct public/signed variants and some projects reject render/*
+    // for these buckets.
     if (isSupabasePublicObjectUrl(url) || isSupabaseSignedObjectUrl(url)) {
       return normalized;
     }

@@ -1,0 +1,2631 @@
+{
+  "generatedAt": "2026-04-18T19:19:56.082Z",
+  "scenario": "Discover Feed Reset prod-ready runtime validation",
+  "A": {
+    "initialFeed": {
+      "method": "GET",
+      "url": "http://127.0.0.1:8788/discover/feed?quickFilters=all",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "window": {
+          "cursor": "cursor_2d181511-b595-45ea-b9a5-ea712a03ef54_1776539997110",
+          "candidates": [
+            {
+              "id": "aa6fbb8b-d98d-46f6-b8a5-917be75887b1",
+              "name": "Denis",
+              "gender": "men",
+              "age": 20,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg?v=1775724959245"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg?v=1775724959245",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Fashion",
+                "Photography",
+                "Design",
+                "Fitness"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 100,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+              "name": "johane",
+              "gender": "women",
+              "age": 29,
+              "city": "voronezh",
+              "originCountry": "ivorian",
+              "distanceKm": 7,
+              "languages": [
+                "francais",
+                "anglais",
+                "russe"
+              ],
+              "bio": "decouverte",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527471686-d94a3825-6f42-4532-b388-f208362e6b92.jpg?v=1775528246103",
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527484161-5b098c94-ce5b-4abc-b9ff-11db57a13005.jpg?v=1775528258315"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527471686-d94a3825-6f42-4532-b388-f208362e6b92.jpg?v=1775528246103",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527471686-d94a3825-6f42-4532-b388-f208362e6b92.jpg",
+              "compatibility": 85,
+              "interests": [
+                "musique",
+                "mode",
+                "lifestyle",
+                "business",
+                "tech"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": true,
+                "premiumTier": "gold",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": true,
+                "boostActive": false
+              },
+              "rankScore": 97,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "efb4d64c-b0b8-429d-8f8d-d18516caf002",
+              "name": "Denis",
+              "gender": "men",
+              "age": 23,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg?v=1775724929056"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg?v=1775724929056",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Food",
+                "Photography",
+                "Sport",
+                "Tech"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 97,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "065881c7-a092-4ddc-8820-cf5d94fe3bdc",
+              "name": "Alina",
+              "gender": "women",
+              "age": 24,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg?v=1775724967125"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg?v=1775724967125",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg",
+              "compatibility": 79,
+              "interests": [
+                "Music",
+                "Tech",
+                "Art",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 97,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "fad7c89c-b220-4540-9afe-1a550a8198bb",
+              "name": "Elena",
+              "gender": "women",
+              "age": 28,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fad7c89c-b220-4540-9afe-1a550a8198bb/seed/1775724172555-03-temp-sochi-seed.jpg?v=1775724952398"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fad7c89c-b220-4540-9afe-1a550a8198bb/seed/1775724172555-03-temp-sochi-seed.jpg?v=1775724952398",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "fad7c89c-b220-4540-9afe-1a550a8198bb/seed/1775724172555-03-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Music",
+                "Photography",
+                "Fashion",
+                "Travel"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 96,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c",
+              "name": "Denis",
+              "gender": "men",
+              "age": 24,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg?v=1776068449054"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg?v=1776068449054",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Design",
+                "Sport",
+                "Nature",
+                "Books"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 96,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "284b7af3-07e6-49e7-ae14-8d9f4c7feb58",
+              "name": "Elena",
+              "gender": "women",
+              "age": 23,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Music",
+                "Business",
+                "Design",
+                "Books"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 93,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "9195fec4-6be8-4b2e-9fef-152914fbbe7f",
+              "name": "Artem",
+              "gender": "men",
+              "age": 28,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9195fec4-6be8-4b2e-9fef-152914fbbe7f/seed/1776067625783-03-jeune-femme-rousse-selfie-miroir-apparte.jpg?v=1776068423375"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9195fec4-6be8-4b2e-9fef-152914fbbe7f/seed/1776067625783-03-jeune-femme-rousse-selfie-miroir-apparte.jpg?v=1776068423375",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "9195fec4-6be8-4b2e-9fef-152914fbbe7f/seed/1776067625783-03-jeune-femme-rousse-selfie-miroir-apparte.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Photography",
+                "Fashion",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 93,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "848df320-6e39-4dc1-9cac-b4bcf38c0fe1",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/848df320-6e39-4dc1-9cac-b4bcf38c0fe1/seed/1776067801182-01-temp-sochi-seed.jpg?v=1776068595840"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/848df320-6e39-4dc1-9cac-b4bcf38c0fe1/seed/1776067801182-01-temp-sochi-seed.jpg?v=1776068595840",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "848df320-6e39-4dc1-9cac-b4bcf38c0fe1/seed/1776067801182-01-temp-sochi-seed.jpg",
+              "compatibility": 79,
+              "interests": [
+                "Photography",
+                "Books",
+                "Music",
+                "Fashion"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 93,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "cc23d125-2c6c-42c3-b042-2ad662b68f42",
+              "name": "Roman",
+              "gender": "men",
+              "age": 22,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg?v=1775724972881"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg?v=1775724972881",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Fashion",
+                "Cinema",
+                "Food",
+                "Music"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 91,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "bf835702-2480-41d8-a009-bd0ec97f9710",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg?v=1776068552679"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg?v=1776068552679",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg",
+              "compatibility": 81,
+              "interests": [
+                "Fitness",
+                "Photography",
+                "Sport",
+                "Culture"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 91,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "c863e01e-1c87-4831-b3f5-b87fbd22593d",
+              "name": "Artem",
+              "gender": "men",
+              "age": 21,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Nature",
+                "Books",
+                "Design",
+                "Sport"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 90,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1",
+              "name": "Alina",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg?v=1776068474933"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg?v=1776068474933",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Nature",
+                "Photography",
+                "Travel"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 90,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "fa3c155c-8c98-4d6d-8155-47a7cac4c426",
+              "name": "Roman",
+              "gender": "men",
+              "age": 28,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg?v=1775724914870"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg?v=1775724914870",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg",
+              "compatibility": 75,
+              "interests": [
+                "Cinema",
+                "Nature",
+                "Fashion",
+                "Sport"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 89,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "efc42d58-2e4b-465d-8bd6-52b5720cd03d",
+              "name": "Alina",
+              "gender": "women",
+              "age": 24,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg?v=1775724933842"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg?v=1775724933842",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Business",
+                "Travel",
+                "Photography",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 89,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "b9af0596-ee04-46a4-bd9b-382700b1d465",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg?v=1776068568139"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg?v=1776068568139",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg",
+              "compatibility": 74,
+              "interests": [
+                "Fitness",
+                "Fashion",
+                "Sport",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 88,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "643efbcc-3f69-40bb-aec4-96341d0c8593",
+              "name": "Artem",
+              "gender": "men",
+              "age": 20,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg?v=1775724950336"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg?v=1775724950336",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Travel",
+                "Nature",
+                "Fitness"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 85,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "9eaa87c8-7c6c-46a4-a189-2572a070d489",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg?v=1775724927038"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg?v=1775724927038",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg",
+              "compatibility": 78,
+              "interests": [
+                "Music",
+                "Photography",
+                "Food",
+                "Tech"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a1b105bd-3de8-4c0d-8b72-ff92e6280c8a",
+              "name": "Roman",
+              "gender": "men",
+              "age": 21,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg?v=1775724940943"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg?v=1775724940943",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg",
+              "compatibility": 78,
+              "interests": [
+                "Culture",
+                "Business",
+                "Cinema",
+                "Food"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "927eb27b-be5f-4128-8e9e-3e99cce6c6b1",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 20,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg?v=1776068583932"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg?v=1776068583932",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg",
+              "compatibility": 74,
+              "interests": [
+                "Cinema",
+                "Tech",
+                "Music",
+                "Books"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+              "name": "Denis",
+              "gender": "men",
+              "age": 23,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Design",
+                "Business",
+                "Travel",
+                "Culture"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "6c9d4af5-c579-4ba7-bbad-815e3730f4c8",
+              "name": "Alina",
+              "gender": "women",
+              "age": 22,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg?v=1775724909655"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg?v=1775724909655",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg",
+              "compatibility": 73,
+              "interests": [
+                "Travel",
+                "Music",
+                "Fashion",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Travel",
+                "Tech",
+                "Music",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "b3c79550-e725-43f4-a102-dace83cd78a9",
+              "name": "xxxx",
+              "gender": "women",
+              "age": 24,
+              "city": "saint_petersburg",
+              "originCountry": "nigerian",
+              "distanceKm": 7,
+              "languages": [
+                "russe"
+              ],
+              "bio": "Looking for meaningful connections.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg?v=1775659251973"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg?v=1775659251973",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg",
+              "compatibility": 85,
+              "interests": [
+                "tech",
+                "voyage",
+                "cinema"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "free",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 82,
+              "scoreReason": "supabase_seed"
+            }
+          ],
+          "quickFiltersApplied": [
+            "all"
+          ],
+          "preferencesApplied": {
+            "ageMin": 18,
+            "ageMax": 65,
+            "distanceKm": 50,
+            "genderPreference": "everyone",
+            "intent": null,
+            "interests": [],
+            "launchCity": null,
+            "originCountry": null,
+            "userLanguages": []
+          }
+        }
+      }
+    },
+    "swipes": [
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      },
+      {
+        "method": "POST",
+        "url": "http://127.0.0.1:8788/discover/swipe",
+        "status": 200,
+        "ok": true,
+        "body": {
+          "matched": false
+        }
+      }
+    ],
+    "resetCall": {
+      "method": "POST",
+      "url": "http://127.0.0.1:8788/discover/feed/reset",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "window": {
+          "cursor": "reset_2d181511-b595-45ea-b9a5-ea712a03ef54_1776540000499",
+          "candidates": [
+            {
+              "id": "6c9d4af5-c579-4ba7-bbad-815e3730f4c8",
+              "name": "Alina",
+              "gender": "women",
+              "age": 22,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg?v=1775724909655"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg?v=1775724909655",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg",
+              "compatibility": 73,
+              "interests": [
+                "Travel",
+                "Music",
+                "Fashion",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a1b105bd-3de8-4c0d-8b72-ff92e6280c8a",
+              "name": "Roman",
+              "gender": "men",
+              "age": 21,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg?v=1775724940943"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg?v=1775724940943",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg",
+              "compatibility": 78,
+              "interests": [
+                "Culture",
+                "Business",
+                "Cinema",
+                "Food"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+              "name": "Denis",
+              "gender": "men",
+              "age": 23,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Design",
+                "Business",
+                "Travel",
+                "Culture"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "efc42d58-2e4b-465d-8bd6-52b5720cd03d",
+              "name": "Alina",
+              "gender": "women",
+              "age": 24,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg?v=1775724933842"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg?v=1775724933842",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Business",
+                "Travel",
+                "Photography",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 89,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "b9af0596-ee04-46a4-bd9b-382700b1d465",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg?v=1776068568139"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg?v=1776068568139",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg",
+              "compatibility": 74,
+              "interests": [
+                "Fitness",
+                "Fashion",
+                "Sport",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 88,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "9eaa87c8-7c6c-46a4-a189-2572a070d489",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg?v=1775724927038"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg?v=1775724927038",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg",
+              "compatibility": 78,
+              "interests": [
+                "Music",
+                "Photography",
+                "Food",
+                "Tech"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1",
+              "name": "Alina",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg?v=1776068474933"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg?v=1776068474933",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Nature",
+                "Photography",
+                "Travel"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 90,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "fa3c155c-8c98-4d6d-8155-47a7cac4c426",
+              "name": "Roman",
+              "gender": "men",
+              "age": 28,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg?v=1775724914870"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg?v=1775724914870",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg",
+              "compatibility": 75,
+              "interests": [
+                "Cinema",
+                "Nature",
+                "Fashion",
+                "Sport"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 89,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "643efbcc-3f69-40bb-aec4-96341d0c8593",
+              "name": "Artem",
+              "gender": "men",
+              "age": 20,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg?v=1775724950336"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg?v=1775724950336",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Travel",
+                "Nature",
+                "Fitness"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 85,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "927eb27b-be5f-4128-8e9e-3e99cce6c6b1",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 20,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg?v=1776068583932"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg?v=1776068583932",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg",
+              "compatibility": 74,
+              "interests": [
+                "Cinema",
+                "Tech",
+                "Music",
+                "Books"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Travel",
+                "Tech",
+                "Music",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "c863e01e-1c87-4831-b3f5-b87fbd22593d",
+              "name": "Artem",
+              "gender": "men",
+              "age": 21,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Nature",
+                "Books",
+                "Design",
+                "Sport"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 90,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "bf835702-2480-41d8-a009-bd0ec97f9710",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg?v=1776068552679"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg?v=1776068552679",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg",
+              "compatibility": 81,
+              "interests": [
+                "Fitness",
+                "Photography",
+                "Sport",
+                "Culture"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 91,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "cc23d125-2c6c-42c3-b042-2ad662b68f42",
+              "name": "Roman",
+              "gender": "men",
+              "age": 22,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg?v=1775724972881"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg?v=1775724972881",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Fashion",
+                "Cinema",
+                "Food",
+                "Music"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 91,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "848df320-6e39-4dc1-9cac-b4bcf38c0fe1",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/848df320-6e39-4dc1-9cac-b4bcf38c0fe1/seed/1776067801182-01-temp-sochi-seed.jpg?v=1776068595840"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/848df320-6e39-4dc1-9cac-b4bcf38c0fe1/seed/1776067801182-01-temp-sochi-seed.jpg?v=1776068595840",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "848df320-6e39-4dc1-9cac-b4bcf38c0fe1/seed/1776067801182-01-temp-sochi-seed.jpg",
+              "compatibility": 79,
+              "interests": [
+                "Photography",
+                "Books",
+                "Music",
+                "Fashion"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 93,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "9195fec4-6be8-4b2e-9fef-152914fbbe7f",
+              "name": "Artem",
+              "gender": "men",
+              "age": 28,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9195fec4-6be8-4b2e-9fef-152914fbbe7f/seed/1776067625783-03-jeune-femme-rousse-selfie-miroir-apparte.jpg?v=1776068423375"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9195fec4-6be8-4b2e-9fef-152914fbbe7f/seed/1776067625783-03-jeune-femme-rousse-selfie-miroir-apparte.jpg?v=1776068423375",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "9195fec4-6be8-4b2e-9fef-152914fbbe7f/seed/1776067625783-03-jeune-femme-rousse-selfie-miroir-apparte.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Photography",
+                "Fashion",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 93,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "284b7af3-07e6-49e7-ae14-8d9f4c7feb58",
+              "name": "Elena",
+              "gender": "women",
+              "age": 23,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Music",
+                "Business",
+                "Design",
+                "Books"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 93,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+              "name": "johane",
+              "gender": "women",
+              "age": 29,
+              "city": "voronezh",
+              "originCountry": "ivorian",
+              "distanceKm": 7,
+              "languages": [
+                "francais",
+                "anglais",
+                "russe"
+              ],
+              "bio": "decouverte",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527471686-d94a3825-6f42-4532-b388-f208362e6b92.jpg?v=1775528246103",
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527484161-5b098c94-ce5b-4abc-b9ff-11db57a13005.jpg?v=1775528258315"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527471686-d94a3825-6f42-4532-b388-f208362e6b92.jpg?v=1775528246103",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527471686-d94a3825-6f42-4532-b388-f208362e6b92.jpg",
+              "compatibility": 85,
+              "interests": [
+                "musique",
+                "mode",
+                "lifestyle",
+                "business",
+                "tech"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": true,
+                "premiumTier": "gold",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": true,
+                "boostActive": false
+              },
+              "rankScore": 97,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "b3c79550-e725-43f4-a102-dace83cd78a9",
+              "name": "xxxx",
+              "gender": "women",
+              "age": 24,
+              "city": "saint_petersburg",
+              "originCountry": "nigerian",
+              "distanceKm": 7,
+              "languages": [
+                "russe"
+              ],
+              "bio": "Looking for meaningful connections.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg?v=1775659251973"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg?v=1775659251973",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg",
+              "compatibility": 85,
+              "interests": [
+                "tech",
+                "voyage",
+                "cinema"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "free",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 82,
+              "scoreReason": "supabase_seed"
+            },
+            {
+              "id": "c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c",
+              "name": "Denis",
+              "gender": "men",
+              "age": 24,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg?v=1776068449054"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg?v=1776068449054",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Design",
+                "Sport",
+                "Nature",
+                "Books"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 96,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "fad7c89c-b220-4540-9afe-1a550a8198bb",
+              "name": "Elena",
+              "gender": "women",
+              "age": 28,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fad7c89c-b220-4540-9afe-1a550a8198bb/seed/1775724172555-03-temp-sochi-seed.jpg?v=1775724952398"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fad7c89c-b220-4540-9afe-1a550a8198bb/seed/1775724172555-03-temp-sochi-seed.jpg?v=1775724952398",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "fad7c89c-b220-4540-9afe-1a550a8198bb/seed/1775724172555-03-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Music",
+                "Photography",
+                "Fashion",
+                "Travel"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 96,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "065881c7-a092-4ddc-8820-cf5d94fe3bdc",
+              "name": "Alina",
+              "gender": "women",
+              "age": 24,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg?v=1775724967125"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg?v=1775724967125",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg",
+              "compatibility": 79,
+              "interests": [
+                "Music",
+                "Tech",
+                "Art",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 97,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "efb4d64c-b0b8-429d-8f8d-d18516caf002",
+              "name": "Denis",
+              "gender": "men",
+              "age": 23,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg?v=1775724929056"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg?v=1775724929056",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Food",
+                "Photography",
+                "Sport",
+                "Tech"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 97,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "aa6fbb8b-d98d-46f6-b8a5-917be75887b1",
+              "name": "Denis",
+              "gender": "men",
+              "age": 20,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg?v=1775724959245"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg?v=1775724959245",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Fashion",
+                "Photography",
+                "Design",
+                "Fitness"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 100,
+              "scoreReason": "supabase_seed_language_diversity"
+            }
+          ],
+          "quickFiltersApplied": [
+            "all"
+          ],
+          "preferencesApplied": {
+            "ageMin": 18,
+            "ageMax": 65,
+            "distanceKm": 50,
+            "genderPreference": "everyone",
+            "intent": null,
+            "interests": [],
+            "launchCity": null,
+            "originCountry": null,
+            "userLanguages": []
+          }
+        },
+        "reset": {
+          "requestedAtIso": "2026-04-18T19:20:00.499Z",
+          "composition": {
+            "total": 24,
+            "fresh": 11,
+            "passed": 11,
+            "likedWithoutMatch": 2
+          },
+          "poolsAvailable": {
+            "fresh": 11,
+            "passed": 11,
+            "likedWithoutMatch": 2
+          },
+          "exclusions": {
+            "matched": 1,
+            "conversations": 0,
+            "safetyBlocked": 0,
+            "safetyReported": 0,
+            "total": 1
+          }
+        }
+      }
+    },
+    "reloadFeed": {
+      "method": "GET",
+      "url": "http://127.0.0.1:8788/discover/feed?quickFilters=all",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "window": {
+          "cursor": "cursor_2d181511-b595-45ea-b9a5-ea712a03ef54_1776540000787",
+          "candidates": [
+            {
+              "id": "313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1",
+              "name": "Alina",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg?v=1776068474933"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg?v=1776068474933",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "313cf3ef-33ed-4daa-96e4-cf5f0d5e9ef1/seed/1776067671892-10-homme-asiatique-selfie-exterieur-jour-re.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Nature",
+                "Photography",
+                "Travel"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 90,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "fa3c155c-8c98-4d6d-8155-47a7cac4c426",
+              "name": "Roman",
+              "gender": "men",
+              "age": 28,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg?v=1775724914870"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg?v=1775724914870",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "fa3c155c-8c98-4d6d-8155-47a7cac4c426/seed/1775724131897-06-temp-saint-petersburg-seed.jpg",
+              "compatibility": 75,
+              "interests": [
+                "Cinema",
+                "Nature",
+                "Fashion",
+                "Sport"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 89,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "efc42d58-2e4b-465d-8bd6-52b5720cd03d",
+              "name": "Alina",
+              "gender": "women",
+              "age": 24,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg?v=1775724933842"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg?v=1775724933842",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "efc42d58-2e4b-465d-8bd6-52b5720cd03d/seed/1775724151135-05-temp-voronezh-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Business",
+                "Travel",
+                "Photography",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 89,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "b9af0596-ee04-46a4-bd9b-382700b1d465",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 24,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg?v=1776068568139"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg?v=1776068568139",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "b9af0596-ee04-46a4-bd9b-382700b1d465/seed/1776067769746-02-homme-brun-selfie-naturel-en-centre-vill.jpg",
+              "compatibility": 74,
+              "interests": [
+                "Fitness",
+                "Fashion",
+                "Sport",
+                "Nature"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 88,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "643efbcc-3f69-40bb-aec4-96341d0c8593",
+              "name": "Artem",
+              "gender": "men",
+              "age": 20,
+              "city": "Sochi",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Artem is looking for meaningful connections in Sochi.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg?v=1775724950336"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg?v=1775724950336",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "643efbcc-3f69-40bb-aec4-96341d0c8593/seed/1775724166703-02-temp-sochi-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Art",
+                "Travel",
+                "Nature",
+                "Fitness"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 85,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "9eaa87c8-7c6c-46a4-a189-2572a070d489",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg?v=1775724927038"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg?v=1775724927038",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "9eaa87c8-7c6c-46a4-a189-2572a070d489/seed/1775724144282-03-temp-voronezh-seed.jpg",
+              "compatibility": 78,
+              "interests": [
+                "Music",
+                "Photography",
+                "Food",
+                "Tech"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a1b105bd-3de8-4c0d-8b72-ff92e6280c8a",
+              "name": "Roman",
+              "gender": "men",
+              "age": 21,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Roman is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg?v=1775724940943"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg?v=1775724940943",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a1b105bd-3de8-4c0d-8b72-ff92e6280c8a/seed/1775724156125-06-temp-voronezh-seed.jpg",
+              "compatibility": 78,
+              "interests": [
+                "Culture",
+                "Business",
+                "Cinema",
+                "Food"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "927eb27b-be5f-4128-8e9e-3e99cce6c6b1",
+              "name": "Anastasia",
+              "gender": "women",
+              "age": 20,
+              "city": "Voronezh",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Anastasia is looking for meaningful connections in Voronezh.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg?v=1776068583932"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg?v=1776068583932",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "927eb27b-be5f-4128-8e9e-3e99cce6c6b1/seed/1776067789005-01-femme-blonde-selfie-naturel-en-quartier-.jpg",
+              "compatibility": 74,
+              "interests": [
+                "Cinema",
+                "Tech",
+                "Music",
+                "Books"
+              ],
+              "online": false,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 84,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+              "name": "Denis",
+              "gender": "men",
+              "age": 23,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Design",
+                "Business",
+                "Travel",
+                "Culture"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "6c9d4af5-c579-4ba7-bbad-815e3730f4c8",
+              "name": "Alina",
+              "gender": "women",
+              "age": 22,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Alina is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg?v=1775724909655"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg?v=1775724909655",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "6c9d4af5-c579-4ba7-bbad-815e3730f4c8/seed/1775724124628-05-temp-saint-petersburg-seed.jpg",
+              "compatibility": 73,
+              "interests": [
+                "Travel",
+                "Music",
+                "Fashion",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Travel",
+                "Tech",
+                "Music",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "b3c79550-e725-43f4-a102-dace83cd78a9",
+              "name": "xxxx",
+              "gender": "women",
+              "age": 24,
+              "city": "saint_petersburg",
+              "originCountry": "nigerian",
+              "distanceKm": 7,
+              "languages": [
+                "russe"
+              ],
+              "bio": "Looking for meaningful connections.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg?v=1775659251973"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg?v=1775659251973",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "b3c79550-e725-43f4-a102-dace83cd78a9/1775658473159-45e41849-46a0-4224-bb58-c180cd7a1979.jpg",
+              "compatibility": 85,
+              "interests": [
+                "tech",
+                "voyage",
+                "cinema"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "free",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 82,
+              "scoreReason": "supabase_seed"
+            }
+          ],
+          "quickFiltersApplied": [
+            "all"
+          ],
+          "preferencesApplied": {
+            "ageMin": 18,
+            "ageMax": 65,
+            "distanceKm": 50,
+            "genderPreference": "everyone",
+            "intent": null,
+            "interests": [],
+            "launchCity": null,
+            "originCountry": null,
+            "userLanguages": []
+          }
+        }
+      }
+    }
+  },
+  "B": {
+    "resetRequestBody": {
+      "quickFilters": [
+        "all"
+      ]
+    },
+    "resetMeta": {
+      "requestedAtIso": "2026-04-18T19:20:00.499Z",
+      "composition": {
+        "total": 24,
+        "fresh": 11,
+        "passed": 11,
+        "likedWithoutMatch": 2
+      },
+      "poolsAvailable": {
+        "fresh": 11,
+        "passed": 11,
+        "likedWithoutMatch": 2
+      },
+      "exclusions": {
+        "matched": 1,
+        "conversations": 0,
+        "safetyBlocked": 0,
+        "safetyReported": 0,
+        "total": 1
+      }
+    },
+    "resetCandidateCount": 24,
+    "conversationPeerCount": 0
+  },
+  "C": {
+    "cases": [
+      {
+        "description": "feed presque epuise -> reset -> nouveaux profils apparaissent",
+        "pass": true
+      },
+      {
+        "description": "profils passed reintroduits selon regle",
+        "pass": true,
+        "dislikedIds": [
+          "aa6fbb8b-d98d-46f6-b8a5-917be75887b1",
+          "efb4d64c-b0b8-429d-8f8d-d18516caf002",
+          "065881c7-a092-4ddc-8820-cf5d94fe3bdc",
+          "fad7c89c-b220-4540-9afe-1a550a8198bb",
+          "c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c",
+          "284b7af3-07e6-49e7-ae14-8d9f4c7feb58",
+          "9195fec4-6be8-4b2e-9fef-152914fbbe7f",
+          "848df320-6e39-4dc1-9cac-b4bcf38c0fe1",
+          "cc23d125-2c6c-42c3-b042-2ad662b68f42",
+          "bf835702-2480-41d8-a009-bd0ec97f9710",
+          "c863e01e-1c87-4831-b3f5-b87fbd22593d"
+        ]
+      },
+      {
+        "description": "profils liked_without_match reintroduits selon regle",
+        "pass": true,
+        "likedWithoutMatchIds": [
+          "962a08ca-89f6-4245-8879-2aaef4c2fe29"
+        ]
+      },
+      {
+        "description": "profils exclus (conversations ouvertes) ne reviennent pas",
+        "pass": true,
+        "excludedConversationCount": 0
+      },
+      {
+        "description": "coherence apres reload",
+        "pass": true,
+        "reloadCandidateCount": 12
+      }
+    ]
+  },
+  "verdict": "PASS"
+}

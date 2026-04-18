@@ -8,6 +8,8 @@ import type {
   ActivateBoostResponse,
   BoostStatus,
   RewindResponse,
+  FeedResetRequest,
+  FeedResetResponse,
   SuperLikeDirectMessageRequest,
   SuperLikeDirectMessageResponse,
   SendMessageRequest,
@@ -92,6 +94,74 @@ const invalidateFeedSignalsCache = () => {
     userLanguages: [],
   };
   cachedFeedSignalsFetchedAt = 0;
+};
+
+const buildDiscoverFeedQuery = async (quickFilters: FeedQuickFilter[]) => {
+  const preferences = runtimeApi.getSettingsEnvelope().settings.preferences;
+  const settingsEnvelope = runtimeApi.getSettingsEnvelope();
+  const feedSignals = await getFeedSignals().catch<FeedSignals>(() => ({
+    intent: null,
+    interests: [],
+    preciseLocationEnabled: null,
+    launchCity: null,
+    originCountry: null,
+    userLanguages: [],
+  }));
+  const preciseLocationEnabled =
+    feedSignals.preciseLocationEnabled ?? settingsEnvelope.settings.privacy.preciseLocation;
+  const preciseGeoPoint = await getPreciseGeoPoint(preciseLocationEnabled).catch(() => null);
+  const query = new URLSearchParams({
+    quickFilters: quickFilters.join(','),
+    ageMin: String(preferences.ageMin),
+    ageMax: String(preferences.ageMax),
+    distanceKm: String(preferences.distanceKm),
+    genderPreference: preferences.genderPreference,
+  });
+  if (feedSignals.intent) {
+    query.set('intent', feedSignals.intent);
+  }
+  if (feedSignals.interests.length > 0) {
+    query.set('interests', feedSignals.interests.join(','));
+  }
+  if (feedSignals.launchCity) {
+    query.set('launchCity', feedSignals.launchCity);
+  }
+  if (feedSignals.originCountry) {
+    query.set('originCountry', feedSignals.originCountry);
+  }
+  if (feedSignals.userLanguages.length > 0) {
+    query.set('userLanguages', feedSignals.userLanguages.join(','));
+  }
+  if (preciseGeoPoint) {
+    query.set('lat', String(preciseGeoPoint.lat));
+    query.set('lng', String(preciseGeoPoint.lng));
+  }
+  return query;
+};
+
+const buildFeedResetRequestBody = (quickFilters: FeedQuickFilter[], query: URLSearchParams): FeedResetRequest => {
+  const interestsRaw = query.get('interests');
+  const languagesRaw = query.get('userLanguages');
+  const ageMin = query.get('ageMin');
+  const ageMax = query.get('ageMax');
+  const distanceKm = query.get('distanceKm');
+  const lat = query.get('lat');
+  const lng = query.get('lng');
+  const intent = query.get('intent');
+  return {
+    quickFilters,
+    ageMin: ageMin ? Number(ageMin) : undefined,
+    ageMax: ageMax ? Number(ageMax) : undefined,
+    distanceKm: distanceKm ? Number(distanceKm) : undefined,
+    genderPreference: (query.get('genderPreference') as FeedResetRequest['genderPreference'] | null) ?? undefined,
+    intent: (intent as FeedResetRequest['intent']) ?? undefined,
+    interests: interestsRaw ? interestsRaw.split(',').map((value) => value.trim()).filter(Boolean) : undefined,
+    launchCity: query.get('launchCity'),
+    originCountry: query.get('originCountry'),
+    userLanguages: languagesRaw ? languagesRaw.split(',').map((value) => value.trim()).filter(Boolean) : undefined,
+    lat: lat ? Number(lat) : undefined,
+    lng: lng ? Number(lng) : undefined,
+  };
 };
 
 const getFeedSignals = async (): Promise<FeedSignals> => {
@@ -456,45 +526,7 @@ export const appApi = {
     }
     if (DISCOVER_API_URL) {
       try {
-        const preferences = runtimeApi.getSettingsEnvelope().settings.preferences;
-        const settingsEnvelope = runtimeApi.getSettingsEnvelope();
-        const feedSignals = await getFeedSignals().catch<FeedSignals>(() => ({
-          intent: null,
-          interests: [],
-          preciseLocationEnabled: null,
-          launchCity: null,
-          originCountry: null,
-          userLanguages: [],
-        }));
-        const preciseLocationEnabled =
-          feedSignals.preciseLocationEnabled ?? settingsEnvelope.settings.privacy.preciseLocation;
-        const preciseGeoPoint = await getPreciseGeoPoint(preciseLocationEnabled).catch(() => null);
-        const query = new URLSearchParams({
-          quickFilters: quickFilters.join(','),
-          ageMin: String(preferences.ageMin),
-          ageMax: String(preferences.ageMax),
-          distanceKm: String(preferences.distanceKm),
-          genderPreference: preferences.genderPreference,
-        });
-        if (feedSignals.intent) {
-          query.set('intent', feedSignals.intent);
-        }
-        if (feedSignals.interests.length > 0) {
-          query.set('interests', feedSignals.interests.join(','));
-        }
-        if (feedSignals.launchCity) {
-          query.set('launchCity', feedSignals.launchCity);
-        }
-        if (feedSignals.originCountry) {
-          query.set('originCountry', feedSignals.originCountry);
-        }
-        if (feedSignals.userLanguages.length > 0) {
-          query.set('userLanguages', feedSignals.userLanguages.join(','));
-        }
-        if (preciseGeoPoint) {
-          query.set('lat', String(preciseGeoPoint.lat));
-          query.set('lng', String(preciseGeoPoint.lng));
-        }
+        const query = await buildDiscoverFeedQuery(quickFilters);
         return await discoverRequest<GetFeedResponse>(`/discover/feed?${query.toString()}`);
       } catch (error) {
         if (!shouldFallbackToRuntime(error)) throw error;
@@ -536,6 +568,50 @@ export const appApi = {
       }
     }
     return withLatency(runtimeApi.swipe(profileId, decision), 80);
+  },
+
+  async resetFeed(quickFilters: FeedQuickFilter[]): Promise<FeedResetResponse> {
+    if (DISCOVER_API_URL) {
+      try {
+        const query = await buildDiscoverFeedQuery(quickFilters);
+        const payload = buildFeedResetRequestBody(quickFilters, query);
+        return await discoverRequest<FeedResetResponse>('/discover/feed/reset', {
+          method: 'POST',
+          headers: {
+            'x-idempotency-key': makeIdempotencyKey('feed-reset'),
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        if (!shouldFallbackToRuntime(error)) throw error;
+      }
+    }
+
+    const fallback = await withLatency(runtimeApi.getFeed(quickFilters), 80);
+    return {
+      ...fallback,
+      reset: {
+        requestedAtIso: new Date().toISOString(),
+        composition: {
+          total: fallback.window.candidates.length,
+          fresh: fallback.window.candidates.length,
+          passed: 0,
+          likedWithoutMatch: 0,
+        },
+        poolsAvailable: {
+          fresh: fallback.window.candidates.length,
+          passed: 0,
+          likedWithoutMatch: 0,
+        },
+        exclusions: {
+          matched: 0,
+          conversations: 0,
+          safetyBlocked: 0,
+          safetyReported: 0,
+          total: 0,
+        },
+      },
+    };
   },
 
   async sendSuperLikeDirectMessage(

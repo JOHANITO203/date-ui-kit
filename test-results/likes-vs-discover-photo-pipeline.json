@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-04-18T19:34:57.939Z",
+  "samples": [
+    {
+      "userId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+      "likes": {
+        "status": 200,
+        "durationMs": 1138,
+        "state": "unlocked",
+        "count": 25,
+        "urlCounts": {
+          "public": 23,
+          "signed": 0,
+          "placeholder": 2,
+          "other": 0
+        }
+      },
+      "discover": {
+        "status": 200,
+        "durationMs": 1368,
+        "count": 0,
+        "urlCounts": {
+          "public": 0,
+          "signed": 0,
+          "placeholder": 0,
+          "other": 0
+        }
+      }
+    },
+    {
+      "userId": "2d181511-b595-45ea-b9a5-ea712a03ef54",
+      "likes": {
+        "status": 200,
+        "durationMs": 1024,
+        "state": "unlocked",
+        "count": 1,
+        "urlCounts": {
+          "public": 1,
+          "signed": 0,
+          "placeholder": 0,
+          "other": 0
+        }
+      },
+      "discover": {
+        "status": 200,
+        "durationMs": 1713,
+        "count": 24,
+        "urlCounts": {
+          "public": 24,
+          "signed": 0,
+          "placeholder": 0,
+          "other": 0
+        }
+      }
+    }
+  ]
+}

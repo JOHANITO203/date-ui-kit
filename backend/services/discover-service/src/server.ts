@@ -32,6 +32,21 @@ const rewindSchema = z.object({
   idempotencyKey: z.string().min(1).optional(),
 });
 
+const feedResetSchema = z.object({
+  quickFilters: filterSchema.optional().default(["all"]),
+  ageMin: z.number().int().min(18).max(100).optional(),
+  ageMax: z.number().int().min(18).max(100).optional(),
+  distanceKm: z.number().int().min(1).max(500).optional(),
+  genderPreference: z.enum(["men", "women", "everyone"]).optional(),
+  intent: z.enum(["serieuse", "connexion", "decouverte", "verrai"]).nullable().optional(),
+  interests: z.array(z.string().min(1)).max(30).optional(),
+  launchCity: z.string().min(1).nullable().optional(),
+  originCountry: z.string().min(1).nullable().optional(),
+  userLanguages: z.array(z.string().min(1)).max(20).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+});
+
 const boostActivateSchema = z.object({
   idempotencyKey: z.string().min(1).optional(),
 });
@@ -84,6 +99,15 @@ type EntitlementSnapshot = {
 
 type UserEntitlementRow = {
   entitlement_snapshot: EntitlementSnapshot | null;
+};
+
+type DiscoverFeedEventDecision = "like" | "dislike" | "superlike";
+
+type DiscoverFeedEventRow = {
+  user_id: string;
+  profile_id: string;
+  last_decision: DiscoverFeedEventDecision | null;
+  seen_count: number | null;
 };
 
 type InternalJwtPayload = {
@@ -470,6 +494,208 @@ const loadMatchedProfileIds = async (userId: string): Promise<Set<string>> => {
   return ids;
 };
 
+const loadConversationProfileIds = async (userId: string): Promise<Set<string>> => {
+  if (!supabaseAdminClient) return new Set<string>();
+  // Only exclude real open direct conversations:
+  // - relation is active
+  // - non-match thread
+  // - has at least one persisted message
+  const directConversations = await supabaseAdminClient
+    .from("chat_conversations")
+    .select("conversation_id,peer_profile_id")
+    .eq("user_id", userId)
+    .eq("relation_state", "active")
+    .not("conversation_id", "like", "match-%")
+    .limit(5000);
+  if (directConversations.error) throw directConversations.error;
+
+  const conversationRows = (directConversations.data ?? []) as Array<{
+    conversation_id?: unknown;
+    peer_profile_id?: unknown;
+  }>;
+  if (conversationRows.length === 0) return new Set<string>();
+
+  const conversationIds = conversationRows
+    .map((row) => (typeof row.conversation_id === "string" ? row.conversation_id : null))
+    .filter((value): value is string => Boolean(value));
+  if (conversationIds.length === 0) return new Set<string>();
+
+  const messageRows = await supabaseAdminClient
+    .from("chat_messages")
+    .select("conversation_id")
+    .eq("user_id", userId)
+    .in("conversation_id", conversationIds)
+    .limit(10000);
+  if (messageRows.error) throw messageRows.error;
+
+  const conversationIdsWithMessages = new Set<string>();
+  for (const row of messageRows.data ?? []) {
+    const conversationId = (row as { conversation_id?: unknown }).conversation_id;
+    if (typeof conversationId === "string" && conversationId.length > 0) {
+      conversationIdsWithMessages.add(conversationId);
+    }
+  }
+
+  const ids = new Set<string>();
+  for (const row of conversationRows) {
+    const conversationId = typeof row.conversation_id === "string" ? row.conversation_id : null;
+    if (!conversationId || !conversationIdsWithMessages.has(conversationId)) continue;
+    const peer = row.peer_profile_id;
+    if (typeof peer === "string" && peer.length > 0) ids.add(peer);
+  }
+  return ids;
+};
+
+const loadSafetyExcludedProfileIds = async (
+  userId: string,
+): Promise<{ blockedByMe: Set<string>; reportedByMe: Set<string> }> => {
+  if (!supabaseAdminClient) {
+    return { blockedByMe: new Set<string>(), reportedByMe: new Set<string>() };
+  }
+
+  const [blocksResult, reportsResult] = await Promise.all([
+    supabaseAdminClient
+      .from("safety_blocks")
+      .select("blocked_user_id")
+      .eq("user_id", userId)
+      .limit(5000),
+    supabaseAdminClient
+      .from("safety_reports")
+      .select("reported_user_id")
+      .eq("user_id", userId)
+      .limit(5000),
+  ]);
+
+  if (blocksResult.error) throw blocksResult.error;
+  if (reportsResult.error) throw reportsResult.error;
+
+  const blockedByMe = new Set<string>();
+  for (const row of blocksResult.data ?? []) {
+    const blocked = (row as { blocked_user_id?: unknown }).blocked_user_id;
+    if (typeof blocked === "string" && blocked.length > 0) blockedByMe.add(blocked);
+  }
+
+  const reportedByMe = new Set<string>();
+  for (const row of reportsResult.data ?? []) {
+    const reported = (row as { reported_user_id?: unknown }).reported_user_id;
+    if (typeof reported === "string" && reported.length > 0) reportedByMe.add(reported);
+  }
+
+  return { blockedByMe, reportedByMe };
+};
+
+const parseResetFeedPreferences = (input: z.infer<typeof feedResetSchema>) =>
+  parseFeedPreferences({
+    ageMin: input.ageMin !== undefined ? String(input.ageMin) : undefined,
+    ageMax: input.ageMax !== undefined ? String(input.ageMax) : undefined,
+    distanceKm: input.distanceKm !== undefined ? String(input.distanceKm) : undefined,
+    genderPreference: input.genderPreference,
+    intent: input.intent ?? undefined,
+    interests: input.interests?.join(","),
+    launchCity: input.launchCity ?? undefined,
+    originCountry: input.originCountry ?? undefined,
+    userLanguages: input.userLanguages?.join(","),
+  });
+
+const parseResetUserGeoPoint = (input: z.infer<typeof feedResetSchema>) =>
+  parseUserGeoPoint({
+    lat: input.lat !== undefined ? String(input.lat) : undefined,
+    lng: input.lng !== undefined ? String(input.lng) : undefined,
+  });
+
+const shuffleCandidates = (pool: FeedCandidate[]) => {
+  const next = [...pool];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const current = next[index];
+    next[index] = next[swapIndex];
+    next[swapIndex] = current;
+  }
+  return next;
+};
+
+const resolveResetFeedComposition = (input: {
+  rankedCandidates: FeedCandidate[];
+  passedProfileIds: Set<string>;
+  likedWithoutMatchProfileIds: Set<string>;
+  preferredPassedProfileIds?: string[];
+  preferredLikedWithoutMatchProfileIds?: string[];
+  maxCount: number;
+}) => {
+  const freshPool: FeedCandidate[] = [];
+  const passedPool: FeedCandidate[] = [];
+  const likedWithoutMatchPool: FeedCandidate[] = [];
+
+  for (const candidate of input.rankedCandidates) {
+    if (input.likedWithoutMatchProfileIds.has(candidate.id)) {
+      likedWithoutMatchPool.push(candidate);
+      continue;
+    }
+    if (input.passedProfileIds.has(candidate.id)) {
+      passedPool.push(candidate);
+      continue;
+    }
+    freshPool.push(candidate);
+  }
+
+  const targetCount = Math.min(input.maxCount, input.rankedCandidates.length);
+  const desiredFresh = Math.ceil(targetCount * 0.65);
+  const desiredPassed = Math.floor(targetCount * 0.25);
+  const desiredLiked = Math.floor(targetCount * 0.1);
+
+  const nextCandidates: FeedCandidate[] = [];
+
+  const shuffledFresh = shuffleCandidates(freshPool);
+  const passedById = new Map(passedPool.map((candidate) => [candidate.id, candidate]));
+  const likedById = new Map(likedWithoutMatchPool.map((candidate) => [candidate.id, candidate]));
+
+  const prioritizedPassed: FeedCandidate[] = [];
+  for (const profileId of input.preferredPassedProfileIds ?? []) {
+    const candidate = passedById.get(profileId);
+    if (!candidate) continue;
+    prioritizedPassed.push(candidate);
+    passedById.delete(profileId);
+  }
+
+  const prioritizedLiked: FeedCandidate[] = [];
+  for (const profileId of input.preferredLikedWithoutMatchProfileIds ?? []) {
+    const candidate = likedById.get(profileId);
+    if (!candidate) continue;
+    prioritizedLiked.push(candidate);
+    likedById.delete(profileId);
+  }
+
+  const shuffledPassed = [...prioritizedPassed, ...shuffleCandidates([...passedById.values()])];
+  const shuffledLiked = [...prioritizedLiked, ...shuffleCandidates([...likedById.values()])];
+
+  nextCandidates.push(...shuffledFresh.slice(0, desiredFresh));
+  nextCandidates.push(...shuffledPassed.slice(0, desiredPassed));
+  nextCandidates.push(...shuffledLiked.slice(0, desiredLiked));
+
+  if (nextCandidates.length < targetCount) {
+    const remainder = [
+      ...shuffledFresh.slice(desiredFresh),
+      ...shuffledPassed.slice(desiredPassed),
+      ...shuffledLiked.slice(desiredLiked),
+    ];
+    nextCandidates.push(...remainder.slice(0, targetCount - nextCandidates.length));
+  }
+
+  return {
+    candidates: nextCandidates,
+    pools: {
+      fresh: freshPool.length,
+      passed: passedPool.length,
+      likedWithoutMatch: likedWithoutMatchPool.length,
+    },
+    composition: {
+      fresh: nextCandidates.filter((candidate) => !input.passedProfileIds.has(candidate.id) && !input.likedWithoutMatchProfileIds.has(candidate.id)).length,
+      passed: nextCandidates.filter((candidate) => input.passedProfileIds.has(candidate.id) && !input.likedWithoutMatchProfileIds.has(candidate.id)).length,
+      likedWithoutMatch: nextCandidates.filter((candidate) => input.likedWithoutMatchProfileIds.has(candidate.id)).length,
+    },
+  };
+};
+
 const buildUserGeoPointKey = (geoPoint: { lat: number; lng: number } | null) =>
   geoPoint ? `${geoPoint.lat.toFixed(3)}:${geoPoint.lng.toFixed(3)}` : "none";
 
@@ -581,6 +807,110 @@ const rollbackConsumedSuperLike = async (userId: string) => {
   };
   await saveUserEntitlementSnapshot(userId, restoredSnapshot);
   return Math.max(0, restoredSnapshot.balancesDelta?.superlikesLeft ?? 0);
+};
+
+const upsertDiscoverFeedEvent = async (input: {
+  userId: string;
+  profileId: string;
+  decision: DiscoverFeedEventDecision;
+  feedCursor: string;
+}) => {
+  if (!supabaseAdminClient) return;
+  const nowIso = new Date().toISOString();
+  const existing = await supabaseAdminClient
+    .from("discover_feed_events")
+    .select("seen_count")
+    .eq("user_id", input.userId)
+    .eq("profile_id", input.profileId)
+    .maybeSingle();
+  if (existing.error) throw existing.error;
+
+  const currentSeen = Math.max(0, Number((existing.data as { seen_count?: unknown } | null)?.seen_count ?? 0));
+  const upsert = await supabaseAdminClient
+    .from("discover_feed_events")
+    .upsert(
+      {
+        user_id: input.userId,
+        profile_id: input.profileId,
+        first_seen_at: nowIso,
+        last_seen_at: nowIso,
+        last_swiped_at: nowIso,
+        last_decision: input.decision,
+        seen_count: Math.max(1, currentSeen + 1),
+        last_feed_cursor: input.feedCursor,
+        updated_at: nowIso,
+      },
+      { onConflict: "user_id,profile_id" },
+    );
+  if (upsert.error) throw upsert.error;
+};
+
+const loadDiscoverFeedEventsByProfileIds = async (input: {
+  userId: string;
+  profileIds: string[];
+}): Promise<DiscoverFeedEventRow[]> => {
+  if (!supabaseAdminClient || input.profileIds.length === 0) return [];
+  const result = await supabaseAdminClient
+    .from("discover_feed_events")
+    .select("user_id,profile_id,last_decision,seen_count")
+    .eq("user_id", input.userId)
+    .in("profile_id", input.profileIds)
+    .limit(8000);
+  if (result.error) throw result.error;
+  return (result.data ?? []) as DiscoverFeedEventRow[];
+};
+
+const loadPendingLikedWithoutMatchProfileIds = async (input: {
+  userId: string;
+  profileIds: string[];
+}): Promise<string[]> => {
+  if (!supabaseAdminClient || input.profileIds.length === 0) return [];
+  const result = await supabaseAdminClient
+    .from("discover_likes")
+    .select("liked_user_id,status,updated_at")
+    .eq("liker_user_id", input.userId)
+    .eq("status", "pending")
+    .in("liked_user_id", input.profileIds)
+    .order("updated_at", { ascending: false })
+    .limit(5000);
+  if (result.error) throw result.error;
+  const ids: string[] = [];
+  const dedupe = new Set<string>();
+  for (const row of result.data ?? []) {
+    const likedUserId = (row as { liked_user_id?: unknown }).liked_user_id;
+    if (typeof likedUserId !== "string" || likedUserId.length === 0) continue;
+    if (dedupe.has(likedUserId)) continue;
+    dedupe.add(likedUserId);
+    ids.push(likedUserId);
+  }
+  return ids;
+};
+
+const loadPassedProfileIdsFromLikes = async (input: {
+  userId: string;
+  profileIds: string[];
+}): Promise<string[]> => {
+  if (!supabaseAdminClient || input.profileIds.length === 0) return [];
+  const result = await supabaseAdminClient
+    .from("discover_likes")
+    .select("liked_user_id,status,passed_at,updated_at")
+    .eq("liker_user_id", input.userId)
+    .eq("status", "passed")
+    .in("liked_user_id", input.profileIds)
+    .order("passed_at", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false })
+    .limit(5000);
+  if (result.error) throw result.error;
+  const ids: string[] = [];
+  const dedupe = new Set<string>();
+  for (const row of result.data ?? []) {
+    const likedUserId = (row as { liked_user_id?: unknown }).liked_user_id;
+    if (typeof likedUserId !== "string" || likedUserId.length === 0) continue;
+    if (dedupe.has(likedUserId)) continue;
+    dedupe.add(likedUserId);
+    ids.push(likedUserId);
+  }
+  return ids;
 };
 
 const upsertLikeRow = async (input: {
@@ -841,7 +1171,12 @@ export const buildServer = () => {
         } else if (ownedIceBreakers > 0) {
           state = "unlockable_icebreaker";
         }
-        const policy = resolveImageAccessPolicy("likes", state);
+        // Likes locked/ghost cards intentionally use real blurred previews:
+        // use public stable preview URLs to avoid signed-url fanout latency.
+        const policy =
+          state === "locked_free" || state === "unlockable_icebreaker" || state === "shadowghost_active"
+            ? ("public_stable" as ImageAccessPolicy)
+            : resolveImageAccessPolicy("likes", state);
         const existing = photoPolicyByProfile.get(row.liker_user_id);
         photoPolicyByProfile.set(row.liker_user_id, mergePolicy(existing, policy));
       }
@@ -1199,12 +1534,17 @@ export const buildServer = () => {
     const filters = filterSchema.parse(raw);
     const preferences = parseFeedPreferences(query);
     const userGeoPoint = parseUserGeoPoint(query);
-    const dismissedProfileIds = new Set(dismissedByUser.get(userId) ?? []);
+    const hardExcludedProfileIds = new Set(dismissedByUser.get(userId) ?? []);
     try {
       const matchedProfileIds = await loadMatchedProfileIds(userId);
-      for (const matchedId of matchedProfileIds) dismissedProfileIds.add(matchedId);
+      for (const matchedId of matchedProfileIds) hardExcludedProfileIds.add(matchedId);
+      const conversationProfileIds = await loadConversationProfileIds(userId);
+      for (const profileId of conversationProfileIds) hardExcludedProfileIds.add(profileId);
+      const safety = await loadSafetyExcludedProfileIds(userId);
+      for (const profileId of safety.blockedByMe) hardExcludedProfileIds.add(profileId);
+      for (const profileId of safety.reportedByMe) hardExcludedProfileIds.add(profileId);
     } catch (error) {
-      app.log.warn({ err: error, userId }, "discover.load_matched_profile_ids_failed");
+      app.log.warn({ err: error, userId }, "discover.load_hard_exclusions_failed");
     }
     const candidatesSource = await loadDiscoverCandidatesCached({
       userId,
@@ -1215,7 +1555,7 @@ export const buildServer = () => {
       filters,
       preferences,
       userGeoPoint,
-      dismissedProfileIds,
+      hardExcludedProfileIds,
       candidatesSource,
     );
 
@@ -1239,12 +1579,17 @@ export const buildServer = () => {
     const filters = filterSchema.parse(raw);
     const preferences = parseFeedPreferences(query);
     const userGeoPoint = parseUserGeoPoint(query);
-    const dismissedProfileIds = new Set(dismissedByUser.get(userId) ?? []);
+    const hardExcludedProfileIds = new Set(dismissedByUser.get(userId) ?? []);
     try {
       const matchedProfileIds = await loadMatchedProfileIds(userId);
-      for (const matchedId of matchedProfileIds) dismissedProfileIds.add(matchedId);
+      for (const matchedId of matchedProfileIds) hardExcludedProfileIds.add(matchedId);
+      const conversationProfileIds = await loadConversationProfileIds(userId);
+      for (const profileId of conversationProfileIds) hardExcludedProfileIds.add(profileId);
+      const safety = await loadSafetyExcludedProfileIds(userId);
+      for (const profileId of safety.blockedByMe) hardExcludedProfileIds.add(profileId);
+      for (const profileId of safety.reportedByMe) hardExcludedProfileIds.add(profileId);
     } catch (error) {
-      app.log.warn({ err: error, userId }, "discover.load_matched_profile_ids_failed");
+      app.log.warn({ err: error, userId }, "discover.load_hard_exclusions_failed");
     }
     const candidatesSource = await loadDiscoverCandidatesCached({
       userId,
@@ -1255,7 +1600,7 @@ export const buildServer = () => {
       filters,
       preferences,
       userGeoPoint,
-      dismissedProfileIds,
+      hardExcludedProfileIds,
       candidatesSource,
     );
     const topN = Number(query.topN ?? "20");
@@ -1266,6 +1611,196 @@ export const buildServer = () => {
       quickFiltersApplied: filters,
       preferencesApplied: preferences,
       sampleSize: ranked.length,
+    };
+  });
+
+  app.post("/discover/feed/reset", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+
+    const parsed = feedResetSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { code: "INVALID_PAYLOAD", message: "Invalid feed reset payload." };
+    }
+
+    const filters = parsed.data.quickFilters;
+    const preferences = parseResetFeedPreferences(parsed.data);
+    const userGeoPoint = parseResetUserGeoPoint(parsed.data);
+    // Reset intentionally re-opens dismissed/passed pools.
+    // We first compute a pre-famine universe without conversation exclusion,
+    // then apply strict exclusions for the final composition.
+    const hardExcludedProfileIds = new Set<string>();
+
+    let matchedProfileIds = new Set<string>();
+    let conversationProfileIds = new Set<string>();
+    let safetyBlockedByMe = new Set<string>();
+    let safetyReportedByMe = new Set<string>();
+    try {
+      matchedProfileIds = await loadMatchedProfileIds(userId);
+      conversationProfileIds = await loadConversationProfileIds(userId);
+      const safety = await loadSafetyExcludedProfileIds(userId);
+      safetyBlockedByMe = safety.blockedByMe;
+      safetyReportedByMe = safety.reportedByMe;
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.feed_reset_hard_exclusion_load_failed");
+    }
+
+    const poolSeedExcludedProfileIds = new Set<string>();
+    for (const profileId of matchedProfileIds) poolSeedExcludedProfileIds.add(profileId);
+    for (const profileId of safetyBlockedByMe) poolSeedExcludedProfileIds.add(profileId);
+    for (const profileId of safetyReportedByMe) poolSeedExcludedProfileIds.add(profileId);
+
+    const candidatesSource = await loadDiscoverCandidatesCached({
+      userId,
+      userGeoPoint,
+      logger: app.log,
+    });
+    const rankedCandidatesForPoolSeed = applyFiltersAndRank(
+      filters,
+      preferences,
+      userGeoPoint,
+      poolSeedExcludedProfileIds,
+      candidatesSource,
+    );
+    const candidateIds = rankedCandidatesForPoolSeed.map((candidate) => candidate.id);
+    let passedProfileIds = new Set<string>();
+    let preferredPassedProfileIds: string[] = [];
+    let passedFromEvents: string[] = [];
+    try {
+      const events = await loadDiscoverFeedEventsByProfileIds({ userId, profileIds: candidateIds });
+      passedFromEvents = events
+        .filter((row) => row.last_decision === "dislike")
+        .map((row) => row.profile_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.feed_reset_events_load_failed");
+    }
+
+    try {
+      preferredPassedProfileIds = await loadPassedProfileIdsFromLikes({
+        userId,
+        profileIds: candidateIds,
+      });
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.feed_reset_passed_likes_load_failed");
+    }
+    passedProfileIds = new Set([...preferredPassedProfileIds, ...passedFromEvents]);
+
+    let likedWithoutMatchProfileIds = new Set<string>();
+    let preferredLikedWithoutMatchProfileIds: string[] = [];
+    try {
+      preferredLikedWithoutMatchProfileIds = await loadPendingLikedWithoutMatchProfileIds({
+        userId,
+        profileIds: candidateIds,
+      });
+      likedWithoutMatchProfileIds = new Set(preferredLikedWithoutMatchProfileIds);
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.feed_reset_likes_load_failed");
+    }
+
+    for (const profileId of matchedProfileIds) likedWithoutMatchProfileIds.delete(profileId);
+    for (const profileId of conversationProfileIds) likedWithoutMatchProfileIds.delete(profileId);
+    for (const profileId of safetyBlockedByMe) likedWithoutMatchProfileIds.delete(profileId);
+    for (const profileId of safetyReportedByMe) likedWithoutMatchProfileIds.delete(profileId);
+
+    for (const profileId of matchedProfileIds) hardExcludedProfileIds.add(profileId);
+    for (const profileId of conversationProfileIds) hardExcludedProfileIds.add(profileId);
+    for (const profileId of safetyBlockedByMe) hardExcludedProfileIds.add(profileId);
+    for (const profileId of safetyReportedByMe) hardExcludedProfileIds.add(profileId);
+    const rankedCandidates = applyFiltersAndRank(
+      filters,
+      preferences,
+      userGeoPoint,
+      hardExcludedProfileIds,
+      candidatesSource,
+    );
+
+    const targetCount = Math.min(env.DISCOVER_FEED_PROFILE_LIMIT, rankedCandidates.length);
+    const resetResult = resolveResetFeedComposition({
+      rankedCandidates,
+      passedProfileIds,
+      likedWithoutMatchProfileIds,
+      preferredPassedProfileIds,
+      preferredLikedWithoutMatchProfileIds,
+      maxCount: targetCount,
+    });
+
+    const exclusionTotal = new Set<string>([
+      ...matchedProfileIds,
+      ...conversationProfileIds,
+      ...safetyBlockedByMe,
+      ...safetyReportedByMe,
+    ]).size;
+
+    app.log.info(
+      {
+        userId,
+        filters,
+        before: {
+          rankedCandidatesForPoolSeed: rankedCandidatesForPoolSeed.length,
+          rankedCandidates: rankedCandidates.length,
+          pools: resetResult.pools,
+          sourceSets: {
+            passedFromEvents: passedFromEvents.length,
+            passedFromLikes: preferredPassedProfileIds.length,
+            likedWithoutMatch: preferredLikedWithoutMatchProfileIds.length,
+          },
+        },
+        exclusions: {
+          matched: matchedProfileIds.size,
+          conversations: conversationProfileIds.size,
+          safetyBlocked: safetyBlockedByMe.size,
+          safetyReported: safetyReportedByMe.size,
+          total: exclusionTotal,
+        },
+      },
+      "discover.feed_reset_requested",
+    );
+
+    app.log.info(
+      {
+        userId,
+        composition: {
+          total: resetResult.candidates.length,
+          fresh: resetResult.composition.fresh,
+          passed: resetResult.composition.passed,
+          likedWithoutMatch: resetResult.composition.likedWithoutMatch,
+        },
+      },
+      "discover.feed_reset_composed",
+    );
+
+    return {
+      window: {
+        cursor: `reset_${userId}_${Date.now()}`,
+        candidates: resetResult.candidates,
+        quickFiltersApplied: filters,
+        preferencesApplied: preferences,
+      },
+      reset: {
+        requestedAtIso: new Date().toISOString(),
+        composition: {
+          total: resetResult.candidates.length,
+          fresh: resetResult.composition.fresh,
+          passed: resetResult.composition.passed,
+          likedWithoutMatch: resetResult.composition.likedWithoutMatch,
+        },
+        poolsAvailable: {
+          fresh: resetResult.pools.fresh,
+          passed: resetResult.pools.passed,
+          likedWithoutMatch: resetResult.pools.likedWithoutMatch,
+        },
+        exclusions: {
+          matched: matchedProfileIds.size,
+          conversations: conversationProfileIds.size,
+          safetyBlocked: safetyBlockedByMe.size,
+          safetyReported: safetyReportedByMe.size,
+          total: exclusionTotal,
+        },
+      },
     };
   });
 
@@ -1281,6 +1816,17 @@ export const buildServer = () => {
     }
 
     const { profileId, decision } = parsed.data;
+    try {
+      await upsertDiscoverFeedEvent({
+        userId,
+        profileId,
+        decision,
+        feedCursor: parsed.data.feedCursor,
+      });
+    } catch (error) {
+      app.log.warn({ err: error, userId, profileId, decision }, "discover.feed_event_upsert_failed");
+    }
+
     const dismissed = dismissedByUser.get(userId) ?? [];
     if (!dismissed.includes(profileId)) {
       dismissed.push(profileId);
@@ -1301,6 +1847,30 @@ export const buildServer = () => {
     );
 
     if (decision === "dislike") {
+      if (supabaseAdminClient) {
+        const nowIso = new Date().toISOString();
+        try {
+          const persisted = await supabaseAdminClient
+            .from("discover_likes")
+            .upsert(
+              {
+                liker_user_id: userId,
+                liked_user_id: profileId,
+                status: "passed",
+                was_superlike: false,
+                hidden_by_shadowghost: false,
+                passed_at: nowIso,
+                matched_at: null,
+                updated_at: nowIso,
+                created_at: nowIso,
+              },
+              { onConflict: "liker_user_id,liked_user_id" },
+            );
+          if (persisted.error) throw persisted.error;
+        } catch (error) {
+          app.log.warn({ err: error, userId, profileId }, "discover.persist_passed_like_failed");
+        }
+      }
       return {
         matched: false,
       };
@@ -1540,6 +2110,17 @@ export const buildServer = () => {
         code: "SUPERLIKE_SEND_FAILED",
         superlikesLeft,
       };
+    }
+
+    try {
+      await upsertDiscoverFeedEvent({
+        userId,
+        profileId,
+        decision: "superlike",
+        feedCursor: parsed.data.feedCursor ?? `superlike:${Date.now()}`,
+      });
+    } catch (error) {
+      app.log.warn({ err: error, userId, profileId }, "discover.feed_event_upsert_failed");
     }
 
     return {

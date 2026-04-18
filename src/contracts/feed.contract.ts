@@ -65,3 +65,42 @@ export interface RewindResponse {
   restoredProfileId?: string;
   rewindsLeft: number;
 }
+
+export interface FeedResetRequest {
+  quickFilters: FeedQuickFilter[];
+  ageMin?: number;
+  ageMax?: number;
+  distanceKm?: number;
+  genderPreference?: 'men' | 'women' | 'everyone';
+  intent?: 'serieuse' | 'connexion' | 'decouverte' | 'verrai' | null;
+  interests?: string[];
+  launchCity?: string | null;
+  originCountry?: string | null;
+  userLanguages?: string[];
+  lat?: number;
+  lng?: number;
+}
+
+export interface FeedResetResponse extends GetFeedResponse {
+  reset: {
+    requestedAtIso: string;
+    composition: {
+      total: number;
+      fresh: number;
+      passed: number;
+      likedWithoutMatch: number;
+    };
+    poolsAvailable: {
+      fresh: number;
+      passed: number;
+      likedWithoutMatch: number;
+    };
+    exclusions: {
+      matched: number;
+      conversations: number;
+      safetyBlocked: number;
+      safetyReported: number;
+      total: number;
+    };
+  };
+}

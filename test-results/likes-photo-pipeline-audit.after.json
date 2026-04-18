@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-04-18T19:55:10.274Z",
+  "userId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+  "afterFinal": true,
+  "runs": [
+    {
+      "idx": 1,
+      "status": 200,
+      "durationMs": 2980,
+      "state": "unlocked",
+      "visibleLikes": 25,
+      "hiddenCount": 0,
+      "urlCounts": {
+        "public": 25,
+        "signed": 0,
+        "placeholder": 0,
+        "other": 0
+      },
+      "sampleUrls": [
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/2d181511-b595-45ea-b9a5-ea712a03ef54/seed/1775724141104-02-temp-voronezh-seed.jpg?v=1775724922192",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048"
+      ]
+    },
+    {
+      "idx": 2,
+      "status": 200,
+      "durationMs": 697,
+      "state": "unlocked",
+      "visibleLikes": 25,
+      "hiddenCount": 0,
+      "urlCounts": {
+        "public": 25,
+        "signed": 0,
+        "placeholder": 0,
+        "other": 0
+      },
+      "sampleUrls": [
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/2d181511-b595-45ea-b9a5-ea712a03ef54/seed/1775724141104-02-temp-voronezh-seed.jpg?v=1775724922192",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048"
+      ]
+    },
+    {
+      "idx": 3,
+      "status": 200,
+      "durationMs": 716,
+      "state": "unlocked",
+      "visibleLikes": 25,
+      "hiddenCount": 0,
+      "urlCounts": {
+        "public": 25,
+        "signed": 0,
+        "placeholder": 0,
+        "other": 0
+      },
+      "sampleUrls": [
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/2d181511-b595-45ea-b9a5-ea712a03ef54/seed/1775724141104-02-temp-voronezh-seed.jpg?v=1775724922192",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/284b7af3-07e6-49e7-ae14-8d9f4c7feb58/seed/1775724116216-03-temp-saint-petersburg-seed.jpg?v=1775724896135",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+        "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/c863e01e-1c87-4831-b3f5-b87fbd22593d/seed/1775724110928-02-temp-saint-petersburg-seed.jpg?v=1775724894048"
+      ]
+    }
+  ],
+  "head": [
+    {
+      "urlType": "public",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentLength": "30153"
+    },
+    {
+      "urlType": "public",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentLength": "44478"
+    },
+    {
+      "urlType": "public",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentLength": "23184"
+    },
+    {
+      "urlType": "public",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentLength": "44478"
+    },
+    {
+      "urlType": "public",
+      "status": 200,
+      "cacheControl": "no-cache",
+      "contentLength": "27236"
+    }
+  ]
+}
