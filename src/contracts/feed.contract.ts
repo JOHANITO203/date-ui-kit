@@ -2,6 +2,11 @@ import type { ProfileCard } from './common.contract';
 
 export type FeedQuickFilter = 'all' | 'nearby' | 'new' | 'online' | 'verified';
 
+/**
+ * Legacy note:
+ * `superlike` is kept temporarily for backward compatibility in low-level runtime mocks.
+ * Product flow must use `SuperLikeDirectMessageRequest` via dedicated endpoint.
+ */
 export type SwipeDecision = 'like' | 'dislike' | 'superlike';
 
 export interface FeedCandidate extends ProfileCard {
@@ -37,14 +42,19 @@ export interface SwipeResponse {
   superlikesLeft?: number;
 }
 
-export interface SuperLikeRequest {
+export interface SuperLikeDirectMessageRequest {
   profileId: string;
-  feedCursor: string;
+  text: string;
+  feedCursor?: string;
+  idempotencyKey?: string;
 }
 
-export interface SuperLikeResponse {
-  matched: boolean;
+export interface SuperLikeDirectMessageResponse {
+  status: 'sent' | 'no_stock' | 'invalid_target' | 'invalid_message';
+  confirmation: string;
   conversationId?: string;
+  messageId?: string;
+  superlikesLeft: number;
 }
 
 export interface RewindRequest {

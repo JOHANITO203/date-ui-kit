@@ -1,0 +1,696 @@
+{
+  "generatedAt": "2026-04-18T09:56:04.630Z",
+  "product": "SuperLike",
+  "sotExpected": {
+    "directMessageFromDiscover": true,
+    "noMatchDependency": true,
+    "confirmationUi": "SuperLike sent.",
+    "consumesOneToken": true,
+    "recipientReceivesMessage": true
+  },
+  "A": {
+    "beforeSuperlikes": 293,
+    "targetProfileId": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+    "feedCursor": "cursor_962a08ca-89f6-4245-8879-2aaef4c2fe29_1776506166257"
+  },
+  "B": {
+    "action": "buy instant-superlike + send direct superlike message from Discover pipeline",
+    "payload": {
+      "profileId": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+      "text": "Hi, direct message sent from Discover via SuperLike.",
+      "idempotencyKey": "superlike-sot:e595a9bf-3ed0-49b2-89ac-531bc599dc70",
+      "feedCursor": "cursor_962a08ca-89f6-4245-8879-2aaef4c2fe29_1776506166257"
+    }
+  },
+  "C": {
+    "requests": [
+      "http://127.0.0.1:4025/entitlements/me",
+      "http://127.0.0.1:8788/discover/feed?quickFilters=all",
+      "http://127.0.0.1:4025/payments/checkout",
+      "http://127.0.0.1:4025/payments/checkout/status",
+      "http://127.0.0.1:8788/discover/superlike/send",
+      "http://127.0.0.1:4023/chat/conversations/:conversationId/messages (sender+recipient)"
+    ]
+  },
+  "D": {
+    "entBefore": {
+      "method": "GET",
+      "url": "http://127.0.0.1:4025/entitlements/me",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "userId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+        "entitlementSnapshot": {
+          "planTier": "gold",
+          "planExpiresAtIso": "2026-05-17T19:14:32.238Z",
+          "balancesDelta": {
+            "boostsLeft": 100,
+            "rewindsLeft": 275,
+            "superlikesLeft": 293,
+            "icebreakersLeft": 7
+          },
+          "travelPass": {
+            "source": "bundle_included",
+            "expiresAtIso": "2026-05-17T18:22:56.504Z"
+          },
+          "shadowGhost": {
+            "source": "shadowghost_item",
+            "expiresAtIso": "2026-04-19T08:19:21.355Z",
+            "enablePrivacy": true
+          }
+        },
+        "effectiveBenefits": {
+          "planTier": "gold",
+          "flags": {
+            "likes_identity_unlocked": true,
+            "discover_advanced_filters": true,
+            "profile_hide_age_distance": true,
+            "messages_translation": true,
+            "messages_see_online": false,
+            "travel_pass_included": false,
+            "shadowghost_included": false,
+            "premium_badge": true
+          },
+          "byPage": {
+            "discover": {
+              "discoverAdvancedFilters": true
+            },
+            "boost": {
+              "likesIdentityUnlocked": true,
+              "discoverAdvancedFilters": true,
+              "profileHideAgeDistance": true,
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "profile": {
+              "profileHideAgeDistance": true,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "messages": {
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "premiumBadge": true
+            }
+          }
+        }
+      }
+    },
+    "feedBefore": {
+      "method": "GET",
+      "url": "http://127.0.0.1:8788/discover/feed?quickFilters=all",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "window": {
+          "cursor": "cursor_962a08ca-89f6-4245-8879-2aaef4c2fe29_1776506166257",
+          "candidates": [
+            {
+              "id": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+              "name": "Denis",
+              "gender": "men",
+              "age": 23,
+              "city": "Saint Petersburg",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Denis is looking for meaningful connections in Saint Petersburg.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg?v=1775724902440",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "80d08d3a-7949-421e-8a6f-6ee161da527d/seed/1775724118273-04-temp-saint-petersburg-seed.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Design",
+                "Business",
+                "Travel",
+                "Culture"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            },
+            {
+              "id": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac",
+              "name": "Elena",
+              "gender": "women",
+              "age": 21,
+              "city": "Moscow",
+              "originCountry": "russian",
+              "distanceKm": 7,
+              "languages": [
+                "Russian",
+                "English"
+              ],
+              "bio": "Elena is looking for meaningful connections in Moscow.",
+              "photos": [
+                "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682"
+              ],
+              "photoStatus": "public",
+              "photoUrl": "https://easlgfxfctpiyghluvcc.supabase.co/storage/v1/object/public/profile-photos-public/variants/card/a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg?v=1776068435682",
+              "photoReason": "public_variant_ok",
+              "photoStoragePath": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg",
+              "compatibility": 85,
+              "interests": [
+                "Travel",
+                "Tech",
+                "Music",
+                "Photography"
+              ],
+              "online": true,
+              "flags": {
+                "verifiedIdentity": false,
+                "premiumTier": "elite",
+                "hideAge": false,
+                "hideDistance": false,
+                "shadowGhost": false,
+                "boostActive": false
+              },
+              "rankScore": 83,
+              "scoreReason": "supabase_seed_language_diversity"
+            }
+          ],
+          "quickFiltersApplied": [
+            "all"
+          ],
+          "preferencesApplied": {
+            "ageMin": 18,
+            "ageMax": 65,
+            "distanceKm": 50,
+            "genderPreference": "everyone",
+            "intent": null,
+            "interests": [],
+            "launchCity": null,
+            "originCountry": null,
+            "userLanguages": []
+          }
+        }
+      }
+    },
+    "checkout": {
+      "method": "POST",
+      "url": "http://127.0.0.1:4025/payments/checkout",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "mode": "mock",
+        "checkoutId": "dev_instantsuperlike_962a08ca89f6_1776506166263",
+        "orderNumber": "instantsuperlike_962a08ca89f6_1776506166263",
+        "offer": {
+          "id": "instant-superlike",
+          "label": "SUPERLIKE",
+          "description": "Send strong intent with priority signal.",
+          "tag": "TOKENS",
+          "amountMinor": 7900,
+          "currencyNumeric": 643,
+          "type": "instant"
+        },
+        "status": "paid",
+        "attributed": true,
+        "entitlementSnapshot": {
+          "planTier": "gold",
+          "planExpiresAtIso": "2026-05-17T19:14:32.238Z",
+          "balancesDelta": {
+            "boostsLeft": 100,
+            "superlikesLeft": 298,
+            "rewindsLeft": 275,
+            "icebreakersLeft": 7
+          },
+          "travelPass": {
+            "source": "bundle_included",
+            "expiresAtIso": "2026-05-17T18:22:56.504Z"
+          },
+          "shadowGhost": {
+            "source": "shadowghost_item",
+            "expiresAtIso": "2026-04-19T08:19:21.355Z",
+            "enablePrivacy": true
+          }
+        },
+        "effectiveBenefits": {
+          "planTier": "gold",
+          "flags": {
+            "likes_identity_unlocked": true,
+            "discover_advanced_filters": true,
+            "profile_hide_age_distance": true,
+            "messages_translation": true,
+            "messages_see_online": false,
+            "travel_pass_included": false,
+            "shadowghost_included": false,
+            "premium_badge": true
+          },
+          "byPage": {
+            "discover": {
+              "discoverAdvancedFilters": true
+            },
+            "boost": {
+              "likesIdentityUnlocked": true,
+              "discoverAdvancedFilters": true,
+              "profileHideAgeDistance": true,
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "profile": {
+              "profileHideAgeDistance": true,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "messages": {
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "premiumBadge": true
+            }
+          }
+        },
+        "pendingAttribution": false,
+        "message": "DEV auto-grant mode enabled: purchase was instantly attributed."
+      }
+    },
+    "checkoutStatus": {
+      "method": "POST",
+      "url": "http://127.0.0.1:4025/payments/checkout/status",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "checkoutId": "dev_instantsuperlike_962a08ca89f6_1776506166263",
+        "status": "paid",
+        "attributed": true,
+        "entitlementSnapshot": {
+          "planTier": "gold",
+          "travelPass": {
+            "source": "bundle_included",
+            "expiresAtIso": "2026-05-17T18:22:56.504Z"
+          },
+          "shadowGhost": {
+            "source": "shadowghost_item",
+            "expiresAtIso": "2026-04-19T08:19:21.355Z",
+            "enablePrivacy": true
+          },
+          "balancesDelta": {
+            "boostsLeft": 100,
+            "rewindsLeft": 275,
+            "superlikesLeft": 298,
+            "icebreakersLeft": 7
+          },
+          "planExpiresAtIso": "2026-05-17T19:14:32.238Z"
+        },
+        "effectiveBenefits": {
+          "planTier": "gold",
+          "flags": {
+            "likes_identity_unlocked": true,
+            "discover_advanced_filters": true,
+            "profile_hide_age_distance": true,
+            "messages_translation": true,
+            "messages_see_online": false,
+            "travel_pass_included": false,
+            "shadowghost_included": false,
+            "premium_badge": true
+          },
+          "byPage": {
+            "discover": {
+              "discoverAdvancedFilters": true
+            },
+            "boost": {
+              "likesIdentityUnlocked": true,
+              "discoverAdvancedFilters": true,
+              "profileHideAgeDistance": true,
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "profile": {
+              "profileHideAgeDistance": true,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "messages": {
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "premiumBadge": true
+            }
+          }
+        },
+        "pendingAttribution": false
+      }
+    },
+    "entAfterBuy": {
+      "method": "GET",
+      "url": "http://127.0.0.1:4025/entitlements/me",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "userId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+        "entitlementSnapshot": {
+          "planTier": "gold",
+          "planExpiresAtIso": "2026-05-17T19:14:32.238Z",
+          "balancesDelta": {
+            "boostsLeft": 100,
+            "rewindsLeft": 275,
+            "superlikesLeft": 298,
+            "icebreakersLeft": 7
+          },
+          "travelPass": {
+            "source": "bundle_included",
+            "expiresAtIso": "2026-05-17T18:22:56.504Z"
+          },
+          "shadowGhost": {
+            "source": "shadowghost_item",
+            "expiresAtIso": "2026-04-19T08:19:21.355Z",
+            "enablePrivacy": true
+          }
+        },
+        "effectiveBenefits": {
+          "planTier": "gold",
+          "flags": {
+            "likes_identity_unlocked": true,
+            "discover_advanced_filters": true,
+            "profile_hide_age_distance": true,
+            "messages_translation": true,
+            "messages_see_online": false,
+            "travel_pass_included": false,
+            "shadowghost_included": false,
+            "premium_badge": true
+          },
+          "byPage": {
+            "discover": {
+              "discoverAdvancedFilters": true
+            },
+            "boost": {
+              "likesIdentityUnlocked": true,
+              "discoverAdvancedFilters": true,
+              "profileHideAgeDistance": true,
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "profile": {
+              "profileHideAgeDistance": true,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "messages": {
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "premiumBadge": true
+            }
+          }
+        }
+      }
+    },
+    "superLikeRequest": {
+      "method": "POST",
+      "url": "http://127.0.0.1:8788/discover/superlike/send",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "status": "sent",
+        "confirmation": "SuperLike sent.",
+        "superlikesLeft": 297,
+        "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+        "messageId": "sl-out-superlike-sote595a9bf-3ed0-49b2-89ac-531bc599dc70"
+      }
+    },
+    "entAfter": {
+      "method": "GET",
+      "url": "http://127.0.0.1:4025/entitlements/me",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "userId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+        "entitlementSnapshot": {
+          "planTier": "gold",
+          "planExpiresAtIso": "2026-05-17T19:14:32.238Z",
+          "balancesDelta": {
+            "boostsLeft": 100,
+            "rewindsLeft": 275,
+            "superlikesLeft": 297,
+            "icebreakersLeft": 7
+          },
+          "travelPass": {
+            "source": "bundle_included",
+            "expiresAtIso": "2026-05-17T18:22:56.504Z"
+          },
+          "shadowGhost": {
+            "source": "shadowghost_item",
+            "expiresAtIso": "2026-04-19T08:19:21.355Z",
+            "enablePrivacy": true
+          }
+        },
+        "effectiveBenefits": {
+          "planTier": "gold",
+          "flags": {
+            "likes_identity_unlocked": true,
+            "discover_advanced_filters": true,
+            "profile_hide_age_distance": true,
+            "messages_translation": true,
+            "messages_see_online": false,
+            "travel_pass_included": false,
+            "shadowghost_included": false,
+            "premium_badge": true
+          },
+          "byPage": {
+            "discover": {
+              "discoverAdvancedFilters": true
+            },
+            "boost": {
+              "likesIdentityUnlocked": true,
+              "discoverAdvancedFilters": true,
+              "profileHideAgeDistance": true,
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "profile": {
+              "profileHideAgeDistance": true,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "messages": {
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "premiumBadge": true
+            }
+          }
+        }
+      }
+    },
+    "senderMessages": {
+      "method": "GET",
+      "url": "http://127.0.0.1:4023/chat/conversations/conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d/messages",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+        "translation": {
+          "enabled": false,
+          "targetLocale": "en"
+        },
+        "messages": [
+          {
+            "id": "sl-out-superlike-sotcaea0ea5-cbe2-4f0b-bcb6-2f12d6d08b9e",
+            "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+            "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "direction": "outgoing",
+            "originalText": "Hi, direct message sent from Discover via SuperLike.",
+            "translated": false,
+            "createdAtIso": "2026-04-18T09:52:51.182+00:00"
+          },
+          {
+            "id": "sl-out-superlike-sotcb1b64e8-cf1a-4787-af99-0276e82ef4fa",
+            "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+            "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "direction": "outgoing",
+            "originalText": "Hi, direct message sent from Discover via SuperLike.",
+            "translated": false,
+            "createdAtIso": "2026-04-18T09:55:48.265+00:00"
+          },
+          {
+            "id": "sl-out-superlike-sote595a9bf-3ed0-49b2-89ac-531bc599dc70",
+            "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+            "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "direction": "outgoing",
+            "originalText": "Hi, direct message sent from Discover via SuperLike.",
+            "translated": false,
+            "createdAtIso": "2026-04-18T09:56:07.86+00:00"
+          }
+        ]
+      }
+    },
+    "recipientMessages": {
+      "method": "GET",
+      "url": "http://127.0.0.1:4023/chat/conversations/conv-80d08d3a-7949-421e-8a6f-6ee161da527d-962a08ca-89f6-4245-8879-2aaef4c2fe29/messages",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "conversationId": "conv-80d08d3a-7949-421e-8a6f-6ee161da527d-962a08ca-89f6-4245-8879-2aaef4c2fe29",
+        "translation": {
+          "enabled": false,
+          "targetLocale": "en"
+        },
+        "messages": [
+          {
+            "id": "sl-in-superlike-sotcaea0ea5-cbe2-4f0b-bcb6-2f12d6d08b9e",
+            "conversationId": "conv-80d08d3a-7949-421e-8a6f-6ee161da527d-962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "direction": "incoming",
+            "originalText": "Hi, direct message sent from Discover via SuperLike.",
+            "translated": false,
+            "createdAtIso": "2026-04-18T09:52:51.182+00:00"
+          },
+          {
+            "id": "sl-in-superlike-sotcb1b64e8-cf1a-4787-af99-0276e82ef4fa",
+            "conversationId": "conv-80d08d3a-7949-421e-8a6f-6ee161da527d-962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "direction": "incoming",
+            "originalText": "Hi, direct message sent from Discover via SuperLike.",
+            "translated": false,
+            "createdAtIso": "2026-04-18T09:55:48.265+00:00"
+          },
+          {
+            "id": "sl-in-superlike-sote595a9bf-3ed0-49b2-89ac-531bc599dc70",
+            "conversationId": "conv-80d08d3a-7949-421e-8a6f-6ee161da527d-962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+            "direction": "incoming",
+            "originalText": "Hi, direct message sent from Discover via SuperLike.",
+            "translated": false,
+            "createdAtIso": "2026-04-18T09:56:07.86+00:00"
+          }
+        ]
+      }
+    },
+    "entAfterReload": {
+      "method": "GET",
+      "url": "http://127.0.0.1:4025/entitlements/me",
+      "status": 200,
+      "ok": true,
+      "body": {
+        "userId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+        "entitlementSnapshot": {
+          "planTier": "gold",
+          "planExpiresAtIso": "2026-05-17T19:14:32.238Z",
+          "balancesDelta": {
+            "boostsLeft": 100,
+            "rewindsLeft": 275,
+            "superlikesLeft": 297,
+            "icebreakersLeft": 7
+          },
+          "travelPass": {
+            "source": "bundle_included",
+            "expiresAtIso": "2026-05-17T18:22:56.504Z"
+          },
+          "shadowGhost": {
+            "source": "shadowghost_item",
+            "expiresAtIso": "2026-04-19T08:19:21.355Z",
+            "enablePrivacy": true
+          }
+        },
+        "effectiveBenefits": {
+          "planTier": "gold",
+          "flags": {
+            "likes_identity_unlocked": true,
+            "discover_advanced_filters": true,
+            "profile_hide_age_distance": true,
+            "messages_translation": true,
+            "messages_see_online": false,
+            "travel_pass_included": false,
+            "shadowghost_included": false,
+            "premium_badge": true
+          },
+          "byPage": {
+            "discover": {
+              "discoverAdvancedFilters": true
+            },
+            "boost": {
+              "likesIdentityUnlocked": true,
+              "discoverAdvancedFilters": true,
+              "profileHideAgeDistance": true,
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "profile": {
+              "profileHideAgeDistance": true,
+              "travelPassIncluded": false,
+              "shadowGhostIncluded": false,
+              "premiumBadge": true
+            },
+            "messages": {
+              "messagesTranslation": true,
+              "messagesSeeOnline": false,
+              "premiumBadge": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "E": {
+    "beforeSuperlikes": 293,
+    "afterBuySuperlikes": 298,
+    "afterSuperlikes": 297,
+    "expectedAfterConsumeFromBefore": 297,
+    "senderConversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+    "senderMessageId": "sl-out-superlike-sote595a9bf-3ed0-49b2-89ac-531bc599dc70"
+  },
+  "F": {
+    "uiObservableProxy": {
+      "confirmationExpected": "SuperLike sent.",
+      "backendConfirmation": {
+        "status": "sent",
+        "confirmation": "SuperLike sent.",
+        "superlikesLeft": 297,
+        "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-80d08d3a-7949-421e-8a6f-6ee161da527d",
+        "messageId": "sl-out-superlike-sote595a9bf-3ed0-49b2-89ac-531bc599dc70"
+      },
+      "senderMessageFound": true,
+      "recipientMessageFound": true
+    }
+  },
+  "G": {
+    "afterReloadSuperlikes": 297,
+    "persisted": true
+  },
+  "H": {
+    "verdict": "PASS",
+    "checks": {
+      "dedicatedEndpointOk": true,
+      "consumedOneTokenAfterPurchase": true,
+      "noMatchFieldInResponse": true,
+      "senderMessageFound": true,
+      "recipientMessageFound": true,
+      "persistedAfterReload": true
+    }
+  }
+}

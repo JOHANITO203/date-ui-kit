@@ -15,9 +15,16 @@ const filterSchema = z
 
 const swipeSchema = z.object({
   profileId: z.string().min(1),
-  decision: z.enum(["like", "dislike", "superlike"]),
+  decision: z.enum(["like", "dislike"]),
   feedCursor: z.string().min(1),
   idempotencyKey: z.string().min(1).optional(),
+});
+
+const superLikeSendSchema = z.object({
+  profileId: z.string().min(1),
+  text: z.string().min(1),
+  feedCursor: z.string().min(1).optional(),
+  idempotencyKey: z.string().min(1),
 });
 
 const rewindSchema = z.object({
@@ -495,6 +502,86 @@ const loadDiscoverCandidatesCached = async (input: {
 
 const toMatchConversationId = (userId: string, peerId: string) =>
   `match-${userId.slice(0, 8)}-${peerId.slice(0, 8)}`;
+
+const toDirectConversationId = (userId: string, peerId: string) => `conv-${userId}-${peerId}`;
+
+const ensureProfileExists = async (profileId: string): Promise<boolean> => {
+  if (!supabaseAdminClient) return false;
+  const result = await supabaseAdminClient
+    .from("profiles")
+    .select("user_id")
+    .eq("user_id", profileId)
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return Boolean(result.data);
+};
+
+const upsertDirectConversationForUser = async (input: {
+  userId: string;
+  peerProfileId: string;
+  conversationId: string;
+  nowIso: string;
+  previewText: string;
+  unreadCount: number;
+  receivedSuperLikeTraceAtIso?: string;
+}) => {
+  if (!supabaseAdminClient) return;
+  const upsertConversation = await supabaseAdminClient.from("chat_conversations").upsert(
+    {
+      user_id: input.userId,
+      conversation_id: input.conversationId,
+      peer_profile_id: input.peerProfileId,
+      unread_count: input.unreadCount,
+      last_message_preview: input.previewText,
+      last_message_at: input.nowIso,
+      relation_state: "active",
+      relation_state_updated_at: input.nowIso,
+      received_superlike_trace_at: input.receivedSuperLikeTraceAtIso ?? null,
+    },
+    { onConflict: "user_id,conversation_id" },
+  );
+  if (upsertConversation.error) throw upsertConversation.error;
+};
+
+const insertDirectMessageForUser = async (input: {
+  userId: string;
+  conversationId: string;
+  senderUserId: string;
+  direction: "incoming" | "outgoing";
+  text: string;
+  nowIso: string;
+  messageId: string;
+}) => {
+  if (!supabaseAdminClient) return;
+  const insertResult = await supabaseAdminClient.from("chat_messages").upsert(
+    {
+      user_id: input.userId,
+      message_id: input.messageId,
+      conversation_id: input.conversationId,
+      sender_user_id: input.senderUserId,
+      direction: input.direction,
+      original_text: input.text,
+      translated: false,
+      created_at: input.nowIso,
+    },
+    { onConflict: "user_id,message_id" },
+  );
+  if (insertResult.error) throw insertResult.error;
+};
+
+const rollbackConsumedSuperLike = async (userId: string) => {
+  const snapshot = (await getUserEntitlementSnapshot(userId)) ?? {};
+  const current = Math.max(0, snapshot.balancesDelta?.superlikesLeft ?? 0);
+  const restoredSnapshot: EntitlementSnapshot = {
+    ...snapshot,
+    balancesDelta: {
+      ...(snapshot.balancesDelta ?? {}),
+      superlikesLeft: current + 1,
+    },
+  };
+  await saveUserEntitlementSnapshot(userId, restoredSnapshot);
+  return Math.max(0, restoredSnapshot.balancesDelta?.superlikesLeft ?? 0);
+};
 
 const upsertLikeRow = async (input: {
   likerUserId: string;
@@ -1194,33 +1281,6 @@ export const buildServer = () => {
     }
 
     const { profileId, decision } = parsed.data;
-    let superlikesLeft: number | undefined;
-    if (decision === "superlike") {
-      const key =
-        parsed.data.idempotencyKey ??
-        idempotencyKeyFromRequest(request) ??
-        `swipe:${parsed.data.feedCursor}:${profileId}:${decision}`;
-      try {
-        const consumption = await consumeBalance({
-          userId,
-          field: "superlikesLeft",
-          amount: 1,
-          action: "superlike",
-          idempotencyKey: key,
-        });
-        if (!consumption.ok) {
-          return {
-            matched: false,
-            code: "SUPERLIKE_EMPTY",
-          };
-        }
-        superlikesLeft = consumption.balancesLeft;
-      } catch (error) {
-        app.log.warn({ err: error, userId }, "discover.superlike_consume_failed");
-        reply.status(503);
-        return { code: "ENTITLEMENT_CONSUME_FAILED" };
-      }
-    }
     const dismissed = dismissedByUser.get(userId) ?? [];
     if (!dismissed.includes(profileId)) {
       dismissed.push(profileId);
@@ -1256,14 +1316,14 @@ export const buildServer = () => {
         const outgoing = await upsertLikeRow({
           likerUserId: userId,
           likedUserId: profileId,
-          wasSuperLike: decision === "superlike",
+          wasSuperLike: false,
           hiddenByShadowGhost,
           nowIso,
         });
 
         const seed = `${userId}:${profileId}`;
         const deterministic = stableScore(seed);
-        const matchedByScoring = decision === "superlike" ? deterministic >= 30 : deterministic >= 62;
+        const matchedByScoring = deterministic >= 62;
         const matchedByActorAutoLike = await isActorProfileId(profileId, app.log);
 
         if (matchedByScoring || matchedByActorAutoLike) {
@@ -1308,7 +1368,186 @@ export const buildServer = () => {
     return {
       matched,
       conversationId,
+    };
+  });
+
+  app.post("/discover/superlike/send", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+    if (!supabaseAdminClient) {
+      reply.status(503);
+      return { code: "DISCOVER_SUPERLIKE_UNAVAILABLE" };
+    }
+
+    const parsed = superLikeSendSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return {
+        status: "invalid_message",
+        confirmation: "SuperLike failed.",
+        code: "INVALID_PAYLOAD",
+        superlikesLeft: Math.max(0, (await getUserEntitlementSnapshot(userId))?.balancesDelta?.superlikesLeft ?? 0),
+      };
+    }
+
+    const profileId = parsed.data.profileId.trim();
+    const messageText = parsed.data.text.trim();
+    if (!messageText) {
+      reply.status(400);
+      return {
+        status: "invalid_message",
+        confirmation: "SuperLike failed.",
+        code: "EMPTY_MESSAGE",
+        superlikesLeft: Math.max(0, (await getUserEntitlementSnapshot(userId))?.balancesDelta?.superlikesLeft ?? 0),
+      };
+    }
+    if (profileId === userId) {
+      reply.status(400);
+      return {
+        status: "invalid_target",
+        confirmation: "SuperLike failed.",
+        code: "SELF_SUPERLIKE_NOT_ALLOWED",
+        superlikesLeft: Math.max(0, (await getUserEntitlementSnapshot(userId))?.balancesDelta?.superlikesLeft ?? 0),
+      };
+    }
+
+    try {
+      const profileExists = await ensureProfileExists(profileId);
+      if (!profileExists) {
+        reply.status(404);
+        return {
+          status: "invalid_target",
+          confirmation: "SuperLike failed.",
+          code: "PROFILE_NOT_FOUND",
+          superlikesLeft: Math.max(0, (await getUserEntitlementSnapshot(userId))?.balancesDelta?.superlikesLeft ?? 0),
+        };
+      }
+    } catch (error) {
+      app.log.warn({ err: error, userId, profileId }, "discover.superlike_target_lookup_failed");
+      reply.status(503);
+      return { code: "DISCOVER_SUPERLIKE_TARGET_UNAVAILABLE" };
+    }
+
+    const idempotencyKey = parsed.data.idempotencyKey ?? idempotencyKeyFromRequest(request);
+    if (!idempotencyKey) {
+      reply.status(400);
+      return { code: "MISSING_IDEMPOTENCY_KEY" };
+    }
+
+    let superlikesLeft = 0;
+    let consumptionDuplicate = false;
+    try {
+      const consumption = await consumeBalance({
+        userId,
+        field: "superlikesLeft",
+        amount: 1,
+        action: "superlike",
+        idempotencyKey,
+      });
+      if (!consumption.ok) {
+        return {
+          status: "no_stock",
+          confirmation: "SuperLike unavailable.",
+          code: "SUPERLIKE_EMPTY",
+          superlikesLeft: consumption.balancesLeft,
+        };
+      }
+      superlikesLeft = consumption.balancesLeft;
+      consumptionDuplicate = consumption.duplicate;
+    } catch (error) {
+      app.log.warn({ err: error, userId }, "discover.superlike_consume_failed");
+      reply.status(503);
+      return { code: "ENTITLEMENT_CONSUME_FAILED" };
+    }
+
+    const nowIso = new Date().toISOString();
+    const senderConversationId = toDirectConversationId(userId, profileId);
+    const recipientConversationId = toDirectConversationId(profileId, userId);
+    const messageSeed = idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64) || `${Date.now()}`;
+    const senderMessageId = `sl-out-${messageSeed}`;
+    const recipientMessageId = `sl-in-${messageSeed}`;
+
+    try {
+      let recipientUnreadCount = 1;
+      const recipientConversationResult = await supabaseAdminClient
+        .from("chat_conversations")
+        .select("unread_count")
+        .eq("user_id", profileId)
+        .eq("conversation_id", recipientConversationId)
+        .maybeSingle();
+      if (recipientConversationResult.error) throw recipientConversationResult.error;
+      const existingUnread = Math.max(0, recipientConversationResult.data?.unread_count ?? 0);
+      recipientUnreadCount = existingUnread + 1;
+
+      await Promise.all([
+        upsertDirectConversationForUser({
+          userId,
+          peerProfileId: profileId,
+          conversationId: senderConversationId,
+          nowIso,
+          previewText: messageText,
+          unreadCount: 0,
+        }),
+        upsertDirectConversationForUser({
+          userId: profileId,
+          peerProfileId: userId,
+          conversationId: recipientConversationId,
+          nowIso,
+          previewText: messageText,
+          unreadCount: recipientUnreadCount,
+          receivedSuperLikeTraceAtIso: nowIso,
+        }),
+      ]);
+
+      await Promise.all([
+        insertDirectMessageForUser({
+          userId,
+          conversationId: senderConversationId,
+          senderUserId: userId,
+          direction: "outgoing",
+          text: messageText,
+          nowIso,
+          messageId: senderMessageId,
+        }),
+        insertDirectMessageForUser({
+          userId: profileId,
+          conversationId: recipientConversationId,
+          senderUserId: userId,
+          direction: "incoming",
+          text: messageText,
+          nowIso,
+          messageId: recipientMessageId,
+        }),
+      ]);
+    } catch (error) {
+      app.log.warn({ err: error, userId, profileId }, "discover.superlike_send_failed");
+      if (!consumptionDuplicate) {
+        try {
+          superlikesLeft = await rollbackConsumedSuperLike(userId);
+        } catch (rollbackError) {
+          app.log.error(
+            { err: rollbackError, userId, profileId },
+            "discover.superlike_rollback_failed",
+          );
+        }
+      }
+      reply.status(503);
+      return {
+        status: "invalid_message",
+        confirmation: "SuperLike failed.",
+        code: "SUPERLIKE_SEND_FAILED",
+        superlikesLeft,
+      };
+    }
+
+    return {
+      status: "sent",
+      confirmation: "SuperLike sent.",
       superlikesLeft,
+      conversationId: senderConversationId,
+      messageId: senderMessageId,
     };
   });
 

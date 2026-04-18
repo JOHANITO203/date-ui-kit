@@ -8,6 +8,8 @@ import type {
   ActivateBoostResponse,
   BoostStatus,
   RewindResponse,
+  SuperLikeDirectMessageRequest,
+  SuperLikeDirectMessageResponse,
   SendMessageRequest,
   SendMessageResponse,
   SwipeDecision,
@@ -506,7 +508,11 @@ export const appApi = {
     runtimeApi.markProfileImpression(profileId);
   },
 
-  async swipe(profileId: string, decision: SwipeDecision, feedCursor?: string): Promise<SwipeResponse> {
+  async swipe(
+    profileId: string,
+    decision: Exclude<SwipeDecision, 'superlike'>,
+    feedCursor?: string,
+  ): Promise<SwipeResponse> {
     if (DISCOVER_API_URL) {
       try {
         const response = await discoverRequest<SwipeResponse>('/discover/swipe', {
@@ -530,6 +536,78 @@ export const appApi = {
       }
     }
     return withLatency(runtimeApi.swipe(profileId, decision), 80);
+  },
+
+  async sendSuperLikeDirectMessage(
+    request: SuperLikeDirectMessageRequest,
+  ): Promise<SuperLikeDirectMessageResponse> {
+    const idempotencyKey = request.idempotencyKey ?? makeIdempotencyKey('superlike-send');
+    const feedCursor = request.feedCursor ?? `feed-${Date.now()}`;
+    const text = request.text.trim();
+
+    if (!request.profileId || !text) {
+      return Promise.reject(new Error('superlike_invalid_request'));
+    }
+
+    if (DISCOVER_API_URL) {
+      try {
+        const response = await discoverRequest<SuperLikeDirectMessageResponse>('/discover/superlike/send', {
+          method: 'POST',
+          headers: {
+            'x-idempotency-key': idempotencyKey,
+          },
+          body: JSON.stringify({
+            profileId: request.profileId,
+            text,
+            feedCursor,
+            idempotencyKey,
+          }),
+        });
+
+        if (typeof response.superlikesLeft === 'number') {
+          runtimeApi.patchBalances({ superlikesLeft: response.superlikesLeft });
+        }
+
+        return response;
+      } catch (error) {
+        if (!shouldFallbackToRuntime(error)) throw error;
+      }
+    }
+
+    // Runtime fallback: direct message semantics (no match dependency).
+    const superlikesLeftBefore = runtimeApi.getSettingsEnvelope().balances.superlikesLeft;
+    if (superlikesLeftBefore <= 0) {
+      return {
+        status: 'no_stock',
+        confirmation: 'SuperLike unavailable.',
+        superlikesLeft: 0,
+      };
+    }
+
+    runtimeApi.patchBalances({ superlikesLeft: Math.max(0, superlikesLeftBefore - 1) });
+    const conversationId = runtimeApi.openChat(request.profileId, true);
+    const sent = runtimeApi.sendMessage({
+      conversationId,
+      text,
+    });
+
+    const superlikesLeftAfter = runtimeApi.getSettingsEnvelope().balances.superlikesLeft;
+    if (sent.status !== 'sent') {
+      return {
+        status: 'invalid_message',
+        confirmation: 'SuperLike failed.',
+        conversationId,
+        superlikesLeft: superlikesLeftAfter,
+      };
+    }
+
+    return {
+      status: 'sent',
+      confirmation: 'SuperLike sent.',
+      conversationId,
+      messageId: sent.message.id,
+      superlikesLeft: superlikesLeftAfter,
+    };
   },
 
   rewind(feedCursor?: string): Promise<RewindResponse> {

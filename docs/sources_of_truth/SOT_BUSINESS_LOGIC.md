@@ -36,6 +36,20 @@ Date de verrouillage: 2026-03-30
 - Rewind/SuperLike consommes a l'usage.
 - Absence de token => etat upsell.
 
+### SuperLike (SOT verrouillee)
+- SuperLike est un message direct depuis Discover, pas un match premium.
+- Flow officiel:
+  1. ouverture d'un composer depuis Discover,
+  2. envoi direct du message au destinataire,
+  3. consommation unitaire `1 SuperLike`,
+  4. confirmation courte UI: `SuperLike sent.`.
+- Pipeline backend dedie:
+  - `POST /discover/superlike/send`
+  - decouple de `/discover/swipe`
+  - aucune dependance a `matched` / scoring / reciprocite.
+- Like conserve son flow propre:
+  - tentative d'ouverture via `like/pass/swipe/match`.
+
 ## 6) Onboarding
 - Resume automatique du parcours en cas d'interruption.
 - Retour depuis Edit Profile depuis onboarding ne doit pas reset le parcours.
@@ -71,7 +85,7 @@ Date de verrouillage: 2026-03-30
   - la carte plan affiche les items possedes avec compteur exact (superlikes, boosts, rewinds, icebreakers).
 - Visibilite par page:
   - Likes: IceBreaker est l'item utilitaire principal expose en haut a droite.
-  - Discover: Boost/Rewind/SuperLike restent actives selon les regles existantes.
+  - Discover: Boost/Rewind restent sur le deck, SuperLike ouvre un composer de message direct.
 - IceBreaker (regle officielle):
   - condition d'usage: stock `icebreakersLeft > 0`, like cible locke, user free.
   - consommation: `1 IceBreaker = 1 like/conversation debloque`.

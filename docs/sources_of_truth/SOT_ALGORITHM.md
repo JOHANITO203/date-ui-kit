@@ -51,8 +51,11 @@ Source of truth code: `backend/services/discover-service/src/server.ts`
 - `scoreReason` enrichi avec suffixes (`intent_*`, `interest_match`, `launch_city_match`, `nationality_diversity`, `language_diversity`).
 
 ## 2) Match probabiliste (REALITE ACTUELLE)
-- Endpoint swipe deterministe via seed/hash (`stableScore`).
-- `superlike` augmente la probabilite de match par rapport a `like`.
+- Endpoint swipe deterministe via seed/hash (`stableScore`) pour `like/dislike`.
+- `superlike` n'est plus dans ce pipeline:
+  - route dediee `POST /discover/superlike/send`,
+  - envoi direct de message,
+  - aucune dependance a un match.
 
 ## 3) Guardrails metier (VERROUILLES)
 - Premium accelere la visibilite mais ne doit pas ecraser la qualite.

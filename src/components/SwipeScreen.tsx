@@ -9,7 +9,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
 import { appApi, authApi } from '../services';
 import { useRuntimeSelector } from '../state';
-import type { FeedCandidate, FeedQuickFilter, PlanTier, SwipeDecision } from '../contracts';
+import type { FeedCandidate, FeedQuickFilter, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { buildOptimizedImageUrl, buildResponsiveImageAttrs } from '../utils/imageDelivery';
 
@@ -116,6 +116,12 @@ const SwipeScreen = () => {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMatch, setShowMatch] = useState(false);
   const [matchedUser, setMatchedUser] = useState<FeedCandidate | null>(null);
+  const [showSuperLikeComposer, setShowSuperLikeComposer] = useState(false);
+  const [superLikeTarget, setSuperLikeTarget] = useState<FeedCandidate | null>(null);
+  const [superLikeDraft, setSuperLikeDraft] = useState('');
+  const [superLikeComposerError, setSuperLikeComposerError] = useState('');
+  const [isSuperLikeSending, setIsSuperLikeSending] = useState(false);
+  const [showSuperLikeSentConfirmation, setShowSuperLikeSentConfirmation] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [feedStatus, setFeedStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [feedCandidates, setFeedCandidates] = useState<FeedCandidate[]>([]);
@@ -125,6 +131,7 @@ const SwipeScreen = () => {
   const [isSwipePending, setIsSwipePending] = useState(false);
   const [swipeError, setSwipeError] = useState(false);
   const swipeErrorTimerRef = useRef<number | null>(null);
+  const superLikeConfirmationTimerRef = useRef<number | null>(null);
   const imagePreloadCacheRef = useRef<Set<string>>(new Set());
   const showTransientSwipeError = () => {
     setSwipeError(true);
@@ -193,6 +200,9 @@ const SwipeScreen = () => {
     return () => {
       if (swipeErrorTimerRef.current) {
         window.clearTimeout(swipeErrorTimerRef.current);
+      }
+      if (superLikeConfirmationTimerRef.current) {
+        window.clearTimeout(superLikeConfirmationTimerRef.current);
       }
     };
   }, []);
@@ -325,15 +335,100 @@ const SwipeScreen = () => {
     } else if (info.offset.x < -threshold) {
       swipe('left');
     } else if (info.offset.y < -threshold) {
-      swipe('up');
+      openSuperLikeComposer();
     }
   };
 
-  const swipe = (dir: 'left' | 'right' | 'up') => {
+  const buildSuperLikeIdempotencyKey = () => {
+    try {
+      if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return `superlike:${crypto.randomUUID()}`;
+      }
+    } catch {
+      // ignore and fallback to timestamp-based key
+    }
+    return `superlike:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+  };
+
+  const openSuperLikeComposer = () => {
+    if (!hasUsers || !user || isSwipePending || isSuperLikeSending) return;
+    setSuperLikeTarget(user);
+    setSuperLikeDraft('');
+    setSuperLikeComposerError('');
+    setShowSuperLikeComposer(true);
+    x.set(0);
+    y.set(0);
+  };
+
+  const closeSuperLikeComposer = () => {
+    if (isSuperLikeSending) return;
+    setShowSuperLikeComposer(false);
+    setSuperLikeTarget(null);
+    setSuperLikeDraft('');
+    setSuperLikeComposerError('');
+    x.set(0);
+    y.set(0);
+  };
+
+  const sendSuperLikeDirect = async (target: FeedCandidate, text: string) => {
+    return appApi.sendSuperLikeDirectMessage({
+      profileId: target.id,
+      text,
+      feedCursor: feedCursor || undefined,
+      idempotencyKey: buildSuperLikeIdempotencyKey(),
+    });
+  };
+
+  const submitSuperLike = () => {
+    if (!superLikeTarget || isSuperLikeSending) return;
+    const text = superLikeDraft.trim();
+    if (!text) {
+      setSuperLikeComposerError(t('discover.superLikeComposerMessageRequired'));
+      return;
+    }
+
+    setIsSuperLikeSending(true);
+    setSuperLikeComposerError('');
+    void sendSuperLikeDirect(superLikeTarget, text)
+      .then((response) => {
+        if (response.status !== 'sent') {
+          setSuperLikeComposerError(
+            response.status === 'no_stock'
+              ? t('discover.superLikeComposerNoStock')
+              : t('discover.superLikeComposerError'),
+          );
+          return;
+        }
+        setFeedCandidates((prev) => prev.filter((candidate) => candidate.id !== superLikeTarget.id));
+        setCurrentIndex(0);
+        setPhotoIndex(0);
+        setSwipeError(false);
+        x.set(0);
+        y.set(0);
+        setShowSuperLikeComposer(false);
+        setSuperLikeTarget(null);
+        setSuperLikeDraft('');
+        setShowSuperLikeSentConfirmation(true);
+        if (superLikeConfirmationTimerRef.current) {
+          window.clearTimeout(superLikeConfirmationTimerRef.current);
+        }
+        superLikeConfirmationTimerRef.current = window.setTimeout(() => {
+          setShowSuperLikeSentConfirmation(false);
+          superLikeConfirmationTimerRef.current = null;
+        }, 1800);
+      })
+      .catch(() => {
+        setSuperLikeComposerError(t('discover.superLikeComposerError'));
+      })
+      .finally(() => {
+        setIsSuperLikeSending(false);
+      });
+  };
+
+  const swipe = (dir: 'left' | 'right') => {
     if (!hasUsers || !user || isSwipePending) return;
     setIsSwipePending(true);
-    const decision: SwipeDecision =
-      dir === 'left' ? 'dislike' : dir === 'right' ? 'like' : 'superlike';
+    const decision = dir === 'left' ? 'dislike' : 'like';
 
     void appApi
       .swipe(user.id, decision, feedCursor)
@@ -457,7 +552,7 @@ const SwipeScreen = () => {
     <>
       <motion.button
         whileTap={{ scale: 0.85 }}
-        disabled={!user || isSwipePending}
+        disabled={!user || isSwipePending || showSuperLikeComposer || isSuperLikeSending}
         onClick={(e) => {
           e.stopPropagation();
           swipe('left');
@@ -469,12 +564,12 @@ const SwipeScreen = () => {
 
       <motion.button
         whileTap={{ scale: 0.9, rotate: 12 }}
-        disabled={!user || isSwipePending}
+        disabled={!user || isSwipePending || showSuperLikeComposer || isSuperLikeSending}
         animate={{ boxShadow: ['0 0 18px rgba(255, 20, 147, 0.2)', '0 0 34px rgba(255, 20, 147, 0.35)', '0 0 18px rgba(255, 20, 147, 0.2)'] }}
         transition={{ boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' } }}
         onClick={(e) => {
           e.stopPropagation();
-          swipe('up');
+          openSuperLikeComposer();
         }}
         className={`${isLarge ? 'w-[var(--discover-action-main-size)] h-[var(--discover-action-main-size)] rounded-full' : 'w-[var(--discover-action-mobile-main-w)] h-[var(--discover-action-mobile-main-h)] rounded-[var(--discover-action-mobile-main-radius)]'} flex items-center justify-center text-white gradient-premium opacity-90 shadow-[0_15px_35px_rgba(255,20,147,0.3)] transition-all duration-300 relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed`}
       >
@@ -483,7 +578,7 @@ const SwipeScreen = () => {
 
       <motion.button
         whileTap={{ scale: 0.9 }}
-        disabled={!user || isSwipePending}
+        disabled={!user || isSwipePending || showSuperLikeComposer || isSuperLikeSending}
         onClick={(e) => {
           e.stopPropagation();
           swipe('right');
@@ -756,7 +851,7 @@ const SwipeScreen = () => {
 
             <motion.div
               key={user.id}
-              drag
+              drag={!showSuperLikeComposer}
               dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
               onDragEnd={handleDragEnd}
               style={{ x, y, rotate, opacity, zIndex: 10 }}
@@ -905,7 +1000,7 @@ const SwipeScreen = () => {
 
             <motion.div
               key={user.id}
-              drag
+              drag={!showSuperLikeComposer}
               dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
               onDragEnd={handleDragEnd}
               style={{ x, y, rotate, opacity, zIndex: 10 }}
@@ -1023,6 +1118,86 @@ const SwipeScreen = () => {
         </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showSuperLikeComposer && superLikeTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[110] flex items-end justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ y: 28, opacity: 0.9 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0.95 }}
+              className="w-full max-w-2xl rounded-3xl border border-fuchsia-300/30 bg-[#101015]/95 shadow-[0_30px_80px_rgba(0,0,0,0.6)] p-5 sm:p-6 space-y-4"
+            >
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.24em] font-black text-fuchsia-300/85">
+                  {t('discover.superLikeComposerEyebrow')}
+                </p>
+                <h3 className="text-white text-xl sm:text-2xl font-black tracking-tight">
+                  {t('discover.superLikeComposerTitle', { name: superLikeTarget.name })}
+                </h3>
+                <p className="text-white/55 text-sm">
+                  {t('discover.superLikeComposerSubtitle')}
+                </p>
+              </div>
+
+              <textarea
+                value={superLikeDraft}
+                onChange={(event) => {
+                  setSuperLikeDraft(event.target.value);
+                  if (superLikeComposerError) setSuperLikeComposerError('');
+                }}
+                placeholder={t('discover.superLikeComposerPlaceholder')}
+                maxLength={280}
+                className="w-full min-h-[132px] rounded-2xl border border-white/15 bg-black/45 text-white text-sm leading-relaxed p-4 outline-none focus:border-fuchsia-300/50 focus:ring-2 focus:ring-fuchsia-400/20 resize-none"
+              />
+
+              <div className="flex items-center justify-between gap-3 text-[11px]">
+                <span className={`${superLikeComposerError ? 'text-red-300' : 'text-white/40'}`}>
+                  {superLikeComposerError || t('discover.superLikeComposerHint')}
+                </span>
+                <span className="text-white/35 font-semibold">{superLikeDraft.trim().length}/280</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={closeSuperLikeComposer}
+                  disabled={isSuperLikeSending}
+                  className="px-4 py-2 rounded-full border border-white/20 text-white/70 text-xs font-bold uppercase tracking-wider hover:text-white hover:border-white/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t('discover.superLikeComposerCancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={submitSuperLike}
+                  disabled={isSuperLikeSending}
+                  className="px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-[0.18em] text-white bg-gradient-to-r from-fuchsia-500 to-pink-500 hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSuperLikeSending ? t('discover.superLikeComposerSending') : t('discover.superLikeComposerSend')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSuperLikeSentConfirmation && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="absolute top-4 right-4 z-[120] rounded-full border border-emerald-300/30 bg-emerald-500/15 text-emerald-100 text-xs font-bold uppercase tracking-[0.16em] px-4 py-2 backdrop-blur-sm"
+          >
+            {t('discover.superLikeSent')}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showMatch && (

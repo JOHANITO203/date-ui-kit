@@ -1,0 +1,25 @@
+﻿{
+  "generatedAt": "2026-04-18T09:58:00.000Z",
+  "scope": "AGENT_5_RUNTIME_VALIDATION_QA",
+  "proof": "recipient_reception_check",
+  "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+  "recipientUserId": "80d08d3a-7949-421e-8a6f-6ee161da527d",
+  "conversationId": "conv-80d08d3a-7949-421e-8a6f-6ee161da527d-962a08ca-89f6-4245-8879-2aaef4c2fe29",
+  "requestStatus": {
+    "chatConversations": 200,
+    "chatMessages": 200
+  },
+  "observed": {
+    "conversationFound": true,
+    "lastMessagePreview": "Hi, direct message sent from Discover via SuperLike.",
+    "unreadCount": 3,
+    "lastMessage": {
+      "id": "sl-in-superlike-sote595a9bf-3ed0-49b2-89ac-531bc599dc70",
+      "direction": "incoming",
+      "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+      "originalText": "Hi, direct message sent from Discover via SuperLike.",
+      "createdAtIso": "2026-04-18T09:56:07.86+00:00"
+    }
+  },
+  "verdict": "RECIPIENT_RECEPTION_CONFIRMED"
+}
