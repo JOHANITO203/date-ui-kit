@@ -232,19 +232,40 @@ const probePublicVariantHealth = async (
       try {
         const response = await withTimeout(
           fetch(url, { method: "HEAD" }),
-          Math.min(env.DISCOVER_SUPABASE_TIMEOUT_MS, 700),
+          Math.min(env.DISCOVER_SUPABASE_TIMEOUT_MS, 1400),
           "discover_public_variant_probe",
         );
-        return { storagePath, status: response.status, ok: response.ok };
+        return { storagePath, status: response.status, ok: response.ok, networkError: false };
       } catch {
-        return { storagePath, status: 0, ok: false };
+        return { storagePath, status: 0, ok: false, networkError: true };
       }
     }),
   );
 
   for (const check of checks) {
+    if (check.ok) {
+      publicVariantHealthCache.set(check.storagePath, {
+        healthy: true,
+        checkedAtMs: now,
+      });
+      continue;
+    }
+
+    // Network errors/timeouts are inconclusive: keep public URL and do not poison cache as broken.
+    if (check.networkError || check.status === 0 || check.status >= 500 || check.status === 429) {
+      logger.debug(
+        {
+          storagePath: check.storagePath,
+          status: check.status,
+        },
+        "discover.public_variant_probe_inconclusive_keep_public",
+      );
+      continue;
+    }
+
+    // Explicit negative HTTP responses (403/404/...) are treated as broken public variants.
     publicVariantHealthCache.set(check.storagePath, {
-      healthy: check.ok,
+      healthy: false,
       checkedAtMs: now,
     });
     if (!check.ok) {

@@ -1,0 +1,187 @@
+{
+  "generatedAt": "2026-04-18T20:09:59.597Z",
+  "scope": "likes_signed_fallback_root_cause",
+  "base": "https://easlgfxfctpiyghluvcc.supabase.co",
+  "bucket": "profile-photos-public",
+  "sourceLogSymptom": {
+    "signedFallbackCount": 8,
+    "fallbackReason": "discover.public_variant_unavailable_fallback_to_signed(status=0)"
+  },
+  "storagePathAudit": [
+    {
+      "storagePath": "962a08ca-89f6-4245-8879-2aaef4c2fe29/1775527484161-5b098c94-ce5b-4abc-b9ff-11db57a13005.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 414
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 202
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 442
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "2d181511-b595-45ea-b9a5-ea712a03ef54/seed/1775724141104-02-temp-voronezh-seed.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 267
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 136
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 418
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "efb4d64c-b0b8-429d-8f8d-d18516caf002/seed/1775724149286-04-temp-voronezh-seed.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 214
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 149
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 321
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "aa6fbb8b-d98d-46f6-b8a5-917be75887b1/seed/1775724174499-04-temp-sochi-seed.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 260
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 158
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 417
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "065881c7-a092-4ddc-8820-cf5d94fe3bdc/seed/1775724181455-05-temp-sochi-seed.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 239
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 145
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 394
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "cc23d125-2c6c-42c3-b042-2ad662b68f42/seed/1775724189306-06-temp-sochi-seed.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 291
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 176
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 414
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "a286f1ce-462b-42bf-9e15-3ee6687ab4ac/seed/1776067643509-06-homme-blond-selfie-en-parc-tenue-casual-.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 269
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 160
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 394
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "c4eb23a2-a035-4ef3-9f1e-52dbbdbe938c/seed/1776067649415-08-homme-metis-selfie-spontane-fond-urbain-.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 493
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 124
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 420
+      },
+      "classification": "variant_present"
+    },
+    {
+      "storagePath": "bf835702-2480-41d8-a009-bd0ec97f9710/seed/1776067757889-01-femme-blonde-selfie-naturelle-en-ville-l.jpg",
+      "head700": {
+        "ok": true,
+        "status": 200,
+        "ms": 279
+      },
+      "head3000": {
+        "ok": true,
+        "status": 200,
+        "ms": 211
+      },
+      "get3000": {
+        "ok": true,
+        "status": 206,
+        "ms": 480
+      },
+      "classification": "variant_present"
+    }
+  ],
+  "conclusion": {
+    "rootCause": "probe timeout/network inconclusive interpreted as hard public-variant failure and cached broken for 10 minutes",
+    "dataState": "public variants exist for sampled fallback paths"
+  }
+}
