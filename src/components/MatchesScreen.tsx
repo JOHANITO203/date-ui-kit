@@ -6,6 +6,7 @@ import { useDevice } from '../hooks/useDevice';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi } from '../services';
 import { buildOptimizedImageUrl, buildResponsiveImageAttrs } from '../utils/imageDelivery';
+import VerticalPageRail from './ui/VerticalPageRail';
 
 type CardVariant =
   | 'locked_standard'
@@ -209,6 +210,13 @@ const MatchesScreen: React.FC = () => {
     const node = sectionRefs.current[index];
     if (!node) return;
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const seekToRatio = (ratio: number) => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const max = node.scrollHeight - node.clientHeight;
+    if (max <= 0) return;
+    node.scrollTo({ top: Math.max(0, Math.min(1, ratio)) * max, behavior: 'smooth' });
   };
 
   const hasLikes = likesCards.length > 0;
@@ -782,35 +790,18 @@ const MatchesScreen: React.FC = () => {
           </>
         ) : null}
       </div>
-      {showDesktopRail && (
-        <div className="fixed right-0 top-0 bottom-0 w-14 z-30 pointer-events-none">
-          <div className="group/likes-rail h-full w-full flex items-center justify-center pointer-events-auto">
-            <div className="flex items-center opacity-0 transition-opacity duration-300 group-hover/likes-rail:opacity-100">
-              <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_14px_rgba(217,70,239,0.33)]">
-                <div className="relative w-2.5 h-40 rounded-full bg-[#09090c]/95 overflow-hidden">
-                  <div
-                    className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
-                    style={{
-                      height: `${scrollThumb}%`,
-                      top: `${scrollProgress * (100 - scrollThumb)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="ml-2 flex flex-col gap-2">
-                {[0, 1, 2].map((index) => (
-                  <button
-                    key={`likes-jump-${index}`}
-                    onClick={() => jumpToSection(index)}
-                    className="w-2 h-2 rounded-full bg-white/35 hover:bg-pink-300 transition-colors"
-                    aria-label={t('likes.jumpSection', { index: index + 1 })}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <VerticalPageRail
+        visible={showDesktopRail}
+        progress={scrollProgress}
+        thumb={scrollThumb}
+        tone="likes"
+        sections={[0, 1, 2].map((index) => ({
+          id: `likes-section-${index}`,
+          label: t('likes.jumpSection', { index: index + 1 }),
+        }))}
+        onJump={jumpToSection}
+        onSeekRatio={seekToRatio}
+      />
     </div>
   );
 };

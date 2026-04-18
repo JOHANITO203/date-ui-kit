@@ -12,6 +12,7 @@ import { useRuntimeSelector } from '../state';
 import type { EntitlementSnapshot, OfferItem } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { TRAVEL_PASS_ENABLED } from '../domain/travelPass';
+import VerticalPageRail from './ui/VerticalPageRail';
 
 type CatalogView = 'instant' | 'passes' | 'bundles';
 type TierId = 'essential' | 'gold' | 'platinum' | 'elite';
@@ -754,6 +755,13 @@ const BoostScreen = () => {
     if (!node) return;
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+  const seekToRatio = (ratio: number) => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const max = node.scrollHeight - node.clientHeight;
+    if (max <= 0) return;
+    node.scrollTo({ top: Math.max(0, Math.min(1, ratio)) * max, behavior: 'smooth' });
+  };
 
   return (
     <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-[var(--boost-page-y)]">
@@ -1272,35 +1280,18 @@ const BoostScreen = () => {
         </section>
       </div>
 
-      {showDesktopRail && (
-        <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
-          <div className="group/boost-rail h-full w-full flex items-center justify-center pointer-events-auto">
-            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/boost-rail:opacity-100 group-focus-within/boost-rail:opacity-100">
-              <div className="rounded-full p-[1px] bg-gradient-to-b from-orange-500 via-amber-400 to-yellow-300 shadow-[0_0_14px_rgba(251,146,60,0.33)]">
-                <div className="relative w-3 h-48 rounded-full bg-[#120a02]/95 overflow-hidden">
-                  <div
-                    className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-orange-400 via-amber-300 to-yellow-200"
-                    style={{
-                      height: `${scrollThumb}%`,
-                      top: `${scrollProgress * (100 - scrollThumb)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="ml-2 flex flex-col gap-2.5">
-                {[0, 1, 2].map((index) => (
-                  <button
-                    key={`boost-jump-${index}`}
-                    onClick={() => jumpToSection(index)}
-                    className="w-3 h-3 rounded-full bg-white/35 hover:bg-orange-300 transition-colors"
-                    aria-label={t('boost.jumpSection', { index: index + 1 })}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <VerticalPageRail
+        visible={showDesktopRail}
+        progress={scrollProgress}
+        thumb={scrollThumb}
+        tone="boost"
+        sections={[0, 1, 2].map((index) => ({
+          id: `boost-section-${index}`,
+          label: t('boost.jumpSection', { index: index + 1 }),
+        }))}
+        onJump={jumpToSection}
+        onSeekRatio={seekToRatio}
+      />
     </div>
   );
 };

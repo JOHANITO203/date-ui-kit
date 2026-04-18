@@ -22,6 +22,7 @@ import {
 import { computeVisibilityScore } from '../domain/visibilityScore';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { buildResponsiveImageAttrs } from '../utils/imageDelivery';
+import VerticalPageRail from './ui/VerticalPageRail';
 
 const calculateAge = (birthDateIso: string | null | undefined) => {
   if (!birthDateIso) return undefined;
@@ -451,6 +452,13 @@ const ProfileScreen = () => {
     const node = sectionRefs.current[index];
     if (!node) return;
     node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const seekToRatio = (ratio: number) => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const max = node.scrollHeight - node.clientHeight;
+    if (max <= 0) return;
+    node.scrollTo({ top: Math.max(0, Math.min(1, ratio)) * max, behavior: 'smooth' });
   };
 
   return (
@@ -939,44 +947,18 @@ const ProfileScreen = () => {
         </div>
       </div>
 
-      {showDesktopRail && (
-        <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
-          <div className="group/profile-rail h-full w-full flex items-center justify-center pointer-events-auto">
-            <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/profile:opacity-100 group-focus-within/profile:opacity-100 group-hover/profile-rail:opacity-100">
-              <div
-                className="rounded-full p-[1px]"
-                style={{
-                  background:
-                    'linear-gradient(180deg, hsl(var(--plan-hue) var(--plan-sat) 62% / 0.92), hsl(var(--plan-comp-hue) 68% 60% / 0.9))',
-                  boxShadow: '0 0 14px hsl(var(--plan-hue) var(--plan-sat) 54% / 0.28)',
-                }}
-              >
-                <div className="relative w-3 h-52 rounded-full bg-[#09090c]/95 overflow-hidden">
-                  <div
-                    className="absolute left-0.5 right-0.5 rounded-full"
-                    style={{
-                      background:
-                        'linear-gradient(180deg, hsl(var(--plan-hue) var(--plan-sat) 70% / 0.95), hsl(var(--plan-comp-hue) 68% 66% / 0.92))',
-                      height: `${profileScrollThumb}%`,
-                      top: `${profileScrollProgress * (100 - profileScrollThumb)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="ml-2 flex flex-col gap-2.5">
-                {[0, 1, 2, 3, 4].map((index) => (
-                  <button
-                    key={`profile-jump-${index}`}
-                    onClick={() => jumpToSection(index)}
-                    className="w-3 h-3 rounded-full bg-white/35 hover:bg-white/70 transition-colors"
-                    aria-label={`Aller a la section ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <VerticalPageRail
+        visible={showDesktopRail}
+        progress={profileScrollProgress}
+        thumb={profileScrollThumb}
+        tone="profile"
+        sections={[0, 1, 2, 3, 4].map((index) => ({
+          id: `profile-section-${index}`,
+          label: `Section ${index + 1}`,
+        }))}
+        onJump={jumpToSection}
+        onSeekRatio={seekToRatio}
+      />
     </div>
   );
 };
