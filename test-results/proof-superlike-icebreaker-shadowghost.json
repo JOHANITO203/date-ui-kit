@@ -1,0 +1,622 @@
+{
+    "generatedAt":  "2026-04-18T00:13:21.7550505+03:00",
+    "userId":  "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+    "products":  {
+                     "superlike":  {
+                                       "A":  {
+                                                 "before":  270,
+                                                 "candidateId":  "bf835702-2480-41d8-a009-bd0ec97f9710"
+                                             },
+                                       "B":  "buy + superlike swipe",
+                                       "C":  [
+                                                 "/payments/checkout",
+                                                 "/payments/checkout/status",
+                                                 "/discover/swipe"
+                                             ],
+                                       "D":  {
+                                                 "checkout":  {
+                                                                  "ok":  true,
+                                                                  "status":  200,
+                                                                  "body":  {
+                                                                               "mode":  "mock",
+                                                                               "checkoutId":  "dev_instantsuperlike_962a08ca89f6_1776460402908",
+                                                                               "orderNumber":  "instantsuperlike_962a08ca89f6_1776460402908",
+                                                                               "offer":  {
+                                                                                             "id":  "instant-superlike",
+                                                                                             "label":  "SUPERLIKE",
+                                                                                             "description":  "Send strong intent with priority signal.",
+                                                                                             "tag":  "TOKENS",
+                                                                                             "amountMinor":  7900,
+                                                                                             "currencyNumeric":  643,
+                                                                                             "type":  "instant"
+                                                                                         },
+                                                                               "status":  "paid",
+                                                                               "attributed":  true,
+                                                                               "entitlementSnapshot":  {
+                                                                                                           "planTier":  "gold",
+                                                                                                           "planExpiresAtIso":  "2026-05-17T19:14:32.238Z",
+                                                                                                           "balancesDelta":  {
+                                                                                                                                 "boostsLeft":  100,
+                                                                                                                                 "superlikesLeft":  275,
+                                                                                                                                 "rewindsLeft":  277,
+                                                                                                                                 "icebreakersLeft":  5
+                                                                                                                             },
+                                                                                                           "travelPass":  {
+                                                                                                                              "source":  "bundle_included",
+                                                                                                                              "expiresAtIso":  "2026-05-17T18:22:56.504Z"
+                                                                                                                          },
+                                                                                                           "shadowGhost":  {
+                                                                                                                               "source":  "shadowghost_item",
+                                                                                                                               "expiresAtIso":  "2026-04-18T21:12:16.321Z",
+                                                                                                                               "enablePrivacy":  true
+                                                                                                                           }
+                                                                                                       },
+                                                                               "effectiveBenefits":  {
+                                                                                                         "planTier":  "gold",
+                                                                                                         "flags":  {
+                                                                                                                       "likes_identity_unlocked":  true,
+                                                                                                                       "discover_advanced_filters":  true,
+                                                                                                                       "profile_hide_age_distance":  true,
+                                                                                                                       "messages_translation":  true,
+                                                                                                                       "messages_see_online":  false,
+                                                                                                                       "travel_pass_included":  false,
+                                                                                                                       "shadowghost_included":  false,
+                                                                                                                       "premium_badge":  true
+                                                                                                                   },
+                                                                                                         "byPage":  {
+                                                                                                                        "discover":  {
+                                                                                                                                         "discoverAdvancedFilters":  true
+                                                                                                                                     },
+                                                                                                                        "boost":  {
+                                                                                                                                      "likesIdentityUnlocked":  true,
+                                                                                                                                      "discoverAdvancedFilters":  true,
+                                                                                                                                      "profileHideAgeDistance":  true,
+                                                                                                                                      "messagesTranslation":  true,
+                                                                                                                                      "messagesSeeOnline":  false,
+                                                                                                                                      "travelPassIncluded":  false,
+                                                                                                                                      "shadowGhostIncluded":  false,
+                                                                                                                                      "premiumBadge":  true
+                                                                                                                                  },
+                                                                                                                        "profile":  {
+                                                                                                                                        "profileHideAgeDistance":  true,
+                                                                                                                                        "travelPassIncluded":  false,
+                                                                                                                                        "shadowGhostIncluded":  false,
+                                                                                                                                        "premiumBadge":  true
+                                                                                                                                    },
+                                                                                                                        "messages":  {
+                                                                                                                                         "messagesTranslation":  true,
+                                                                                                                                         "messagesSeeOnline":  false,
+                                                                                                                                         "premiumBadge":  true
+                                                                                                                                     }
+                                                                                                                    }
+                                                                                                     },
+                                                                               "pendingAttribution":  false,
+                                                                               "message":  "DEV auto-grant mode enabled: purchase was instantly attributed."
+                                                                           }
+                                                              },
+                                                 "checkoutStatus":  {
+                                                                        "ok":  true,
+                                                                        "status":  200,
+                                                                        "body":  {
+                                                                                     "checkoutId":  "dev_instantsuperlike_962a08ca89f6_1776460402908",
+                                                                                     "status":  "paid",
+                                                                                     "attributed":  true,
+                                                                                     "entitlementSnapshot":  {
+                                                                                                                 "planTier":  "gold",
+                                                                                                                 "travelPass":  {
+                                                                                                                                    "source":  "bundle_included",
+                                                                                                                                    "expiresAtIso":  "2026-05-17T18:22:56.504Z"
+                                                                                                                                },
+                                                                                                                 "shadowGhost":  {
+                                                                                                                                     "source":  "shadowghost_item",
+                                                                                                                                     "expiresAtIso":  "2026-04-18T21:12:16.321Z",
+                                                                                                                                     "enablePrivacy":  true
+                                                                                                                                 },
+                                                                                                                 "balancesDelta":  {
+                                                                                                                                       "boostsLeft":  100,
+                                                                                                                                       "rewindsLeft":  277,
+                                                                                                                                       "superlikesLeft":  275,
+                                                                                                                                       "icebreakersLeft":  5
+                                                                                                                                   },
+                                                                                                                 "planExpiresAtIso":  "2026-05-17T19:14:32.238Z"
+                                                                                                             },
+                                                                                     "effectiveBenefits":  {
+                                                                                                               "planTier":  "gold",
+                                                                                                               "flags":  {
+                                                                                                                             "likes_identity_unlocked":  true,
+                                                                                                                             "discover_advanced_filters":  true,
+                                                                                                                             "profile_hide_age_distance":  true,
+                                                                                                                             "messages_translation":  true,
+                                                                                                                             "messages_see_online":  false,
+                                                                                                                             "travel_pass_included":  false,
+                                                                                                                             "shadowghost_included":  false,
+                                                                                                                             "premium_badge":  true
+                                                                                                                         },
+                                                                                                               "byPage":  {
+                                                                                                                              "discover":  {
+                                                                                                                                               "discoverAdvancedFilters":  true
+                                                                                                                                           },
+                                                                                                                              "boost":  {
+                                                                                                                                            "likesIdentityUnlocked":  true,
+                                                                                                                                            "discoverAdvancedFilters":  true,
+                                                                                                                                            "profileHideAgeDistance":  true,
+                                                                                                                                            "messagesTranslation":  true,
+                                                                                                                                            "messagesSeeOnline":  false,
+                                                                                                                                            "travelPassIncluded":  false,
+                                                                                                                                            "shadowGhostIncluded":  false,
+                                                                                                                                            "premiumBadge":  true
+                                                                                                                                        },
+                                                                                                                              "profile":  {
+                                                                                                                                              "profileHideAgeDistance":  true,
+                                                                                                                                              "travelPassIncluded":  false,
+                                                                                                                                              "shadowGhostIncluded":  false,
+                                                                                                                                              "premiumBadge":  true
+                                                                                                                                          },
+                                                                                                                              "messages":  {
+                                                                                                                                               "messagesTranslation":  true,
+                                                                                                                                               "messagesSeeOnline":  false,
+                                                                                                                                               "premiumBadge":  true
+                                                                                                                                           }
+                                                                                                                          }
+                                                                                                           },
+                                                                                     "pendingAttribution":  false
+                                                                                 }
+                                                                    },
+                                                 "swipe":  {
+                                                               "ok":  true,
+                                                               "status":  200,
+                                                               "body":  {
+                                                                            "matched":  true,
+                                                                            "conversationId":  "match-962a08ca-bf835702",
+                                                                            "superlikesLeft":  274
+                                                                        }
+                                                           }
+                                             },
+                                       "E":  {
+                                                 "afterBuy":  275,
+                                                 "afterConsume":  274
+                                             },
+                                       "F":  {
+                                                 "expected":  "S counter + then -1",
+                                                 "observable":  {
+                                                                    "swipeSuperlikesLeft":  274,
+                                                                    "matched":  true
+                                                                }
+                                             },
+                                       "G":  {
+                                                 "afterReload":  274
+                                             },
+                                       "H":  "PASS_BACKEND_RUNTIME_UI_VISUAL_PENDING"
+                                   },
+                     "icebreaker":  {
+                                        "A":  {
+                                                  "before":  5,
+                                                  "targetLikeId":  null,
+                                                  "blurredBefore":  null
+                                              },
+                                        "B":  "buy + use icebreaker on locked like",
+                                        "C":  [
+                                                  "/payments/checkout",
+                                                  "/payments/checkout/status",
+                                                  "/discover/likes//icebreaker/use"
+                                              ],
+                                        "D":  {
+                                                  "checkout":  {
+                                                                   "ok":  true,
+                                                                   "status":  200,
+                                                                   "body":  {
+                                                                                "mode":  "mock",
+                                                                                "checkoutId":  "dev_instanticebreaker_962a08ca89f6_1776460406855",
+                                                                                "orderNumber":  "instanticebreaker_962a08ca89f6_1776460406855",
+                                                                                "offer":  {
+                                                                                              "id":  "instant-icebreaker",
+                                                                                              "label":  "ICEBREAKER",
+                                                                                              "description":  "Open hidden opportunities and faster starts.",
+                                                                                              "tag":  "INSTANT",
+                                                                                              "amountMinor":  12900,
+                                                                                              "currencyNumeric":  643,
+                                                                                              "type":  "instant"
+                                                                                          },
+                                                                                "status":  "paid",
+                                                                                "attributed":  true,
+                                                                                "entitlementSnapshot":  {
+                                                                                                            "planTier":  "gold",
+                                                                                                            "planExpiresAtIso":  "2026-05-17T19:14:32.238Z",
+                                                                                                            "balancesDelta":  {
+                                                                                                                                  "boostsLeft":  100,
+                                                                                                                                  "superlikesLeft":  274,
+                                                                                                                                  "rewindsLeft":  277,
+                                                                                                                                  "icebreakersLeft":  6
+                                                                                                                              },
+                                                                                                            "travelPass":  {
+                                                                                                                               "source":  "bundle_included",
+                                                                                                                               "expiresAtIso":  "2026-05-17T18:22:56.504Z"
+                                                                                                                           },
+                                                                                                            "shadowGhost":  {
+                                                                                                                                "source":  "shadowghost_item",
+                                                                                                                                "expiresAtIso":  "2026-04-18T21:12:16.321Z",
+                                                                                                                                "enablePrivacy":  true
+                                                                                                                            }
+                                                                                                        },
+                                                                                "effectiveBenefits":  {
+                                                                                                          "planTier":  "gold",
+                                                                                                          "flags":  {
+                                                                                                                        "likes_identity_unlocked":  true,
+                                                                                                                        "discover_advanced_filters":  true,
+                                                                                                                        "profile_hide_age_distance":  true,
+                                                                                                                        "messages_translation":  true,
+                                                                                                                        "messages_see_online":  false,
+                                                                                                                        "travel_pass_included":  false,
+                                                                                                                        "shadowghost_included":  false,
+                                                                                                                        "premium_badge":  true
+                                                                                                                    },
+                                                                                                          "byPage":  {
+                                                                                                                         "discover":  {
+                                                                                                                                          "discoverAdvancedFilters":  true
+                                                                                                                                      },
+                                                                                                                         "boost":  {
+                                                                                                                                       "likesIdentityUnlocked":  true,
+                                                                                                                                       "discoverAdvancedFilters":  true,
+                                                                                                                                       "profileHideAgeDistance":  true,
+                                                                                                                                       "messagesTranslation":  true,
+                                                                                                                                       "messagesSeeOnline":  false,
+                                                                                                                                       "travelPassIncluded":  false,
+                                                                                                                                       "shadowGhostIncluded":  false,
+                                                                                                                                       "premiumBadge":  true
+                                                                                                                                   },
+                                                                                                                         "profile":  {
+                                                                                                                                         "profileHideAgeDistance":  true,
+                                                                                                                                         "travelPassIncluded":  false,
+                                                                                                                                         "shadowGhostIncluded":  false,
+                                                                                                                                         "premiumBadge":  true
+                                                                                                                                     },
+                                                                                                                         "messages":  {
+                                                                                                                                          "messagesTranslation":  true,
+                                                                                                                                          "messagesSeeOnline":  false,
+                                                                                                                                          "premiumBadge":  true
+                                                                                                                                      }
+                                                                                                                     }
+                                                                                                      },
+                                                                                "pendingAttribution":  false,
+                                                                                "message":  "DEV auto-grant mode enabled: purchase was instantly attributed."
+                                                                            }
+                                                               },
+                                                  "checkoutStatus":  {
+                                                                         "ok":  true,
+                                                                         "status":  200,
+                                                                         "body":  {
+                                                                                      "checkoutId":  "dev_instanticebreaker_962a08ca89f6_1776460406855",
+                                                                                      "status":  "paid",
+                                                                                      "attributed":  true,
+                                                                                      "entitlementSnapshot":  {
+                                                                                                                  "planTier":  "gold",
+                                                                                                                  "travelPass":  {
+                                                                                                                                     "source":  "bundle_included",
+                                                                                                                                     "expiresAtIso":  "2026-05-17T18:22:56.504Z"
+                                                                                                                                 },
+                                                                                                                  "shadowGhost":  {
+                                                                                                                                      "source":  "shadowghost_item",
+                                                                                                                                      "expiresAtIso":  "2026-04-18T21:12:16.321Z",
+                                                                                                                                      "enablePrivacy":  true
+                                                                                                                                  },
+                                                                                                                  "balancesDelta":  {
+                                                                                                                                        "boostsLeft":  100,
+                                                                                                                                        "rewindsLeft":  277,
+                                                                                                                                        "superlikesLeft":  274,
+                                                                                                                                        "icebreakersLeft":  6
+                                                                                                                                    },
+                                                                                                                  "planExpiresAtIso":  "2026-05-17T19:14:32.238Z"
+                                                                                                              },
+                                                                                      "effectiveBenefits":  {
+                                                                                                                "planTier":  "gold",
+                                                                                                                "flags":  {
+                                                                                                                              "likes_identity_unlocked":  true,
+                                                                                                                              "discover_advanced_filters":  true,
+                                                                                                                              "profile_hide_age_distance":  true,
+                                                                                                                              "messages_translation":  true,
+                                                                                                                              "messages_see_online":  false,
+                                                                                                                              "travel_pass_included":  false,
+                                                                                                                              "shadowghost_included":  false,
+                                                                                                                              "premium_badge":  true
+                                                                                                                          },
+                                                                                                                "byPage":  {
+                                                                                                                               "discover":  {
+                                                                                                                                                "discoverAdvancedFilters":  true
+                                                                                                                                            },
+                                                                                                                               "boost":  {
+                                                                                                                                             "likesIdentityUnlocked":  true,
+                                                                                                                                             "discoverAdvancedFilters":  true,
+                                                                                                                                             "profileHideAgeDistance":  true,
+                                                                                                                                             "messagesTranslation":  true,
+                                                                                                                                             "messagesSeeOnline":  false,
+                                                                                                                                             "travelPassIncluded":  false,
+                                                                                                                                             "shadowGhostIncluded":  false,
+                                                                                                                                             "premiumBadge":  true
+                                                                                                                                         },
+                                                                                                                               "profile":  {
+                                                                                                                                               "profileHideAgeDistance":  true,
+                                                                                                                                               "travelPassIncluded":  false,
+                                                                                                                                               "shadowGhostIncluded":  false,
+                                                                                                                                               "premiumBadge":  true
+                                                                                                                                           },
+                                                                                                                               "messages":  {
+                                                                                                                                                "messagesTranslation":  true,
+                                                                                                                                                "messagesSeeOnline":  false,
+                                                                                                                                                "premiumBadge":  true
+                                                                                                                                            }
+                                                                                                                           }
+                                                                                                            },
+                                                                                      "pendingAttribution":  false
+                                                                                  }
+                                                                     },
+                                                  "use":  null
+                                              },
+                                        "E":  {
+                                                  "afterBuy":  6,
+                                                  "afterConsume":  6
+                                              },
+                                        "F":  {
+                                                  "expected":  "locked like becomes unblurred",
+                                                  "observable":  {
+                                                                     "unlockedCount":  null,
+                                                                     "blurredAfterUse":  {
+
+                                                                                         }
+                                                                 }
+                                              },
+                                        "G":  {
+                                                  "afterReload":  6,
+                                                  "blurredAfterReload":  null
+                                              },
+                                        "H":  "FAIL"
+                                    },
+                     "shadowghost":  {
+                                         "A":  {
+                                                   "beforeEntitlement":  {
+                                                                             "source":  "shadowghost_item",
+                                                                             "expiresAtIso":  "2026-04-18T21:12:16.321Z",
+                                                                             "enablePrivacy":  true
+                                                                         },
+                                                   "beforeSetting":  false
+                                               },
+                                         "B":  "buy + activate shadow_ghost + swipe like",
+                                         "C":  [
+                                                   "/payments/checkout",
+                                                   "/payments/checkout/status",
+                                                   "supabase:/settings PATCH",
+                                                   "/discover/swipe"
+                                               ],
+                                         "D":  {
+                                                   "checkout":  {
+                                                                    "ok":  true,
+                                                                    "status":  200,
+                                                                    "body":  {
+                                                                                 "mode":  "mock",
+                                                                                 "checkoutId":  "dev_instantshadowghost_962a08ca89f6_1776460409635",
+                                                                                 "orderNumber":  "instantshadowghost_962a08ca89f6_1776460409635",
+                                                                                 "offer":  {
+                                                                                               "id":  "instant-shadowghost",
+                                                                                               "label":  "SHADOWGHOST",
+                                                                                               "description":  "Stealth visibility mode for 24 hours.",
+                                                                                               "tag":  "24H",
+                                                                                               "amountMinor":  9900,
+                                                                                               "currencyNumeric":  643,
+                                                                                               "type":  "instant",
+                                                                                               "durationHours":  24
+                                                                                           },
+                                                                                 "status":  "paid",
+                                                                                 "attributed":  true,
+                                                                                 "entitlementSnapshot":  {
+                                                                                                             "planTier":  "gold",
+                                                                                                             "planExpiresAtIso":  "2026-05-17T19:14:32.238Z",
+                                                                                                             "balancesDelta":  {
+                                                                                                                                   "boostsLeft":  100,
+                                                                                                                                   "superlikesLeft":  274,
+                                                                                                                                   "rewindsLeft":  277,
+                                                                                                                                   "icebreakersLeft":  6
+                                                                                                                               },
+                                                                                                             "travelPass":  {
+                                                                                                                                "source":  "bundle_included",
+                                                                                                                                "expiresAtIso":  "2026-05-17T18:22:56.504Z"
+                                                                                                                            },
+                                                                                                             "shadowGhost":  {
+                                                                                                                                 "source":  "shadowghost_item",
+                                                                                                                                 "expiresAtIso":  "2026-04-18T21:13:29.730Z",
+                                                                                                                                 "enablePrivacy":  true
+                                                                                                                             }
+                                                                                                         },
+                                                                                 "effectiveBenefits":  {
+                                                                                                           "planTier":  "gold",
+                                                                                                           "flags":  {
+                                                                                                                         "likes_identity_unlocked":  true,
+                                                                                                                         "discover_advanced_filters":  true,
+                                                                                                                         "profile_hide_age_distance":  true,
+                                                                                                                         "messages_translation":  true,
+                                                                                                                         "messages_see_online":  false,
+                                                                                                                         "travel_pass_included":  false,
+                                                                                                                         "shadowghost_included":  false,
+                                                                                                                         "premium_badge":  true
+                                                                                                                     },
+                                                                                                           "byPage":  {
+                                                                                                                          "discover":  {
+                                                                                                                                           "discoverAdvancedFilters":  true
+                                                                                                                                       },
+                                                                                                                          "boost":  {
+                                                                                                                                        "likesIdentityUnlocked":  true,
+                                                                                                                                        "discoverAdvancedFilters":  true,
+                                                                                                                                        "profileHideAgeDistance":  true,
+                                                                                                                                        "messagesTranslation":  true,
+                                                                                                                                        "messagesSeeOnline":  false,
+                                                                                                                                        "travelPassIncluded":  false,
+                                                                                                                                        "shadowGhostIncluded":  false,
+                                                                                                                                        "premiumBadge":  true
+                                                                                                                                    },
+                                                                                                                          "profile":  {
+                                                                                                                                          "profileHideAgeDistance":  true,
+                                                                                                                                          "travelPassIncluded":  false,
+                                                                                                                                          "shadowGhostIncluded":  false,
+                                                                                                                                          "premiumBadge":  true
+                                                                                                                                      },
+                                                                                                                          "messages":  {
+                                                                                                                                           "messagesTranslation":  true,
+                                                                                                                                           "messagesSeeOnline":  false,
+                                                                                                                                           "premiumBadge":  true
+                                                                                                                                       }
+                                                                                                                      }
+                                                                                                       },
+                                                                                 "pendingAttribution":  false,
+                                                                                 "message":  "DEV auto-grant mode enabled: purchase was instantly attributed."
+                                                                             }
+                                                                },
+                                                   "checkoutStatus":  {
+                                                                          "ok":  true,
+                                                                          "status":  200,
+                                                                          "body":  {
+                                                                                       "checkoutId":  "dev_instantshadowghost_962a08ca89f6_1776460409635",
+                                                                                       "status":  "paid",
+                                                                                       "attributed":  true,
+                                                                                       "entitlementSnapshot":  {
+                                                                                                                   "planTier":  "gold",
+                                                                                                                   "travelPass":  {
+                                                                                                                                      "source":  "bundle_included",
+                                                                                                                                      "expiresAtIso":  "2026-05-17T18:22:56.504Z"
+                                                                                                                                  },
+                                                                                                                   "shadowGhost":  {
+                                                                                                                                       "source":  "shadowghost_item",
+                                                                                                                                       "expiresAtIso":  "2026-04-18T21:13:29.730Z",
+                                                                                                                                       "enablePrivacy":  true
+                                                                                                                                   },
+                                                                                                                   "balancesDelta":  {
+                                                                                                                                         "boostsLeft":  100,
+                                                                                                                                         "rewindsLeft":  277,
+                                                                                                                                         "superlikesLeft":  274,
+                                                                                                                                         "icebreakersLeft":  6
+                                                                                                                                     },
+                                                                                                                   "planExpiresAtIso":  "2026-05-17T19:14:32.238Z"
+                                                                                                               },
+                                                                                       "effectiveBenefits":  {
+                                                                                                                 "planTier":  "gold",
+                                                                                                                 "flags":  {
+                                                                                                                               "likes_identity_unlocked":  true,
+                                                                                                                               "discover_advanced_filters":  true,
+                                                                                                                               "profile_hide_age_distance":  true,
+                                                                                                                               "messages_translation":  true,
+                                                                                                                               "messages_see_online":  false,
+                                                                                                                               "travel_pass_included":  false,
+                                                                                                                               "shadowghost_included":  false,
+                                                                                                                               "premium_badge":  true
+                                                                                                                           },
+                                                                                                                 "byPage":  {
+                                                                                                                                "discover":  {
+                                                                                                                                                 "discoverAdvancedFilters":  true
+                                                                                                                                             },
+                                                                                                                                "boost":  {
+                                                                                                                                              "likesIdentityUnlocked":  true,
+                                                                                                                                              "discoverAdvancedFilters":  true,
+                                                                                                                                              "profileHideAgeDistance":  true,
+                                                                                                                                              "messagesTranslation":  true,
+                                                                                                                                              "messagesSeeOnline":  false,
+                                                                                                                                              "travelPassIncluded":  false,
+                                                                                                                                              "shadowGhostIncluded":  false,
+                                                                                                                                              "premiumBadge":  true
+                                                                                                                                          },
+                                                                                                                                "profile":  {
+                                                                                                                                                "profileHideAgeDistance":  true,
+                                                                                                                                                "travelPassIncluded":  false,
+                                                                                                                                                "shadowGhostIncluded":  false,
+                                                                                                                                                "premiumBadge":  true
+                                                                                                                                            },
+                                                                                                                                "messages":  {
+                                                                                                                                                 "messagesTranslation":  true,
+                                                                                                                                                 "messagesSeeOnline":  false,
+                                                                                                                                                 "premiumBadge":  true
+                                                                                                                                             }
+                                                                                                                            }
+                                                                                                             },
+                                                                                       "pendingAttribution":  false
+                                                                                   }
+                                                                      },
+                                                   "activateSetting":  {
+                                                                           "ok":  true,
+                                                                           "status":  200,
+                                                                           "body":  {
+                                                                                        "value":  [
+                                                                                                      {
+                                                                                                          "user_id":  "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+                                                                                                          "language":  "en",
+                                                                                                          "distance_km":  50,
+                                                                                                          "age_min":  18,
+                                                                                                          "age_max":  65,
+                                                                                                          "gender_preference":  "everyone",
+                                                                                                          "created_at":  "2026-04-07T02:21:26.074001+00:00",
+                                                                                                          "updated_at":  "2026-04-17T21:26:52.35938+00:00",
+                                                                                                          "target_lang":  "en",
+                                                                                                          "auto_translate":  true,
+                                                                                                          "auto_detect_language":  true,
+                                                                                                          "notifications_enabled":  false,
+                                                                                                          "precise_location_enabled":  false,
+                                                                                                          "visibility":  "public",
+                                                                                                          "hide_age":  false,
+                                                                                                          "hide_distance":  false,
+                                                                                                          "incognito":  false,
+                                                                                                          "read_receipts":  true,
+                                                                                                          "shadow_ghost":  true,
+                                                                                                          "travel_pass_city":  null,
+                                                                                                          "phone_country_code":  null,
+                                                                                                          "phone_national_number":  null
+                                                                                                      }
+                                                                                                  ],
+                                                                                        "Count":  1
+                                                                                    }
+                                                                       },
+                                                   "swipe":  {
+                                                                 "ok":  true,
+                                                                 "status":  200,
+                                                                 "body":  {
+                                                                              "matched":  true,
+                                                                              "conversationId":  "match-962a08ca-313cf3ef"
+                                                                          }
+                                                             },
+                                                   "likeRow":  {
+                                                                   "ok":  true,
+                                                                   "status":  200,
+                                                                   "body":  {
+                                                                                "value":  [
+                                                                                              {
+                                                                                                  "id":  "a62276c9-7a75-4d67-aa45-3577e47cbb1b",
+                                                                                                  "hidden_by_shadowghost":  true,
+                                                                                                  "status":  "matched",
+                                                                                                  "created_at":  "2026-04-17T21:13:31.172+00:00"
+                                                                                              }
+                                                                                          ],
+                                                                                "Count":  1
+                                                                            }
+                                                               }
+                                               },
+                                         "E":  {
+                                                   "afterBuyEntitlement":  {
+                                                                               "source":  "shadowghost_item",
+                                                                               "expiresAtIso":  "2026-04-18T21:13:29.730Z",
+                                                                               "enablePrivacy":  true
+                                                                           },
+                                                   "hiddenByShadowGhost":  true
+                                               },
+                                         "F":  {
+                                                   "expected":  "ShadowGhost active and outgoing like hidden",
+                                                   "observable":  {
+                                                                      "setting":  true,
+                                                                      "hiddenByShadowGhostPersisted":  true
+                                                                  }
+                                               },
+                                         "G":  {
+                                                   "afterReloadEntitlement":  {
+                                                                                  "source":  "shadowghost_item",
+                                                                                  "expiresAtIso":  "2026-04-18T21:13:29.730Z",
+                                                                                  "enablePrivacy":  true
+                                                                              },
+                                                   "afterReloadSetting":  true
+                                               },
+                                         "H":  "PASS_BACKEND_RUNTIME_UI_VISUAL_PENDING"
+                                     }
+                 }
+}
