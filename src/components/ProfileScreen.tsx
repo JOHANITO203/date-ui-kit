@@ -4,7 +4,6 @@ import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
-import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, getTrackedEvents } from '../services';
 import { useRuntimeSelector } from '../state';
@@ -137,33 +136,56 @@ const ProfileScreen = () => {
         : previewPlan === 'free'
           ? t('settings.plan.free')
           : t('badges.premium');
-  const planToneClass =
-    previewPlan === 'elite'
-      ? 'border-fuchsia-300/32 bg-[radial-gradient(circle_at_88%_0%,rgba(217,70,239,0.24)_0%,transparent_58%),linear-gradient(160deg,rgba(15,10,18,0.96),rgba(10,8,14,0.92))] shadow-[0_0_34px_rgba(217,70,239,0.28)]'
-      : previewPlan === 'platinum'
-        ? 'border-cyan-300/32 bg-[radial-gradient(circle_at_88%_0%,rgba(56,189,248,0.22)_0%,transparent_58%),linear-gradient(160deg,rgba(10,14,18,0.96),rgba(7,10,14,0.92))] shadow-[0_0_34px_rgba(34,211,238,0.24)]'
-        : previewPlan === 'free'
-          ? 'border-slate-300/28 bg-[radial-gradient(circle_at_88%_0%,rgba(148,163,184,0.16)_0%,transparent_58%),linear-gradient(160deg,rgba(14,14,18,0.96),rgba(9,10,14,0.92))] shadow-[0_0_24px_rgba(148,163,184,0.15)]'
-          : 'border-amber-300/34 bg-[radial-gradient(circle_at_88%_0%,rgba(245,158,11,0.2)_0%,transparent_58%),linear-gradient(160deg,rgba(10,10,14,0.96),rgba(7,7,10,0.92))] shadow-[0_0_34px_rgba(245,158,11,0.24)]';
-  const planPillClass =
-    previewPlan === 'elite'
-      ? 'bg-gradient-to-r from-fuchsia-500 to-pink-500 text-white'
-      : previewPlan === 'platinum'
-        ? 'border border-cyan-300/40 bg-cyan-500/16 text-cyan-100'
-        : previewPlan === 'free'
-          ? 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
-          : 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black';
-  const planIconClass =
-    previewPlan === 'elite'
-      ? 'border-fuchsia-300/24 text-fuchsia-300 shadow-[0_0_14px_rgba(217,70,239,0.26)]'
-      : previewPlan === 'platinum'
-        ? 'border-cyan-300/24 text-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.24)]'
-        : previewPlan === 'free'
-          ? 'border-slate-300/24 text-slate-300'
-          : 'border-amber-300/20 text-amber-400';
   const planSubtitle = previewPlan === 'free' ? t('profile.premiumSubtitle') : t('profile.planGoldSubtitle');
   const hideAge = settings.privacy.hideAge;
   const hideDistance = settings.privacy.hideDistance;
+  const profileNameLabel =
+    profileAge !== undefined && !hideAge ? `${profileName}, ${profileAge}` : profileName;
+  const planBadgeTone = useMemo<CSSProperties>(
+    () => ({
+      background:
+        'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 66% / 0.95), hsl(var(--plan-comp-hue) 68% 60% / 0.92))',
+      borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 78% / 0.42)',
+      boxShadow: '0 8px 18px hsl(var(--plan-hue) var(--plan-sat) 55% / 0.28)',
+      color: 'hsl(0 0% 8% / 0.96)',
+    }),
+    [],
+  );
+  const accentTone = useMemo<CSSProperties>(
+    () => ({
+      color: 'hsl(var(--plan-hue) var(--plan-sat) 72% / 0.95)',
+    }),
+    [],
+  );
+  const accentCompTone = useMemo<CSSProperties>(
+    () => ({
+      color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.92)',
+    }),
+    [],
+  );
+  const planCardToneStyle = useMemo<CSSProperties>(
+    () => ({
+      background:
+        'radial-gradient(circle at 88% 0%, hsl(var(--plan-hue) var(--plan-sat) 56% / 0.2) 0%, transparent 58%), linear-gradient(160deg, rgba(12,12,16,0.96), rgba(8,8,12,0.92))',
+      boxShadow: '0 0 34px hsl(var(--plan-hue) var(--plan-sat) 52% / 0.24)',
+      borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 62% / 0.28)',
+    }),
+    [],
+  );
+  const planIconToneStyle = useMemo<CSSProperties>(
+    () => ({
+      borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 68% / 0.28)',
+      color: 'hsl(var(--plan-hue) var(--plan-sat) 72% / 0.92)',
+      boxShadow: '0 0 14px hsl(var(--plan-hue) var(--plan-sat) 52% / 0.24)',
+    }),
+    [],
+  );
+  const warningToneStyle = useMemo<CSSProperties>(
+    () => ({
+      color: 'hsl(var(--plan-comp-hue) 68% 72% / 0.88)',
+    }),
+    [],
+  );
   const canManagePrivacyControls = hasSubscriptionBenefit(previewPlan, 'profile_hide_age_distance');
   const travelPassServerAccess = resolveTravelPassServerAccess({
     planTier: previewPlan,
@@ -445,76 +467,64 @@ const ProfileScreen = () => {
         }}
       />
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-8 md:mb-10 px-[var(--page-x)]">
-        <div>
-          <h2 className="text-4xl font-black tracking-tighter mb-1">{t('profile.title')}</h2>
-          <p
-            className="text-xs uppercase tracking-[0.3em] font-bold"
-            style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 70% / 0.65)' }}
-          >
-            {t('profile.subtitle')}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          {isDesktop && (
-            <button
-              onClick={openServerSettings}
-              disabled={travelPassUiLocked}
-              aria-disabled={travelPassUiLocked}
-              className={`hidden xl:flex items-center gap-2 mr-6 px-4 py-2 glass rounded-full border border-white/5 transition-colors ${
-                travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:border-cyan-300/35'
-              }`}
+      <div className="relative z-10 px-[var(--page-x)] mb-6 md:mb-8">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-none">{t('profile.title')}</h2>
+            <p
+              className="mt-2 text-[11px] uppercase tracking-[0.22em] font-bold"
+              style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 72% / 0.72)' }}
             >
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] text-secondary uppercase tracking-widest font-black">
-                {t('profile.serverCity', { city: currentServerCityLabel })}
-              </span>
-              <span className="text-[9px] text-cyan-100/75 uppercase tracking-[0.14em] font-black">
-                {travelPassSourceLabel}
-              </span>
-              {travelPassUiLocked && <ICONS.Lock size={12} className="text-amber-300" />}
+              {t('profile.subtitle')}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/profile/edit')}
+              className="h-11 px-4 rounded-2xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black text-white/90 inline-flex items-center gap-2 hover:border-white/30 transition-colors"
+            >
+              <ICONS.Edit size={14} />
+              {t('profile.improve')}
             </button>
-          )}
-          <button 
-            onClick={() => navigate('/settings')} 
-            className="w-12 h-12 glass rounded-full flex items-center justify-center hover-effect transition-all"
-          >
-            <ICONS.Settings size={22} className="text-white" />
-          </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="w-11 h-11 rounded-2xl glass-panel-soft flex items-center justify-center hover:border-white/30 transition-colors"
+            >
+              <ICONS.Settings size={18} className="text-white" />
+            </button>
+          </div>
         </div>
       </div>
 
       <div className={`${isLarge ? 'container-dashboard screen-template-dashboard density-comfortable' : ''} relative z-10`}>
-      <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)] density-comfortable' : 'grid-cols-1 gap-[var(--section-gap)]'}`}>
-        {/* Left Column: Identity & Status */}
-        <div className={`${isLarge ? 'col-span-5' : ''} space-y-10`}>
-          <div
-            ref={(el) => {
-              sectionRefs.current[0] = el;
-            }}
-            className="relative group"
-          >
-            <motion.div 
-              whileHover={!isTouch ? { scale: 1.02 } : {}}
-              className="relative z-10"
+        <div className={`grid px-[var(--page-x)] ${isLarge ? 'grid-cols-12 gap-[var(--grid-gap)]' : 'grid-cols-1 gap-5'}`}>
+          {/* Left Column: Identity + Plan */}
+          <div className={`${isLarge ? 'col-span-4' : ''} space-y-5`}>
+            <section
+              ref={(el) => {
+                sectionRefs.current[0] = el;
+              }}
+              className="rounded-[var(--card-radius)] overflow-hidden border glass-panel glass-panel-float"
+              style={{ borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 62% / 0.25)' }}
             >
-              <div
-                className="aspect-square rounded-[var(--card-radius)] overflow-hidden border shadow-2xl"
-                style={{ borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)' }}
-              >
+              <div className="relative aspect-[0.95]">
                 {shadowGhostActive ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-600/25 via-black/70 to-sky-500/25 text-white">
-                    <div className="flex flex-col items-center gap-2">
-                      <ICONS.Ghost size={48} className="text-violet-200" />
-                      <span className="sr-only">{t('profile.stateOn')}</span>
-                    </div>
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{
+                      background:
+                        'linear-gradient(145deg, hsl(var(--plan-hue) var(--plan-sat) 24% / 0.34), rgba(5,5,8,0.78), hsl(var(--plan-comp-hue) 68% 26% / 0.24))',
+                    }}
+                  >
+                    <ICONS.Ghost size={54} style={accentCompTone} />
+                    <span className="sr-only">{t('profile.stateOn')}</span>
                   </div>
                 ) : profilePhotoUrl ? (
                   <img
                     src={profilePhotoAttrs.src}
                     srcSet={profilePhotoAttrs.srcSet}
                     sizes={profilePhotoAttrs.sizes}
-                    className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700"
+                    className="w-full h-full object-cover"
                     alt="Me"
                     loading="eager"
                     decoding="async"
@@ -522,489 +532,431 @@ const ProfileScreen = () => {
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-fuchsia-700/35 via-zinc-900 to-sky-700/30 flex items-center justify-center">
-                    <ICONS.Profile size={56} className="text-white/70" />
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{
+                      background:
+                        'linear-gradient(145deg, hsl(var(--plan-hue) var(--plan-sat) 24% / 0.32), rgba(11,11,14,0.96), hsl(var(--plan-comp-hue) 68% 24% / 0.22))',
+                    }}
+                  >
+                    <ICONS.Profile size={58} className="text-white/65" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                
-                <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between">
-                  <div>
-                    <div className="mb-1">
-                      <NameWithBadge
-                        name={profileName}
-                        age={profileAge}
-                        ageMasked={hideAge}
-                        verified={verifiedIdentity}
-                        premiumTier={previewPlan}
-                        size="xl"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 text-white/60 text-xs font-bold uppercase tracking-widest">
-                      <ICONS.MapPin size={12} className="text-pink-500" /> {profileCity || t('settings.cities.moscow')}
-                    </div>
-                  </div>
-                  <button 
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute top-4 left-4 right-4 flex items-center justify-end gap-2">
+                  <button
                     onClick={() => navigate('/profile/edit')}
-                    className="w-12 h-12 glass rounded-2xl flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                    className="w-9 h-9 rounded-xl bg-black/45 border border-white/20 inline-flex items-center justify-center hover:bg-black/60 transition-colors"
                   >
-                    <ICONS.Edit size={20} />
+                    <ICONS.Edit size={14} />
                   </button>
                 </div>
-              </div>
-            </motion.div>
-            {/* Decorative background element */}
-            <div className="absolute -inset-4 bg-pink-500/5 blur-3xl rounded-full -z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-          </div>
-
-          {/* Current Plan Card (Gold Theme) */}
-          <div
-            ref={(el) => {
-              sectionRefs.current[1] = el;
-            }}
-            className={`relative overflow-hidden product-card-base cursor-pointer ${planToneClass}`}
-            style={{
-              borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.32)',
-              boxShadow: '0 0 30px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.24)',
-            }}
-          >
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[0.58rem] font-black uppercase tracking-[0.16em] ${planPillClass}`}>
-                  {planBadgeLabel}
-                </span>
-                <div className={`ml-auto w-10 h-10 rounded-2xl glass-panel-soft flex items-center justify-center ${planIconClass}`}>
-                  <ICONS.Star size={16} />
+                <div className="absolute bottom-5 left-5 right-5 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-[length:var(--name-xl)] min-w-0 font-black tracking-tight leading-none whitespace-nowrap">
+                      {profileNameLabel}
+                    </span>
+                    {verifiedIdentity && (
+                      <span
+                        className="w-[var(--verified-badge-size)] h-[var(--verified-badge-size)] rounded-full border border-white/45 flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: 'hsl(var(--plan-comp-hue) 68% 56% / 0.9)',
+                          boxShadow: '0 6px 16px hsl(var(--plan-comp-hue) 68% 54% / 0.32)',
+                        }}
+                        aria-label={t('badges.verified')}
+                        title={t('badges.verified')}
+                      >
+                        <svg viewBox="0 0 12 12" className="w-[9px] h-[9px] text-white" aria-hidden>
+                          <path
+                            d="M2.2 6.2 4.8 8.7 9.8 3.7"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    )}
+                    {previewPlan !== 'free' && (
+                      <span
+                        className="h-[var(--verified-badge-size)] rounded-full border px-2.5 inline-flex items-center justify-center text-[9px] font-black uppercase tracking-[0.12em] shrink-0"
+                        style={planBadgeTone}
+                      >
+                        {planBadgeLabel}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-white/70 text-[11px] font-bold uppercase tracking-[0.16em]">
+                    <ICONS.MapPin size={12} style={accentTone} />
+                    {profileCity || t('settings.cities.moscow')}
+                  </div>
                 </div>
               </div>
-              <h4 className="font-black italic tracking-tighter text-[clamp(2rem,3vw,2.6rem)] leading-[0.92] text-white mb-2">{planTitle}</h4>
-              <p className="text-secondary text-sm leading-relaxed mb-5">{planSubtitle}</p>
+              <div className="p-4 grid grid-cols-2 gap-2 bg-black/20">
+                <button
+                  onClick={() => navigate('/discover')}
+                  className="h-10 rounded-xl bg-white/8 border border-white/15 text-[10px] font-black uppercase tracking-[0.15em] hover:bg-white/12 transition-colors"
+                >
+                  {t('profile.preview')}
+                </button>
+                <button
+                  onClick={() => navigate('/boost')}
+                  className="h-10 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] text-black"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 64% / 0.95), hsl(var(--plan-comp-hue) 72% 60% / 0.95))',
+                  }}
+                >
+                  {t('settings.plan.manage')}
+                </button>
+              </div>
+            </section>
 
-              <div className="grid grid-cols-4 gap-2 mb-5">
+            <section
+              ref={(el) => {
+                sectionRefs.current[1] = el;
+              }}
+              className="rounded-[var(--card-radius)] p-5 md:p-6 space-y-5 border"
+              style={planCardToneStyle}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-white/55 font-black">Active plan</p>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight">{planTitle}</h3>
+                  <p className="text-xs text-white/65 mt-1 leading-relaxed">{planSubtitle}</p>
+                </div>
+                <span className="w-10 h-10 rounded-2xl glass-panel-soft inline-flex items-center justify-center border" style={planIconToneStyle}>
+                  <ICONS.Star size={16} />
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
                 {([
                   {
                     id: 'superlikes',
                     label: t('settings.tokens.superlikes'),
                     value: balances.superlikes,
-                    glow: 'rgb(var(--glow-pink) / 0.18)',
                     Icon: ICONS.Heart,
-                    iconClass: 'text-pink-300',
+                    iconStyle: accentCompTone,
                   },
                   {
                     id: 'boosts',
                     label: t('settings.tokens.boosts'),
                     value: balances.boosts,
-                    glow: 'rgb(var(--glow-gold) / 0.18)',
                     Icon: ICONS.Zap,
-                    iconClass: 'text-amber-300',
+                    iconStyle: accentTone,
                   },
                   {
                     id: 'rewinds',
                     label: t('settings.tokens.rewinds'),
                     value: balances.rewinds,
-                    glow: 'rgb(var(--glow-blue) / 0.18)',
                     Icon: ICONS.Rewind,
-                    iconClass: 'text-blue-300',
+                    iconStyle: { color: 'hsl(var(--plan-hue) var(--plan-sat) 78% / 0.86)' },
                   },
                   {
                     id: 'icebreakers',
                     label: t('likes.iceBreakerTitle'),
                     value: balances.icebreakers,
-                    glow: 'rgb(var(--glow-cyan) / 0.18)',
                     Icon: ICONS.Star,
-                    iconClass: 'text-cyan-300',
+                    iconStyle: { color: 'hsl(var(--plan-comp-hue) 68% 72% / 0.9)' },
                   },
                 ] as const).map((item) => (
-                  <div key={item.id} className="rounded-xl glass-panel-soft p-2 text-center" style={{ boxShadow: `0 0 16px ${item.glow}` }}>
-                    <div className={`mx-auto mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/5 ${item.iconClass}`}>
-                      <item.Icon size={12} />
+                  <div key={item.id} className="rounded-xl glass-panel-soft px-3 py-2.5 border border-white/10">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5" style={item.iconStyle}>
+                        <item.Icon size={12} />
+                      </span>
+                      <motion.span
+                        key={`${item.id}-${item.value}`}
+                        initial={{ opacity: 0, y: -2 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-lg font-black leading-none"
+                      >
+                        {item.value}
+                      </motion.span>
                     </div>
-                    <motion.div
-                      key={`${item.id}-${item.value}`}
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-lg font-black leading-none"
-                    >
-                      {item.value}
-                    </motion.div>
-                    <div className="text-[9px] uppercase tracking-widest text-secondary font-bold mt-1 line-clamp-1">{item.label}</div>
+                    <p className="mt-1 text-[9px] uppercase tracking-[0.14em] text-white/55 font-black">{item.label}</p>
                   </div>
                 ))}
               </div>
-
-              <GlassButton
-                onClick={() => navigate('/boost')}
-                className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-black border-0"
-                style={{
-                  background:
-                    'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 64% / 0.95), hsl(var(--plan-comp-hue) 72% 60% / 0.95))',
-                }}
-              >
-                {t('settings.plan.manage')}
-              </GlassButton>
-            </div>
+            </section>
           </div>
-        </div>
 
-        {/* Right Column: Performance & Insights */}
-        <div className={`${isLarge ? 'col-span-7' : ''} space-y-6 md:space-y-8`}>
-          {/* Stats Bento Grid */}
-          <div
-            ref={(el) => {
-              sectionRefs.current[2] = el;
-            }}
-            className={`grid gap-[var(--grid-gap)] ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}
-          >
-            <div
-              className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-blue-400/35 transition-colors"
-              style={{
-                boxShadow: '0 0 18px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.18)',
-                borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)',
+          {/* Right Column: Metrics + Controls */}
+          <div className={`${isLarge ? 'col-span-8' : ''} space-y-5`}>
+            <section
+              ref={(el) => {
+                sectionRefs.current[2] = el;
               }}
+              className={`grid gap-3 ${isDesktop ? 'grid-cols-3' : 'grid-cols-1'}`}
             >
-              <div className="flex justify-between items-start">
-                <div
-                  className="p-3 rounded-2xl group-hover:scale-110 transition-transform"
-                  style={{
-                    backgroundColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.14)',
-                    color: 'hsl(var(--plan-hue) var(--plan-sat) 70% / 0.9)',
-                  }}
-                >
-                  <ICONS.Eye size={24} />
-                </div>
-                <span
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 70% / 0.8)' }}
-                >
-                  +35%
-                </span>
-              </div>
-              <div>
-                <span className="text-4xl font-black tracking-tighter block">{profileViewsCount.toLocaleString()}</span>
-                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">{t('profile.profileViews')}</span>
-              </div>
-            </div>
-            
-            <div
-              className="p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-4 group hover:border-pink-400/35 transition-colors"
-              style={{
-                boxShadow: '0 0 18px hsl(var(--plan-comp-hue) 68% 58% / 0.18)',
-                borderColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.24)',
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <div
-                  className="p-3 rounded-2xl group-hover:scale-110 transition-transform"
-                  style={{
-                    backgroundColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.14)',
-                    color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.95)',
-                  }}
-                >
-                  <ICONS.Heart size={24} />
-                </div>
-                <span
-                  className="text-[10px] font-black uppercase tracking-widest"
-                  style={{ color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.85)' }}
-                >
-                  Exact
-                </span>
-              </div>
-              <div>
-                <span className="text-4xl font-black tracking-tighter block">{matchesCount.toLocaleString()}</span>
-                <span className="text-[10px] text-secondary uppercase tracking-[0.2em] font-bold">{t('profile.newMatches')}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Profile Completion */}
-          <div
-            ref={(el) => {
-              sectionRefs.current[3] = el;
-            }}
-            className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-violet-400/30 space-y-8 relative overflow-hidden transition-colors"
-            style={{
-              boxShadow: '0 0 18px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.14)',
-              borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)',
-            }}
-          >
-            <div className="flex justify-between items-end relative z-10">
-              <div className="space-y-2">
-                <h4 className="text-2xl font-bold">{t('profile.visibilityTitle')}</h4>
-                <p className="text-secondary text-sm">{t('profile.visibilitySubtitle')}</p>
-              </div>
-              <div className="text-right">
-                <span
-                  className="text-5xl font-black tracking-tighter"
-                  style={{ color: 'hsl(var(--plan-comp-hue) 68% 62% / 0.95)' }}
-                >
-                  {visibilityScore}%
-                </span>
-              </div>
-            </div>
-            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden relative z-10">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${visibilityScore}%` }}
-                transition={{ duration: 1.5, ease: "circOut" }}
-                className="h-full rounded-full"
-                style={{
-                  background:
-                    'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 62% / 0.9), hsl(var(--plan-comp-hue) 68% 60% / 0.9))',
-                  boxShadow: '0 0 20px hsl(var(--plan-comp-hue) 68% 60% / 0.35)',
-                }}
-              />
-            </div>
-            <div className="flex gap-4 relative z-10">
-              <button
-                onClick={() => navigate('/profile/edit')}
-                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest transition-all"
-                style={{
-                  borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.28)',
-                  boxShadow: '0 0 16px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.16)',
-                }}
-              >
-                {t('profile.improve')}
-              </button>
-              <button
-                onClick={() => navigate('/discover')}
-                className="flex-1 py-4 rounded-2xl glass-panel-soft text-[10px] font-black uppercase tracking-widest transition-all"
-                style={{
-                  borderColor: 'hsl(var(--plan-comp-hue) 68% 60% / 0.3)',
-                  boxShadow: '0 0 16px hsl(var(--plan-comp-hue) 68% 60% / 0.18)',
-                }}
-              >
-                {t('profile.preview')}
-              </button>
-            </div>
-          </div>
-
-          {/* Special Access Panel */}
-          <div
-            className="p-6 md:p-8 rounded-[var(--card-radius)] glass-panel glass-panel-float space-y-6 transition-colors"
-            style={{
-              boxShadow: '0 0 16px hsl(var(--plan-hue) var(--plan-sat) 60% / 0.12)',
-              borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.2)',
-            }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h4 className="text-xl font-black italic uppercase tracking-tight">{t('profile.controlTitle')}</h4>
-              </div>
-            </div>
-
-            <div className={`grid gap-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              <div
-                className="rounded-2xl glass-panel-soft p-4 space-y-4 transition-colors"
-                style={{ borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 60% / 0.22)' }}
-              >
-                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.privacyLabel')}</div>
+              <div className="p-5 rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold">{t('settings.items.hideAge')}</span>
-                  <button
-                    onClick={() => {
-                      if (!canManagePrivacyControls) {
-                        navigate('/boost');
-                        return;
-                      }
-                      void appApi.patchSettings({
-                        patch: {
-                          privacy: {
-                            hideAge: !hideAge,
-                          },
-                        },
-                      });
-                    }}
-                    aria-pressed={hideAge}
-                    className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
-                      hideAge ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
-                    }`}
-                  >
-                    <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideAge ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(236,72,153,0.45)] group-hover:shadow-[0_0_18px_rgba(236,72,153,0.65)]' : 'left-[3px] bg-black/90'}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold">{t('settings.items.hideDistance')}</span>
-                  <button
-                    onClick={() => {
-                      if (!canManagePrivacyControls) {
-                        navigate('/boost');
-                        return;
-                      }
-                      void appApi.patchSettings({
-                        patch: {
-                          privacy: {
-                            hideDistance: !hideDistance,
-                          },
-                        },
-                      });
-                    }}
-                    aria-pressed={hideDistance}
-                    className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
-                      hideDistance ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
-                    }`}
-                  >
-                    <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideDistance ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(59,130,246,0.45)] group-hover:shadow-[0_0_18px_rgba(59,130,246,0.65)]' : 'left-[3px] bg-black/90'}`} />
-                  </button>
-                </div>
-                <button
-                  onClick={() => navigate('/settings/privacy')}
-                  className="w-full mt-2 py-2.5 rounded-xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black hover:border-pink-400/35 hover:shadow-[0_0_14px_rgba(236,72,153,0.2)] transition-all inline-flex items-center justify-center gap-1.5"
-                >
-                  {!canManagePrivacyControls && <ICONS.Lock size={12} className="text-amber-300" />}
-                  {t('settings.sections.privacy')}
-                </button>
-              </div>
-
-              <div
-                className="rounded-2xl glass-panel-soft p-4 space-y-4 transition-colors"
-                style={{ borderColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.22)' }}
-              >
-                <div className="text-[10px] uppercase tracking-[0.18em] font-black text-secondary">{t('profile.benefits')}</div>
-                <div className="flex items-center justify-between rounded-xl glass-panel-soft px-3 py-2">
-                  <span
-                    className="inline-flex items-center justify-center w-10 h-10 rounded-xl border shadow-[0_0_14px_rgba(167,139,250,0.35)]"
-                    style={{
-                      backgroundColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.14)',
-                      borderColor: 'hsl(var(--plan-comp-hue) 68% 58% / 0.25)',
-                      color: 'hsl(var(--plan-comp-hue) 68% 68% / 0.95)',
-                    }}
-                  >
-                    <ICONS.Ghost size={22} className="text-current" />
+                  <span className="inline-flex p-2 rounded-xl bg-white/6" style={accentTone}>
+                    <ICONS.Eye size={16} />
                   </span>
-                  <button
-                    onClick={() => {
-                      if (shadowGhostLocked) {
-                        navigate('/boost');
-                        return;
-                      }
-                      void appApi.patchSettings({
-                        patch: {
-                          privacy: {
-                            shadowGhost: !settings.privacy.shadowGhost,
-                          },
-                        },
-                      });
-                    }}
-                    className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
-                  >
-                    {shadowGhostLocked && <ICONS.Lock size={12} className="text-amber-300" />}
-                    <ICONS.Ghost size={12} className="text-violet-200" />
-                    <span className="sr-only">
-                      {shadowGhostLocked
-                        ? t('profile.locked')
-                        : settings.privacy.shadowGhost
-                          ? t('profile.stateOn')
-                          : t('profile.stateOff')}
-                    </span>
-                  </button>
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-white/45 font-black">{t('profile.profileViews')}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>{t('profile.onlineFilter')}</span>
+                <p className="mt-4 text-3xl font-black tracking-tight">{profileViewsCount.toLocaleString()}</p>
+              </div>
+
+              <div className="p-5 rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex p-2 rounded-xl bg-white/6" style={accentCompTone}>
+                    <ICONS.Heart size={16} />
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-white/45 font-black">{t('profile.newMatches')}</span>
+                </div>
+                <p className="mt-4 text-3xl font-black tracking-tight">{matchesCount.toLocaleString()}</p>
+              </div>
+
+              <div
+                ref={(el) => {
+                  sectionRefs.current[3] = el;
+                }}
+                className="p-5 rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-white/45 font-black">{t('profile.visibilityTitle')}</span>
+                  <span
+                    className="text-2xl font-black tracking-tight"
+                    style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 72% / 0.96)' }}
+                  >
+                    {visibilityScore}%
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-white/55">{t('profile.visibilitySubtitle')}</p>
+                <div className="mt-4 h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${visibilityScore}%` }}
+                    transition={{ duration: 1.2, ease: 'circOut' }}
+                    className="h-full rounded-full"
+                    style={{
+                      background:
+                        'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 62% / 0.95), hsl(var(--plan-comp-hue) 68% 60% / 0.95))',
+                    }}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10 p-5 md:p-6 space-y-5">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-lg font-black uppercase tracking-[0.08em]">{t('profile.controlTitle')}</h4>
+                {isDesktop && (
                   <button
-                    onClick={() => setOnlineOnly((v) => !v)}
-                    aria-pressed={onlineOnly}
-                    className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
-                      onlineOnly ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
+                    onClick={openServerSettings}
+                    disabled={travelPassUiLocked}
+                    aria-disabled={travelPassUiLocked}
+                    className={`h-9 px-3 rounded-xl bg-white/8 border border-white/15 text-[10px] uppercase tracking-[0.14em] font-black inline-flex items-center gap-1.5 ${
+                      travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/12'
                     }`}
                   >
-                    <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${onlineOnly ? 'left-[25px] bg-black shadow-[0_0_14px_rgba(34,211,238,0.45)] group-hover:shadow-[0_0_18px_rgba(34,211,238,0.65)]' : 'left-[3px] bg-black/90'}`} />
+                    {travelPassUiLocked && <ICONS.Lock size={11} style={warningToneStyle} />}
+                    {t('profile.serverCity', { city: currentServerCityLabel })}
                   </button>
-                </div>
-                <div className="rounded-xl glass-panel-soft px-3 py-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-white/55 font-black">
-                        {t('settings.items.travelPass')}
-                      </span>
-                      <span className="text-sm font-bold text-white">{currentServerCityLabel}</span>
-                    </div>
+                )}
+              </div>
+
+              <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <div className="rounded-2xl glass-panel-soft border border-white/10 p-4 space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 font-black">{t('profile.privacyLabel')}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">{t('settings.items.hideAge')}</span>
                     <button
-                      onClick={openServerSettings}
-                      disabled={travelPassUiLocked}
-                      aria-disabled={travelPassUiLocked}
-                      className={`h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary transition-colors inline-flex items-center gap-1.5 ${
-                        travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/12'
+                      onClick={() => {
+                        if (!canManagePrivacyControls) {
+                          navigate('/boost');
+                          return;
+                        }
+                        void appApi.patchSettings({
+                          patch: {
+                            privacy: {
+                              hideAge: !hideAge,
+                            },
+                          },
+                        });
+                      }}
+                      aria-pressed={hideAge}
+                      className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
+                        hideAge ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
                       }`}
                     >
-                      {travelPassUiLocked && <ICONS.Lock size={12} className="text-amber-300" />}
-                      {t('settings.travelPass.changeServerCta')}
+                      <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideAge ? 'left-[25px] bg-black' : 'left-[3px] bg-black/90'}`} />
                     </button>
                   </div>
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-cyan-100/70 font-black">
-                    {travelPassSourceLabel}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">{t('settings.items.hideDistance')}</span>
+                    <button
+                      onClick={() => {
+                        if (!canManagePrivacyControls) {
+                          navigate('/boost');
+                          return;
+                        }
+                        void appApi.patchSettings({
+                          patch: {
+                            privacy: {
+                              hideDistance: !hideDistance,
+                            },
+                          },
+                        });
+                      }}
+                      aria-pressed={hideDistance}
+                      className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
+                        hideDistance ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
+                      }`}
+                    >
+                      <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideDistance ? 'left-[25px] bg-black' : 'left-[3px] bg-black/90'}`} />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => navigate('/settings/privacy')}
+                    className="w-full h-9 rounded-xl bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black inline-flex items-center justify-center gap-1.5 hover:bg-white/12 transition-colors"
+                  >
+                    {!canManagePrivacyControls && <ICONS.Lock size={11} style={warningToneStyle} />}
+                    {t('settings.sections.privacy')}
+                  </button>
                 </div>
-                <button
-                  onClick={() => navigate('/discover')}
-                  className="w-full mt-2 py-2.5 rounded-xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black text-white/90 hover:border-cyan-400/35 hover:shadow-[0_0_14px_rgba(34,211,238,0.2)] transition-all"
-                >
-                  {t('profile.openDiscover')}
-                </button>
+
+                <div className="rounded-2xl glass-panel-soft border border-white/10 p-4 space-y-4">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 font-black">{t('profile.benefits')}</p>
+                  <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                      <ICONS.Ghost size={14} style={accentCompTone} />
+                      ShadowGhost
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (shadowGhostLocked) {
+                          navigate('/boost');
+                          return;
+                        }
+                        void appApi.patchSettings({
+                          patch: {
+                            privacy: {
+                              shadowGhost: !settings.privacy.shadowGhost,
+                            },
+                          },
+                        });
+                      }}
+                      className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
+                    >
+                      {shadowGhostLocked && <ICONS.Lock size={11} style={warningToneStyle} />}
+                      {settings.privacy.shadowGhost ? t('profile.stateOn') : t('profile.stateOff')}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2">
+                    <span className="text-sm font-semibold">{t('profile.onlineFilter')}</span>
+                    <button
+                      onClick={() => setOnlineOnly((v) => !v)}
+                      aria-pressed={onlineOnly}
+                      className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
+                        onlineOnly ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
+                      }`}
+                    >
+                      <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${onlineOnly ? 'left-[25px] bg-black' : 'left-[3px] bg-black/90'}`} />
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-white/55 font-black">
+                        {t('settings.items.travelPass')}
+                      </span>
+                      <button
+                        onClick={openServerSettings}
+                        disabled={travelPassUiLocked}
+                        aria-disabled={travelPassUiLocked}
+                        className={`h-7 px-2.5 rounded-lg bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.12em] font-black ${
+                          travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/12'
+                        }`}
+                      >
+                        {t('settings.travelPass.changeServerCta')}
+                      </button>
+                    </div>
+                    <p className="text-sm font-bold text-white">{currentServerCityLabel}</p>
+                    <p
+                      className="text-[10px] uppercase tracking-[0.12em] font-black"
+                      style={{ color: 'hsl(var(--plan-comp-hue) 68% 76% / 0.72)' }}
+                    >
+                      {travelPassSourceLabel}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          {/* Quick Actions */}
-          <div
-            ref={(el) => {
-              sectionRefs.current[4] = el;
-            }}
-            className="grid grid-cols-2 md:grid-cols-3 gap-[var(--grid-gap)]"
-          >
-            {[
-              { icon: <ICONS.Shield size={20} />, label: t('profile.quickActions.security'), color: 'text-blue-400', to: '/settings/privacy' },
-              { icon: <ICONS.Zap size={20} />, label: t('profile.quickActions.boost'), color: 'text-orange-400', to: '/boost' },
-              { icon: <ICONS.HelpCircle size={20} />, label: t('profile.quickActions.help'), color: 'text-green-400', to: '/settings/account' }
-            ].map((action, i) => (
-              <button 
-                key={i}
-                onClick={() => navigate(action.to)}
-                className="p-6 rounded-[var(--card-radius)] glass-panel glass-panel-float flex flex-col items-center gap-3 transition-all group hover:border-white/30"
-              >
-                <div className={`p-3 rounded-2xl bg-white/5 ${action.color} group-hover:scale-110 transition-transform`}>
-                  {action.icon}
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">{action.label}</span>
-              </button>
-            ))}
-          </div>
+            <section
+              ref={(el) => {
+                sectionRefs.current[4] = el;
+              }}
+              className="space-y-3"
+            >
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: <ICONS.Shield size={18} />, label: t('profile.quickActions.security'), to: '/settings/privacy' },
+                  { icon: <ICONS.Zap size={18} />, label: t('profile.quickActions.boost'), to: '/boost' },
+                  { icon: <ICONS.HelpCircle size={18} />, label: t('profile.quickActions.help'), to: '/settings/account' },
+                ].map((action) => (
+                  <button
+                    key={action.to}
+                    onClick={() => navigate(action.to)}
+                    className="h-20 rounded-2xl glass-panel glass-panel-float border border-white/10 hover:border-white/25 transition-colors flex flex-col items-center justify-center gap-2"
+                  >
+                    <span className="text-white/80">{action.icon}</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.12em] text-white/70">{action.label}</span>
+                  </button>
+                ))}
+              </div>
 
-          {/* Options */}
-          <div className="rounded-[var(--card-radius)] glass-panel glass-panel-float hover:border-white/25 overflow-hidden transition-colors">
-            {[
-              { icon: <ICONS.Profile size={16} />, label: t('settings.sections.account'), to: '/settings/account' },
-              { icon: <ICONS.Shield size={16} />, label: t('settings.sections.privacy'), to: '/settings/privacy' },
-              { icon: <ICONS.Bell size={16} />, label: t('settings.sections.notifications'), to: '/settings/notifications' },
-              { icon: <ICONS.Settings size={16} />, label: t('settings.sections.preferences'), to: '/settings/preferences' },
-            ].map((item, index, arr) => (
-              <button
-                key={item.to}
-                onClick={() => navigate(item.to)}
-                className={`w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/6 transition-colors ${
-                  index < arr.length - 1 ? 'border-b border-white/5' : ''
-                }`}
-              >
-                <span className="flex items-center gap-3 text-sm font-semibold">
-                  <span className="text-white/70">{item.icon}</span>
-                  {item.label}
-                </span>
-                <ICONS.ChevronLeft size={16} className="text-white/35 rotate-180" />
-              </button>
-            ))}
+              <div className="rounded-2xl glass-panel glass-panel-float border border-white/10 overflow-hidden">
+                {[
+                  { icon: <ICONS.Profile size={16} />, label: t('settings.sections.account'), to: '/settings/account' },
+                  { icon: <ICONS.Shield size={16} />, label: t('settings.sections.privacy'), to: '/settings/privacy' },
+                  { icon: <ICONS.Bell size={16} />, label: t('settings.sections.notifications'), to: '/settings/notifications' },
+                  { icon: <ICONS.Settings size={16} />, label: t('settings.sections.preferences'), to: '/settings/preferences' },
+                ].map((item, index, arr) => (
+                  <button
+                    key={item.to}
+                    onClick={() => navigate(item.to)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/6 transition-colors ${
+                      index < arr.length - 1 ? 'border-b border-white/5' : ''
+                    }`}
+                  >
+                    <span className="flex items-center gap-3 text-sm font-semibold text-white/90">
+                      <span className="text-white/65">{item.icon}</span>
+                      {item.label}
+                    </span>
+                    <ICONS.ChevronLeft size={14} className="text-white/35 rotate-180" />
+                  </button>
+                ))}
+              </div>
+            </section>
           </div>
         </div>
-      </div>
       </div>
 
       {showDesktopRail && (
         <div className="fixed right-0 top-0 bottom-0 w-20 z-30 pointer-events-none">
           <div className="group/profile-rail h-full w-full flex items-center justify-center pointer-events-auto">
             <div className="flex items-center opacity-0 transition-opacity duration-200 group-hover/profile:opacity-100 group-focus-within/profile:opacity-100 group-hover/profile-rail:opacity-100">
-              <div className="rounded-full p-[1px] bg-gradient-to-b from-pink-500 via-fuchsia-500 to-blue-500 shadow-[0_0_14px_rgba(168,85,247,0.28)]">
+              <div
+                className="rounded-full p-[1px]"
+                style={{
+                  background:
+                    'linear-gradient(180deg, hsl(var(--plan-hue) var(--plan-sat) 62% / 0.92), hsl(var(--plan-comp-hue) 68% 60% / 0.9))',
+                  boxShadow: '0 0 14px hsl(var(--plan-hue) var(--plan-sat) 54% / 0.28)',
+                }}
+              >
                 <div className="relative w-3 h-52 rounded-full bg-[#09090c]/95 overflow-hidden">
                   <div
-                    className="absolute left-0.5 right-0.5 rounded-full bg-gradient-to-b from-pink-400 via-fuchsia-400 to-blue-400"
+                    className="absolute left-0.5 right-0.5 rounded-full"
                     style={{
+                      background:
+                        'linear-gradient(180deg, hsl(var(--plan-hue) var(--plan-sat) 70% / 0.95), hsl(var(--plan-comp-hue) 68% 66% / 0.92))',
                       height: `${profileScrollThumb}%`,
                       top: `${profileScrollProgress * (100 - profileScrollThumb)}%`,
                     }}
