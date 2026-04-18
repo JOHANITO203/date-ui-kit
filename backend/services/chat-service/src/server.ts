@@ -13,7 +13,6 @@ import {
 } from "./data";
 import type { ChatMessage } from "./types";
 import type { ProfileCard } from "./types";
-import { startActorEngine } from "./actorEngine";
 import { resolveImageAccessPolicy, type ImageAccessPolicy } from "./imageAccessPolicy";
 
 const openChatSchema = z.object({
@@ -285,55 +284,6 @@ const loadPeerProfiles = async (
 };
 
 const translationSettingsByConversation = new Map<string, TranslationSetting>();
-const autoReplyStateByConversation = new Map<
-  string,
-  {
-    count: number;
-    actionDone: boolean;
-  }
->();
-
-const AUTO_REPLY_MAX = 3;
-const AUTO_REPLY_ACTION_BLOCK_RATE = 0.35;
-
-const RU_REPLY_TEMPLATES = [
-  "Понял тебя, звучит интересно.",
-  "Хорошо, давай продолжим общение.",
-  "Отлично, я на связи позже сегодня.",
-  "Спасибо, мне нравится твой настрой.",
-];
-
-const EN_REPLY_TEMPLATES = [
-  "Got you, that sounds interesting.",
-  "Nice, let's keep talking.",
-  "Great, I will be online later today.",
-  "Thanks, I like your vibe.",
-];
-
-const hasCyrillic = (value: string) => /[\u0400-\u04FF]/.test(value);
-
-const resolveReplyLocale = (input: {
-  userText: string;
-  translationTargetLocale?: "en" | "ru";
-}): "en" | "ru" => {
-  if (hasCyrillic(input.userText)) return "ru";
-  if (input.translationTargetLocale === "ru") return "ru";
-  return "en";
-};
-
-const getReplyText = (input: {
-  userText: string;
-  replyIndex: number;
-  translationTargetLocale?: "en" | "ru";
-}) => {
-  const locale = resolveReplyLocale({
-    userText: input.userText,
-    translationTargetLocale: input.translationTargetLocale,
-  });
-  const templates = locale === "ru" ? RU_REPLY_TEMPLATES : EN_REPLY_TEMPLATES;
-  return templates[input.replyIndex % templates.length];
-};
-
 const getTranslationSetting = (userId: string, conversationId: string): TranslationSetting =>
   translationSettingsByConversation.get(toTranslationMapKey(userId, conversationId)) ?? {
     enabled: false,
@@ -360,181 +310,12 @@ export const buildServer = () => {
     allowedHeaders: ["Content-Type", "Authorization"],
   });
 
-  const stopActorEngine = startActorEngine(app.log);
-  if (stopActorEngine) {
-    app.addHook("onClose", async () => {
-      stopActorEngine();
-    });
-  }
-
-  const scheduleIncomingReply = (input: {
+  const scheduleIncomingReply = (_input: {
     userId: string;
     conversationId: string;
     peerProfileId: string;
     userText: string;
-  }) => {
-    const stateKey = toTranslationMapKey(input.userId, input.conversationId);
-    const existingReplyState = autoReplyStateByConversation.get(stateKey) ?? {
-      count: 0,
-      actionDone: false,
-    };
-    if (existingReplyState.count >= AUTO_REPLY_MAX) return;
-
-    setTimeout(async () => {
-      const createdAtIso = new Date().toISOString();
-      const translationSetting = getTranslationSetting(input.userId, input.conversationId);
-      const replyState = autoReplyStateByConversation.get(stateKey) ?? {
-        count: 0,
-        actionDone: false,
-      };
-      if (replyState.count >= AUTO_REPLY_MAX) return;
-
-      const replyText = getReplyText({
-        userText: input.userText,
-        replyIndex: replyState.count,
-        translationTargetLocale: translationSetting.targetLocale,
-      });
-
-      if (supabaseServiceClient) {
-        const unreadSnapshot = await supabaseServiceClient
-          .from("chat_conversations")
-          .select("unread_count,relation_state")
-          .eq("user_id", input.userId)
-          .eq("conversation_id", input.conversationId)
-          .maybeSingle();
-        if (unreadSnapshot.error || !unreadSnapshot.data) return;
-        const relationState = normalizeRelationState(unreadSnapshot.data.relation_state);
-        if (relationState !== "active") return;
-
-        const nextUnreadCount = Math.max(
-          1,
-          Number(unreadSnapshot.data?.unread_count ?? 0) + 1,
-        );
-
-        const [messageInsert, conversationUpdate] = await Promise.all([
-          supabaseServiceClient.from("chat_messages").upsert(
-            {
-              user_id: input.userId,
-              message_id: `auto-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-              conversation_id: input.conversationId,
-              sender_user_id: input.peerProfileId,
-              direction: "incoming",
-              original_text: replyText,
-              translated: translationSetting.enabled,
-              translated_text: translationSetting.enabled ? replyText : null,
-              target_locale: translationSetting.enabled ? translationSetting.targetLocale : null,
-              created_at: createdAtIso,
-            },
-            { onConflict: "user_id,message_id" },
-          ),
-          supabaseServiceClient
-            .from("chat_conversations")
-            .update({
-              unread_count: nextUnreadCount,
-              last_message_preview: replyText,
-              last_message_at: createdAtIso,
-            })
-            .eq("user_id", input.userId)
-            .eq("conversation_id", input.conversationId),
-        ]);
-
-        if (messageInsert.error || conversationUpdate.error) {
-          app.log.warn(
-            { conversationId: input.conversationId },
-            "chat_auto_reply_supabase_failed",
-          );
-          return;
-        }
-
-        const nextReplyState = {
-          count: replyState.count + 1,
-          actionDone: replyState.actionDone,
-        };
-        autoReplyStateByConversation.set(stateKey, nextReplyState);
-
-        const shouldBlockAfterReply =
-          !nextReplyState.actionDone &&
-          nextReplyState.count >= AUTO_REPLY_MAX &&
-          Math.random() < AUTO_REPLY_ACTION_BLOCK_RATE;
-
-        if (shouldBlockAfterReply) {
-          const blockedPreview = updateRelationPreview("blocked_me", replyText);
-          const blockResult = await supabaseServiceClient
-            .from("chat_conversations")
-            .update({
-              relation_state: "blocked_me",
-              relation_state_updated_at: new Date().toISOString(),
-              last_message_preview: blockedPreview,
-            })
-            .eq("user_id", input.userId)
-            .eq("conversation_id", input.conversationId);
-          if (!blockResult.error) {
-            autoReplyStateByConversation.set(stateKey, {
-              count: nextReplyState.count,
-              actionDone: true,
-            });
-          }
-        }
-
-        return;
-      }
-
-      const incoming: ChatMessage = {
-        id: `auto-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        conversationId: input.conversationId,
-        senderUserId: input.peerProfileId,
-        direction: "incoming",
-        originalText: replyText,
-        translated: translationSetting.enabled,
-        translatedText: translationSetting.enabled ? replyText : undefined,
-        targetLocale: translationSetting.enabled ? translationSetting.targetLocale : undefined,
-        createdAtIso,
-      };
-
-      store.messagesByConversation[input.conversationId] = [
-        ...(store.messagesByConversation[input.conversationId] ?? []),
-        incoming,
-      ];
-
-      store.conversations = store.conversations.map((entry) =>
-        entry.id === input.conversationId
-          ? {
-              ...entry,
-              unreadCount: Math.max(1, entry.unreadCount + 1),
-              lastMessagePreview: replyText,
-              lastMessageAtIso: createdAtIso,
-            }
-          : entry,
-      );
-
-      const nextReplyState = {
-        count: replyState.count + 1,
-        actionDone: replyState.actionDone,
-      };
-      autoReplyStateByConversation.set(stateKey, nextReplyState);
-
-      const shouldBlockAfterReply =
-        !nextReplyState.actionDone &&
-        nextReplyState.count >= AUTO_REPLY_MAX &&
-        Math.random() < AUTO_REPLY_ACTION_BLOCK_RATE;
-      if (shouldBlockAfterReply) {
-        store.conversations = store.conversations.map((entry) =>
-          entry.id === input.conversationId
-            ? {
-                ...entry,
-                relationState: "blocked_me",
-                relationStateUpdatedAtIso: new Date().toISOString(),
-                lastMessagePreview: updateRelationPreview("blocked_me", entry.lastMessagePreview),
-              }
-            : entry,
-        );
-        autoReplyStateByConversation.set(stateKey, {
-          count: nextReplyState.count,
-          actionDone: true,
-        });
-      }
-    }, 1200);
-  };
+  }) => {};
 
   app.get("/health", async () => ({
     status: "ok",
@@ -1235,3 +1016,4 @@ export const buildServer = () => {
 
   return app;
 };
+
