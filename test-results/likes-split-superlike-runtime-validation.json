@@ -1,0 +1,157 @@
+{
+  "generatedAt": "2026-04-19T11:09:14.974Z",
+  "scope": "likes split + superlike from i liked",
+  "senderUserId": "962a08ca-89f6-4245-8879-2aaef4c2fe29",
+  "theyLikedMe": {
+    "A": {
+      "state": "unlocked",
+      "hiddenCount": 0,
+      "visibleCount": 25
+    },
+    "B": "Opened Likes page -> They liked me tab (inbound list fetch).",
+    "C": {
+      "method": "GET",
+      "url": "http://127.0.0.1:8788/discover/likes/incoming"
+    },
+    "D": {
+      "status": 200,
+      "ok": true,
+      "bodyState": "unlocked"
+    },
+    "E": {
+      "stateAfter": "unlocked",
+      "hiddenCountAfter": 0
+    },
+    "F": {
+      "visibleEffect": "Inbound profiles available for cards rendering."
+    },
+    "G": {
+      "reloadRequest": {
+        "method": "GET",
+        "url": "http://127.0.0.1:8788/discover/likes/incoming",
+        "status": 200,
+        "ok": true
+      }
+    },
+    "H": {
+      "verdict": "PASS"
+    }
+  },
+  "iLiked": {
+    "A": {
+      "state": "ready",
+      "pendingCount": 1,
+      "hasConvertibleTarget": true
+    },
+    "B": "Opened Likes page -> switched to I liked tab (outbound list fetch).",
+    "C": {
+      "method": "GET",
+      "url": "http://127.0.0.1:8788/discover/likes/outgoing?status=pending"
+    },
+    "D": {
+      "status": 200,
+      "ok": true,
+      "bodyState": "ready"
+    },
+    "E": {
+      "listCountAfterLoad": 1,
+      "convertibleTargetProfileId": "2d181511-b595-45ea-b9a5-ea712a03ef54"
+    },
+    "F": {
+      "visibleEffect": "Outbound liked profiles available for I liked cards rendering."
+    },
+    "G": {
+      "reloadRequest": null
+    },
+    "H": {
+      "verdict": "PASS"
+    }
+  },
+  "superLikeFromILiked": {
+    "A": {
+      "superlikesLeftBefore": 296,
+      "targetProfileId": "2d181511-b595-45ea-b9a5-ea712a03ef54"
+    },
+    "B": "Clicked SuperLike on I liked card -> opened composer -> submitted direct message.",
+    "C": {
+      "method": "POST",
+      "url": "http://127.0.0.1:8788/discover/superlike/send",
+      "payload": {
+        "profileId": "2d181511-b595-45ea-b9a5-ea712a03ef54",
+        "text": "Runtime validation message 1776596957263",
+        "idempotencyKey": "likes-i-liked-superlike:508ba46d-5c9f-4ab2-8628-110e32e1682d",
+        "feedCursor": "likes-i-liked-1776596957264"
+      }
+    },
+    "D": {
+      "status": 200,
+      "ok": true,
+      "body": {
+        "status": "sent",
+        "confirmation": "SuperLike sent.",
+        "superlikesLeft": 295,
+        "conversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-2d181511-b595-45ea-b9a5-ea712a03ef54",
+        "messageId": "sl-out-likes-i-liked-superlike508ba46d-5c9f-4ab2-8628-110e32e1682d"
+      }
+    },
+    "E": {
+      "confirmation": "SuperLike sent.",
+      "superlikesLeftAfter": 295,
+      "outgoingRowWasSuperLike": true
+    },
+    "F": {
+      "expectedVisibleEffects": {
+        "composerOpened": true,
+        "confirmationText": "SuperLike sent.",
+        "iLikedCardState": "marked_as_superlike_sent"
+      }
+    },
+    "G": {
+      "outgoingAfterReload": {
+        "status": 200,
+        "ok": true,
+        "wasSuperLikePersisted": true
+      },
+      "entitlementsAfterReload": {
+        "status": 200,
+        "ok": true,
+        "superlikesLeftReload": 295
+      },
+      "recipientReceipt": {
+        "status": 200,
+        "ok": true,
+        "foundIncomingMessage": true,
+        "conversationId": "conv-2d181511-b595-45ea-b9a5-ea712a03ef54-962a08ca-89f6-4245-8879-2aaef4c2fe29"
+      },
+      "senderConversationId": "conv-962a08ca-89f6-4245-8879-2aaef4c2fe29-2d181511-b595-45ea-b9a5-ea712a03ef54"
+    },
+    "H": {
+      "verdict": "PASS",
+      "checks": {
+        "sendOk": true,
+        "confirmationOk": true,
+        "tokenDeltaOk": true,
+        "persistedInOutgoing": true,
+        "recipientReceived": true
+      }
+    }
+  },
+  "finalVerdicts": {
+    "theyLikedMe": {
+      "verdict": "PASS"
+    },
+    "iLiked": {
+      "verdict": "PASS"
+    },
+    "superLikeFromILiked": {
+      "verdict": "PASS",
+      "checks": {
+        "sendOk": true,
+        "confirmationOk": true,
+        "tokenDeltaOk": true,
+        "persistedInOutgoing": true,
+        "recipientReceived": true
+      }
+    }
+  }
+}
