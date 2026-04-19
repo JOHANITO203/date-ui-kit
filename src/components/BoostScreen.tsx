@@ -10,7 +10,6 @@ import { useAuth } from '../auth/AuthProvider';
 import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { EntitlementSnapshot, OfferItem } from '../contracts';
-import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { TRAVEL_PASS_ENABLED } from '../domain/travelPass';
 import VerticalPageRail from './ui/VerticalPageRail';
 
@@ -33,6 +32,12 @@ type TierDef = {
   titleGradientClass: string;
 };
 type ApiStatus = 'idle' | 'loading' | 'success' | 'error';
+type CatalogTone = {
+  token: GlowToken;
+  sectionClass: string;
+  activeTabClass: string;
+  ghostButtonClass: string;
+};
 
 const tiers: TierDef[] = [
   {
@@ -237,6 +242,30 @@ const glowRgbMap: Record<GlowToken, [number, number, number]> = {
   '--glow-cyan': [34, 211, 238],
 };
 
+const catalogToneByView: Record<CatalogView, CatalogTone> = {
+  instant: {
+    token: '--glow-orange',
+    sectionClass:
+      'rounded-[var(--glass-card-radius-soft)] border border-orange-300/25 bg-[linear-gradient(165deg,rgba(251,146,60,0.12),rgba(12,10,8,0.92))] p-3 md:p-4',
+    activeTabClass: 'bg-gradient-to-r from-orange-500 to-amber-400 text-black shadow-[0_10px_24px_rgba(251,146,60,0.34)]',
+    ghostButtonClass: 'border border-orange-300/30 bg-orange-500/10 text-orange-100 hover:bg-orange-500/18',
+  },
+  passes: {
+    token: '--glow-cyan',
+    sectionClass:
+      'rounded-[var(--glass-card-radius-soft)] border border-cyan-300/25 bg-[linear-gradient(165deg,rgba(34,211,238,0.11),rgba(7,11,14,0.92))] p-3 md:p-4',
+    activeTabClass: 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-[0_10px_24px_rgba(34,211,238,0.3)]',
+    ghostButtonClass: 'border border-cyan-300/30 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/18',
+  },
+  bundles: {
+    token: '--glow-pink',
+    sectionClass:
+      'rounded-[var(--glass-card-radius-soft)] border border-fuchsia-300/25 bg-[linear-gradient(165deg,rgba(236,72,153,0.12),rgba(13,8,14,0.92))] p-3 md:p-4',
+    activeTabClass: 'bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.32)]',
+    ghostButtonClass: 'border border-fuchsia-300/30 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/18',
+  },
+};
+
 const glowColor = (token: GlowToken, alpha = 1) => {
   const [r, g, b] = glowRgbMap[token];
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
@@ -281,12 +310,6 @@ const resolvedInstantProducts = TRAVEL_PASS_ENABLED
 const resolvedTimePacks = TRAVEL_PASS_ENABLED
   ? timePacks
   : timePacks.filter((item) => item.id !== 'travel-pass-plus');
-const tierBenefitFlags = (tier: TierId) => ({
-  discover: hasSubscriptionBenefit(tier, 'discover_advanced_filters'),
-  profile: hasSubscriptionBenefit(tier, 'profile_hide_age_distance'),
-  messages: hasSubscriptionBenefit(tier, 'messages_translation'),
-  online: hasSubscriptionBenefit(tier, 'messages_see_online'),
-});
 const ruOfferLabelOverrides: Record<string, string> = {
   'instant-shadowghost': 'ТЕНЕВОЙ РЕЖИМ',
   'instant-travel-pass': 'ТРЕВЕЛ ПАСС',
@@ -396,6 +419,7 @@ const BoostScreen = () => {
   const pollingRef = useRef<number | null>(null);
 
   const selectedTier = tiers.find((tier) => tier.id === activeTier) ?? tiers[1];
+  const activeCatalogTone = catalogToneByView[catalogView];
   const formatCatalogPrice = (offer: OfferItem) => {
     const amount = offer.amountMinor / 100;
     const locale = (typeof navigator !== 'undefined' && navigator.language) || 'ru-RU';
@@ -765,18 +789,24 @@ const BoostScreen = () => {
 
   return (
     <div ref={scrollRef} className="relative group/boost h-full overflow-y-auto no-scrollbar py-[var(--boost-page-y)]">
-      <div className={`${isLarge ? 'screen-template-commerce container-commerce' : 'container-content flex flex-col gap-[var(--boost-mobile-section-gap)]'} px-[var(--page-x)]`}>
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-36 left-1/2 h-80 w-[66rem] -translate-x-1/2 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.14),transparent_70%)]" />
+        <div className="absolute top-44 right-[-10rem] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.14),transparent_72%)]" />
+        <div className="absolute bottom-[-8rem] left-[-8rem] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.12),transparent_74%)]" />
+      </div>
+      <div className={`${isLarge ? 'screen-template-commerce container-commerce' : 'container-content flex flex-col gap-[var(--boost-mobile-section-gap)]'} px-[var(--page-x)] relative z-10`}>
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           ref={(el) => {
             sectionRefs.current[0] = el;
           }}
-          className="relative overflow-hidden rounded-[var(--card-radius)] border border-orange-400/30 bg-black p-[var(--boost-hero-pad)] md:p-8"
+          className="relative overflow-hidden rounded-[var(--card-radius)] border border-white/12 bg-[linear-gradient(155deg,rgba(24,13,10,0.95),rgba(8,10,16,0.95))] p-[var(--boost-hero-pad)] md:p-8"
         >
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(58,21,16,0.9)_0%,transparent_60%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_80%,rgba(242,125,38,0.22)_0%,transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(249,115,22,0.22)_0%,transparent_42%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,rgba(236,72,153,0.17)_0%,transparent_44%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_90%,rgba(56,189,248,0.15)_0%,transparent_40%)]" />
           </div>
           <div className="relative z-10 flex flex-col gap-5 md:gap-6">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1">
@@ -819,7 +849,7 @@ const BoostScreen = () => {
           ref={(el) => {
             sectionRefs.current[1] = el;
           }}
-          className="space-y-5"
+          className="space-y-5 rounded-[var(--card-radius)] border border-white/10 bg-[linear-gradient(160deg,rgba(16,17,24,0.86),rgba(7,8,13,0.92))] p-3 md:p-4"
         >
           <motion.div
             className={
@@ -921,37 +951,6 @@ const BoostScreen = () => {
                         </li>
                       ))}
                     </ul>
-                    <div className="mt-auto pt-3 flex flex-wrap gap-1.5">
-                      {(() => {
-                        const benefits = tierBenefitFlags(tier.id);
-                        const chips = [
-                          {
-                            label: t('discover.title'),
-                            enabled: benefits.discover,
-                          },
-                          {
-                            label: t('profile.title'),
-                            enabled: benefits.profile,
-                          },
-                          {
-                            label: t('messages.title'),
-                            enabled: benefits.messages,
-                          },
-                          {
-                            label: t('chat.online'),
-                            enabled: benefits.online,
-                          },
-                        ].filter((chip) => chip.enabled);
-                        return chips.map((chip) => (
-                          <span
-                            key={`${tier.id}-${chip.label}`}
-                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.14em] border border-emerald-300/35 bg-emerald-500/12 text-emerald-100"
-                          >
-                            {chip.label}
-                          </span>
-                        ));
-                      })()}
-                    </div>
                   </div>
                 </motion.button>
               );
@@ -1007,7 +1006,7 @@ const BoostScreen = () => {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)]">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-[var(--grid-gap)] rounded-[var(--card-radius)] border border-white/10 bg-[linear-gradient(160deg,rgba(15,17,23,0.85),rgba(8,9,14,0.9))] p-3 md:p-4">
           <motion.div
             whileTap={tapGlow('--glow-orange', 0.42)}
             whileHover={{ ...glowShadow('--glow-orange', 0.32, 34), scale: 1.01 }}
@@ -1052,7 +1051,7 @@ const BoostScreen = () => {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)] rounded-[var(--card-radius)] border border-white/10 bg-[linear-gradient(160deg,rgba(14,16,23,0.84),rgba(7,8,13,0.9))] p-3 md:p-4">
           <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-blue-400/25 bg-blue-500/5">
             <p className="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-black">
               {t('boost.badges.identityTitle')}
@@ -1095,7 +1094,7 @@ const BoostScreen = () => {
           }}
           className="flex flex-col gap-4"
         >
-          <div className="w-fit rounded-full p-1 border border-[var(--menu-premium-border)] bg-[var(--menu-premium-gray)]/85 backdrop-blur-xl flex flex-wrap gap-1">
+          <div className="w-fit rounded-full p-1 border border-[var(--menu-premium-border)] bg-[linear-gradient(155deg,rgba(23,26,34,0.9),rgba(10,12,18,0.9))] backdrop-blur-xl flex flex-wrap gap-1 shadow-[0_12px_32px_rgba(0,0,0,0.32)]">
             {[
               { id: 'instant', label: t('boost.catalog.instant') },
               { id: 'passes', label: t('boost.catalog.passes') },
@@ -1105,7 +1104,9 @@ const BoostScreen = () => {
                 key={item.id}
                 onClick={() => setCatalogView(item.id as CatalogView)}
                 className={`h-9 px-4 rounded-full text-xs font-black uppercase tracking-[0.16em] transition-all ${
-                  catalogView === item.id ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'text-secondary hover:bg-white/8'
+                  catalogView === item.id
+                    ? catalogToneByView[item.id as CatalogView].activeTabClass
+                    : 'text-secondary hover:bg-white/8'
                 }`}
               >
                 {item.label}
@@ -1114,15 +1115,24 @@ const BoostScreen = () => {
           </div>
 
           {catalogView === 'instant' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
-              {resolvedInstantProducts.map((item) => (
-                <motion.div
-                  whileTap={tapGlow(item.glowToken, 0.42)}
-                  whileHover={{ ...glowShadow(item.glowToken, 0.34, 34), scale: 1.01 }}
-                  key={item.id}
-                  className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] transition-colors"
-                  style={glowCardStyle(item.glowToken, 0.18, 0.06, 0.24)}
-                >
+            <div className={activeCatalogTone.sectionClass} style={glowShadow(activeCatalogTone.token, 0.22, 28)}>
+              <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/18 border border-orange-300/30">
+                    <ICONS.Zap size={15} className="text-orange-200" />
+                  </span>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-100">{t('boost.catalog.instant')}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
+                {resolvedInstantProducts.map((item) => (
+                  <motion.div
+                    whileTap={tapGlow(item.glowToken, 0.42)}
+                    whileHover={{ ...glowShadow(item.glowToken, 0.34, 34), scale: 1.01 }}
+                    key={item.id}
+                    className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] transition-colors"
+                    style={glowCardStyle(item.glowToken, 0.2, 0.08, 0.26)}
+                  >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-2.5 py-1">
@@ -1157,7 +1167,7 @@ const BoostScreen = () => {
                     <button
                       onClick={() => handleBuyInstant(item.id)}
                       disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByInstantId[item.id])}
-                      className={`${buyBtnBase} border border-white/20 bg-white/8 hover:bg-white/12`}
+                      className={`${buyBtnBase} ${activeCatalogTone.ghostButtonClass}`}
                     >
                         {paymentBusyOfferId
                           ? '...'
@@ -1166,16 +1176,26 @@ const BoostScreen = () => {
                             : t('boost.buy.unavailable')}
                     </button>
                   </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
 
           {catalogView === 'passes' && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[var(--grid-gap)]">
-                {resolvedTimePacks.map((item) => (
-                  <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.16, 0.05, 0.2)}>
+              <div className={activeCatalogTone.sectionClass} style={glowShadow(activeCatalogTone.token, 0.22, 28)}>
+                <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
+                  <div className="inline-flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/18 border border-cyan-300/30">
+                      <ICONS.Shield size={15} className="text-cyan-100" />
+                    </span>
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100">{t('boost.catalog.passes')}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[var(--grid-gap)]">
+                  {resolvedTimePacks.map((item) => (
+                    <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.18, 0.07, 0.24)}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-black text-lg tracking-tight uppercase">
                         {resolveLabelByOfferId(
@@ -1205,7 +1225,7 @@ const BoostScreen = () => {
                       <button
                         onClick={() => handleBuyPass(item.id)}
                         disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByPassId[item.id])}
-                        className={`${buyBtnBase} bg-gradient-to-r from-pink-500 to-violet-500 text-white`}
+                        className={`${buyBtnBase} bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]`}
                       >
                         {paymentBusyOfferId
                           ? '...'
@@ -1214,8 +1234,9 @@ const BoostScreen = () => {
                             : t('boost.buy.unavailable')}
                       </button>
                     </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
               {TRAVEL_PASS_ENABLED && (
                 <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/45">
@@ -1226,15 +1247,24 @@ const BoostScreen = () => {
           )}
 
           {catalogView === 'bundles' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
-              {bundles.map((item) => (
-                <motion.div
-                  whileTap={tapGlow(item.glowToken, item.id === 'datingpro' ? 0.48 : 0.4)}
-                  whileHover={{ ...glowShadow(item.glowToken, item.id === 'datingpro' ? 0.38 : 0.3, 34), scale: 1.01 }}
-                  key={item.id}
-                  className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
-                  style={glowCardStyle(item.glowToken, item.id === 'datingpro' ? 0.24 : 0.16, item.id === 'datingpro' ? 0.1 : 0.05, item.id === 'datingpro' ? 0.32 : 0.2)}
-                >
+            <div className={activeCatalogTone.sectionClass} style={glowShadow(activeCatalogTone.token, 0.24, 30)}>
+              <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
+                <div className="inline-flex items-center gap-2">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-fuchsia-500/18 border border-fuchsia-300/30">
+                    <ICONS.Star size={15} className="text-fuchsia-100" />
+                  </span>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-fuchsia-100">{t('boost.catalog.bundles')}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
+                {bundles.map((item) => (
+                  <motion.div
+                    whileTap={tapGlow(item.glowToken, item.id === 'datingpro' ? 0.48 : 0.4)}
+                    whileHover={{ ...glowShadow(item.glowToken, item.id === 'datingpro' ? 0.38 : 0.3, 34), scale: 1.01 }}
+                    key={item.id}
+                    className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
+                    style={glowCardStyle(item.glowToken, item.id === 'datingpro' ? 0.26 : 0.18, item.id === 'datingpro' ? 0.11 : 0.07, item.id === 'datingpro' ? 0.34 : 0.24)}
+                  >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-xl tracking-tight uppercase">
                       {resolveLabelByOfferId(
@@ -1264,7 +1294,7 @@ const BoostScreen = () => {
                     <button
                       onClick={() => handleBuyBundle(item.id)}
                       disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByBundleId[item.id])}
-                      className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-pink-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.28)]' : 'border border-white/20 bg-white/8 hover:bg-white/12'}`}
+                      className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.3)]' : 'border border-fuchsia-300/30 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/18'}`}
                     >
                       {paymentBusyOfferId
                         ? '...'
@@ -1273,8 +1303,9 @@ const BoostScreen = () => {
                           : t('boost.buy.unavailable')}
                     </button>
                   </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
         </section>

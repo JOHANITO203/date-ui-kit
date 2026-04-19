@@ -233,7 +233,7 @@ const MatchesScreen: React.FC = () => {
   ).length;
   const lockedCardsCount = likesCards.filter((entry) => entry.blurredLocked).length;
   const ghostCardsCount = likesCards.filter((entry) => entry.hiddenByShadowGhost).length;
-  const summaryLine = `${totalLikesCount} ${t('likes.title').toLowerCase()} • ${unlockedCardsCount} ${t('likes.unlocked').toLowerCase()}`;
+  const summaryLine = `${totalLikesCount} ${t('likes.title').toLowerCase()} - ${unlockedCardsCount} ${t('likes.unlocked').toLowerCase()}`;
 
   const resolveCardVariant = (like: (typeof likesCards)[number]): CardVariant => {
     if (like.hiddenByShadowGhost) {
@@ -571,31 +571,43 @@ const MatchesScreen: React.FC = () => {
 
   return (
     <div ref={scrollRef} className="relative group/likes h-full overflow-y-auto no-scrollbar py-6 pb-nav">
-      <div className="container-wide px-[var(--page-x)] layout-stack">
-        <header
-          ref={(el) => {
-            sectionRefs.current[0] = el;
-          }}
-          className="flex items-end justify-between gap-4"
-        >
-          <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('likes.eyebrow')}</p>
-            <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">
-              {t('likes.title')}
-            </h1>
-            <p className="text-[11px] text-white/50">{summaryLine}</p>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/5">
-            <Heart size={12} fill="currentColor" className="text-pink-400" />
-            <span className="text-[10px] font-black text-white/75">{t('likes.newLikes', { count: totalLikesCount })}</span>
-          </div>
-        </header>
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 left-1/2 h-72 w-[62rem] -translate-x-1/2 bg-[radial-gradient(circle_at_center,rgba(255,20,147,0.13),transparent_70%)]" />
+        <div className="absolute top-44 right-[-8rem] h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,191,255,0.14),transparent_72%)]" />
+      </div>
+      <div className="container-wide px-[var(--page-x)] layout-stack relative z-10">
+        <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(150deg,rgba(20,24,33,0.88),rgba(8,9,14,0.92))] backdrop-blur-xl p-4 sm:p-5">
+          <header
+            ref={(el) => {
+              sectionRefs.current[0] = el;
+            }}
+            className="flex items-end justify-between gap-4"
+          >
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('likes.eyebrow')}</p>
+              <h1 className="text-[length:var(--discover-title-size)] font-black italic tracking-tight text-white leading-none uppercase">
+                {t('likes.title')}
+              </h1>
+              <p className="text-[11px] text-white/50">{summaryLine}</p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-pink-400/25 bg-pink-500/10 shadow-[0_8px_22px_rgba(236,72,153,0.16)]">
+              <Heart size={12} fill="currentColor" className="text-pink-400" />
+              <span className="text-[10px] font-black text-white/75">{t('likes.newLikes', { count: totalLikesCount })}</span>
+            </div>
+          </header>
 
-        <div className="flex items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/75">
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-            <span>{t(`likes.states.${screenState}`)}</span>
-          </div>
+          <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/75">
+                <span className="w-1.5 h-1.5 rounded-full bg-pink-400" />
+                <span>{t(`likes.states.${screenState}`)}</span>
+              </div>
+              <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100">
+                <Star size={11} className="text-cyan-200" />
+                <span>x{iceBreakerOwnedCount}</span>
+                {iceBreakerUnlockedCount > 0 && <span>+{iceBreakerUnlockedCount}</span>}
+              </div>
+            </div>
           <button
             onClick={() => {
               const firstLockedLike = likesCards.find(
@@ -619,12 +631,9 @@ const MatchesScreen: React.FC = () => {
           >
             <Star size={12} className="text-cyan-200" />
             <span>{t('likes.iceBreakerTitle')}</span>
-            <span className="text-white/85">x{iceBreakerOwnedCount}</span>
-            {iceBreakerUnlockedCount > 0 && (
-              <span className="text-cyan-200">+{iceBreakerUnlockedCount}</span>
-            )}
           </button>
-        </div>
+          </div>
+        </section>
 
         {iceBreakerFeedback && (
           <p className="text-xs text-cyan-200 font-bold">{iceBreakerFeedback}</p>
@@ -667,14 +676,14 @@ const MatchesScreen: React.FC = () => {
             }}
             className="grid grid-cols-[minmax(0,1fr)_19rem] xl:grid-cols-[minmax(0,1fr)_22rem] gap-5 items-start"
           >
-            <section className="grid grid-cols-2 xl:grid-cols-3 gap-[var(--grid-gap)]">
+            <section className="rounded-[30px] border border-white/10 bg-[linear-gradient(160deg,rgba(18,21,31,0.84),rgba(8,9,14,0.9))] p-3 sm:p-4 grid grid-cols-2 xl:grid-cols-3 gap-[var(--grid-gap)] shadow-[0_22px_54px_rgba(0,0,0,0.35)]">
               {likesCards.map((like, index) => (
                 <motion.article
                   key={like.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04 }}
-                  className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
+                  className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4] border border-white/12"
                 >
                   {(() => {
                     const lockedPreview = like.blurredLocked || like.hiddenByShadowGhost;
@@ -708,7 +717,7 @@ const MatchesScreen: React.FC = () => {
               }}
               className="layout-stack"
             >
-              <section className="glass-panel rounded-[var(--card-radius)] p-4 border border-white/10">
+              <section className="glass-panel rounded-[var(--card-radius)] p-4 border border-white/10 bg-[linear-gradient(165deg,rgba(28,20,36,0.8),rgba(12,11,18,0.9))]">
                 <div className="inline-flex p-2 rounded-xl bg-white/5 mb-3">
                   <Star className="text-[#FFD166]" fill="#FFD166" size={18} />
                 </div>
@@ -730,14 +739,14 @@ const MatchesScreen: React.FC = () => {
           </div>
         ) : (screenState === 'locked' || screenState === 'unlocked') ? (
           <>
-            <section className="grid grid-cols-2 gap-[var(--grid-gap)]">
+            <section className="rounded-[28px] border border-white/10 bg-[linear-gradient(160deg,rgba(18,21,31,0.84),rgba(8,9,14,0.9))] p-2.5 sm:p-3 grid grid-cols-2 gap-[var(--grid-gap)] shadow-[0_18px_42px_rgba(0,0,0,0.34)]">
               {likesCards.map((like, index) => (
                 <motion.article
                   key={like.id}
                   initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.05 }}
-                  className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4]"
+                  className="relative overflow-hidden rounded-[var(--card-radius)] glass-panel glass-panel-float aspect-[3/4] border border-white/12"
                 >
                   {(() => {
                     const lockedPreview = like.blurredLocked || like.hiddenByShadowGhost;

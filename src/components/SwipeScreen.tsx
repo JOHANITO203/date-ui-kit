@@ -672,15 +672,22 @@ const SwipeScreen = () => {
 
   return (
     <div className={`h-full flex flex-col bg-[#050505] relative font-sans ${isLarge ? 'overflow-y-auto no-scrollbar pb-safe' : 'overflow-y-auto no-scrollbar'}`}>
-      <div className="flex items-end justify-between px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-3 shrink-0 z-20">
-        <div className="flex flex-col gap-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('discover.eyebrow')}</p>
-          <Logo size={30} showText />
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-40 left-1/2 h-80 w-[72rem] -translate-x-1/2 bg-[radial-gradient(circle_at_center,rgba(255,20,147,0.15),transparent_68%)]" />
+        <div className="absolute top-28 right-[-12rem] h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,191,255,0.16),transparent_72%)]" />
+      </div>
+
+      <div className="relative z-20 px-[var(--page-x)] pt-[var(--discover-header-top)] md:pt-7 lg:pt-8 pb-2 shrink-0">
+        <div className="rounded-[26px] border border-white/10 bg-[linear-gradient(145deg,rgba(20,24,32,0.88),rgba(8,9,14,0.9))] backdrop-blur-xl px-3.5 py-3 sm:px-4 sm:py-3.5">
+          <div className="flex items-end justify-between gap-2">
+            <div className="flex flex-col gap-1 min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/45">{t('discover.eyebrow')}</p>
+              <Logo size={30} showText />
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <button
             onClick={rewindLastSwipe}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/5 active:scale-95 transition-all group shrink-0"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 active:scale-95 transition-all group shrink-0 shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_8px_20px_rgba(8,145,178,0.2)]"
           >
             <ICONS.Rewind size={13} className="text-cyan-300" />
             <span className="hidden min-[390px]:inline text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200">
@@ -712,7 +719,7 @@ const SwipeScreen = () => {
                 ? 'border-orange-300/70 bg-orange-500/20'
                 : boostState === 'available'
                   ? 'border-orange-300/70 bg-orange-500 text-black shadow-[0_0_18px_rgba(249,115,22,0.28)]'
-                  : 'border-orange-500/30 bg-orange-500/5 shadow-[0_0_15px_rgba(249,115,22,0.1)]'
+                  : 'border-orange-500/35 bg-orange-500/10 shadow-[0_0_0_1px_rgba(249,115,22,0.08),0_10px_22px_rgba(249,115,22,0.16)]'
             }`}
           >
             <ICONS.Boost
@@ -748,41 +755,46 @@ const SwipeScreen = () => {
               {boostCompactLabel}
             </span>
           </motion.button>
+            </div>
+          </div>
+
+          <div className="pt-3 mt-2 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="px-2.5 py-1 rounded-full border border-pink-400/35 bg-pink-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-pink-200 shadow-[0_6px_18px_rgba(236,72,153,0.16)]">
+              S {balances.superlikesLeft}
+            </span>
+            <span className="px-2.5 py-1 rounded-full border border-orange-400/35 bg-orange-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-orange-200 shadow-[0_6px_18px_rgba(249,115,22,0.16)]">
+              B {balances.boostsLeft}
+            </span>
+            <span className="px-2.5 py-1 rounded-full border border-cyan-400/35 bg-cyan-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200 shadow-[0_6px_18px_rgba(6,182,212,0.16)]">
+              R {balances.rewindsLeft}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="px-[var(--page-x)] pb-2 shrink-0">
+      <div className="relative z-20 px-[var(--page-x)] pb-2 shrink-0">
         {swipeError && (
-          <div className="mb-2 rounded-xl border border-red-400/35 bg-red-500/10 px-3 py-2 text-[11px] font-bold text-red-100">
+          <div className="mb-2 rounded-2xl border border-red-400/35 bg-red-500/10 px-3 py-2 text-[11px] font-bold text-red-100">
             {t('discover.errorSubtitle')}
           </div>
         )}
-        <div className="pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <span className="px-2.5 py-1 rounded-full border border-pink-400/30 bg-pink-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-pink-200">
-            S {balances.superlikesLeft}
-          </span>
-          <span className="px-2.5 py-1 rounded-full border border-orange-400/30 bg-orange-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-orange-200">
-            B {balances.boostsLeft}
-          </span>
-          <span className="px-2.5 py-1 rounded-full border border-cyan-400/30 bg-cyan-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200">
-            R {balances.rewindsLeft}
-          </span>
-        </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {quickFilters.map((filter) => (
-            <button
-              key={`filter-${filter.id}`}
-              onClick={() => toggleFilter(filter.id)}
-              disabled={!hasAdvancedFilters && filter.id !== 'all'}
-              className={`shrink-0 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.14em] whitespace-nowrap transition-all ${
-                activeFilterIds.includes(filter.id)
-                  ? 'bg-white text-[#090909] border border-white shadow-[0_8px_24px_rgba(255,255,255,0.16)]'
-                  : 'bg-[#0E1116]/90 border border-white/10 text-white/68 hover:text-white hover:border-white/25'
-              } ${!hasAdvancedFilters && filter.id !== 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {t(filter.labelKey)}
-            </button>
-          ))}
+        <div className="rounded-2xl border border-white/10 bg-[linear-gradient(145deg,rgba(18,20,28,0.86),rgba(8,9,14,0.86))] p-2.5 sm:p-3 backdrop-blur-xl">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {quickFilters.map((filter) => (
+              <button
+                key={`filter-${filter.id}`}
+                onClick={() => toggleFilter(filter.id)}
+                disabled={!hasAdvancedFilters && filter.id !== 'all'}
+                className={`shrink-0 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.14em] whitespace-nowrap transition-all ${
+                  activeFilterIds.includes(filter.id)
+                    ? 'bg-white text-[#090909] border border-white shadow-[0_8px_24px_rgba(255,255,255,0.16)]'
+                    : 'bg-[#0E1116]/90 border border-white/10 text-white/68 hover:text-white hover:border-white/25'
+                } ${!hasAdvancedFilters && filter.id !== 'all' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {t(filter.labelKey)}
+              </button>
+            ))}
+          </div>
         </div>
         {!isLarge && (
           <div className="pt-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -814,17 +826,25 @@ const SwipeScreen = () => {
             className="h-full grid gap-[var(--grid-gap)] items-start"
             style={{ gridTemplateColumns: `${isDesktop ? 'var(--panel-width-md)' : 'var(--panel-width-sm)'} minmax(0, 1fr)` }}
           >
-            <aside className={`rounded-[28px] border border-[var(--menu-premium-border)] bg-[var(--filters-stack-bg)] backdrop-blur-2xl ${isTablet ? 'p-4 space-y-4' : 'p-5 space-y-5'} h-fit`}>
+            <aside className={`rounded-[30px] border border-[var(--menu-premium-border)] bg-[linear-gradient(160deg,rgba(24,29,39,0.86),rgba(10,11,17,0.9))] backdrop-blur-2xl ${isTablet ? 'p-4 space-y-4' : 'p-5 space-y-5'} h-fit shadow-[0_22px_50px_rgba(0,0,0,0.35)]`}>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/38 font-black">{t('discover.activeFilters')}</p>
+                <p className="mt-2 text-sm font-semibold text-white/82">
+                  {activeFilterIds.length > 0 ? `${activeFilterIds.length} active` : t('discover.noActiveFilters')}
+                </p>
+              </div>
+
               <div className="flex items-center">
                 <button
                   onClick={() => navigate('/settings/preferences')}
                   aria-label="Ouvrir les reglages de decouverte"
-                  className="w-11 h-11 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
+                  className="w-11 h-11 rounded-2xl border border-white/12 bg-white/5 hover:bg-white/10 transition-colors flex items-center justify-center"
                 >
                   <ICONS.Settings size={18} className="text-white/80" />
                 </button>
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('discover.activeFilters')}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {activeFilterIds.map((id) => (
@@ -840,14 +860,15 @@ const SwipeScreen = () => {
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-black">{t('discover.activity')}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
+                  <div className={`rounded-2xl bg-white/6 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
                     <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>{likedCount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/45">{t('discover.likesRecent')}</p>
                   </div>
-                  <div className={`rounded-2xl bg-white/5 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
+                  <div className={`rounded-2xl bg-white/6 border border-white/10 ${isTablet ? 'p-2.5' : 'p-3'}`}>
                     <p className={`${isTablet ? 'text-base' : 'text-lg'} font-black`}>{matchCount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/45">{t('discover.matches')}</p>
                   </div>
@@ -856,7 +877,8 @@ const SwipeScreen = () => {
             </aside>
 
             <div className="w-full flex flex-col items-center density-comfortable min-h-0">
-            <div className={`container-deck relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(62vh,35rem)]'}`}>
+            <div className="container-deck w-full rounded-[34px] border border-white/10 bg-[linear-gradient(165deg,rgba(18,22,32,0.85),rgba(8,9,14,0.9))] p-3 sm:p-3.5 shadow-[0_28px_60px_rgba(0,0,0,0.36)]">
+            <div className={`relative w-full ${isDesktop ? 'h-[min(68vh,40rem)]' : 'h-[min(62vh,35rem)]'}`}>
           {feedStatus === 'loading' || isFiltering ? (
             loadingDeck
           ) : feedStatus === 'error' ? (
@@ -998,6 +1020,7 @@ const SwipeScreen = () => {
             emptyDeck
           )}
             </div>
+            </div>
 
             </div>
           </div>
@@ -1005,7 +1028,8 @@ const SwipeScreen = () => {
         </div>
       ) : (
         <div className="flex-1 min-h-0 px-[var(--page-x)] pt-2 pb-1 flex flex-col items-center gap-2 overflow-y-auto no-scrollbar">
-          <div className={`relative w-full max-w-[26rem] sm:max-w-[28rem] h-[var(--discover-card-h)] ${isLarge ? 'md:max-w-[32rem] lg:max-w-[34rem] xl:max-w-[36rem]' : ''}`}>
+          <div className={`w-full max-w-[26rem] sm:max-w-[28rem] rounded-[30px] border border-white/10 bg-[linear-gradient(160deg,rgba(17,20,30,0.84),rgba(8,9,14,0.9))] p-2.5 shadow-[0_20px_46px_rgba(0,0,0,0.34)] ${isLarge ? 'md:max-w-[32rem] lg:max-w-[34rem] xl:max-w-[36rem]' : ''}`}>
+          <div className="relative h-[var(--discover-card-h)]">
           {feedStatus === 'loading' || isFiltering ? (
             loadingDeck
           ) : feedStatus === 'error' ? (
@@ -1144,6 +1168,7 @@ const SwipeScreen = () => {
           ) : (
             emptyDeck
           )}
+        </div>
         </div>
         </div>
       )}
