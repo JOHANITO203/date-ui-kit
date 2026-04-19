@@ -55,6 +55,10 @@ const decideIncomingLikeSchema = z.object({
   action: z.enum(["like_back", "pass"]),
 });
 
+const outgoingLikesQuerySchema = z.object({
+  status: z.enum(["pending", "matched", "passed", "all"]).optional().default("pending"),
+});
+
 type DiscoverLikeStatus = "pending" | "matched" | "passed";
 type BoostAvailability = "active" | "available" | "out_of_tokens";
 type BoostStatus = {
@@ -913,6 +917,29 @@ const loadPassedProfileIdsFromLikes = async (input: {
   return ids;
 };
 
+const loadOutgoingLikes = async (input: {
+  userId: string;
+  status: "pending" | "matched" | "passed" | "all";
+}): Promise<DiscoverLikeRow[]> => {
+  if (!supabaseAdminClient) return [];
+
+  const query = supabaseAdminClient
+    .from("discover_likes")
+    .select("*")
+    .eq("liker_user_id", input.userId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(500);
+
+  const result =
+    input.status === "all"
+      ? await query
+      : await query.eq("status", input.status);
+
+  if (result.error) throw result.error;
+  return (result.data ?? []) as DiscoverLikeRow[];
+};
+
 const upsertLikeRow = async (input: {
   likerUserId: string;
   likedUserId: string;
@@ -921,6 +948,12 @@ const upsertLikeRow = async (input: {
   nowIso: string;
 }): Promise<DiscoverLikeRow | null> => {
   if (!supabaseAdminClient) return null;
+  const existing = await readLikeRow({
+    likerUserId: input.likerUserId,
+    likedUserId: input.likedUserId,
+  });
+  const wasSuperLike = Boolean(existing?.was_superlike) || input.wasSuperLike;
+  const hiddenByShadowGhost = Boolean(existing?.hidden_by_shadowghost) || input.hiddenByShadowGhost;
   const result = await supabaseAdminClient
     .from("discover_likes")
     .upsert(
@@ -928,11 +961,12 @@ const upsertLikeRow = async (input: {
         liker_user_id: input.likerUserId,
         liked_user_id: input.likedUserId,
         status: "pending",
-        was_superlike: input.wasSuperLike,
-        hidden_by_shadowghost: input.hiddenByShadowGhost,
-        created_at: input.nowIso,
+        was_superlike: wasSuperLike,
+        hidden_by_shadowghost: hiddenByShadowGhost,
+        created_at: existing?.created_at ?? input.nowIso,
         updated_at: input.nowIso,
         passed_at: null,
+        matched_at: null,
       },
       { onConflict: "liker_user_id,liked_user_id" },
     )
@@ -1308,6 +1342,72 @@ export const buildServer = () => {
       return {
         code: "LIKES_INCOMING_FAILED",
       };
+    }
+  });
+
+  app.get("/discover/likes/outgoing", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+    if (!supabaseAdminClient) {
+      return { state: "empty", likes: [] };
+    }
+
+    const parsed = outgoingLikesQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { code: "INVALID_QUERY", message: "Invalid outgoing likes query." };
+    }
+
+    try {
+      const likesRows = await loadOutgoingLikes({
+        userId,
+        status: parsed.data.status,
+      });
+
+      if (likesRows.length === 0) {
+        return {
+          state: "empty",
+          likes: [],
+        };
+      }
+
+      const profileIds = [...new Set(likesRows.map((row) => row.liked_user_id))];
+      const profileCards = await loadCandidatesByProfileIds({
+        profileIds,
+        userGeoPoint: null,
+        logger: app.log,
+        includeBoostStatus: false,
+        photoProbeMode: "off",
+        source: "likes_outgoing",
+        resolvePhotoAccess: () => resolveImageAccessPolicy("likes", "visible_by_entitlement"),
+      });
+      const profileById = new Map(profileCards.map((profile) => [profile.id, profile]));
+
+      const likes = likesRows
+        .map((row) => {
+          const profile = profileById.get(row.liked_user_id);
+          if (!profile) return null;
+          return {
+            id: row.id,
+            profile,
+            sentAtIso: row.created_at,
+            status: row.status,
+            wasSuperLike: Boolean(row.was_superlike),
+            hiddenByShadowGhost: Boolean(row.hidden_by_shadowghost),
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+      return {
+        state: likes.length === 0 ? "empty" : "ready",
+        likes,
+      };
+    } catch (error) {
+      app.log.error({ err: error, userId }, "discover.likes_outgoing_failed");
+      reply.status(500);
+      return { code: "LIKES_OUTGOING_FAILED" };
     }
   });
 
@@ -2082,6 +2182,15 @@ export const buildServer = () => {
     const recipientMessageId = `sl-in-${messageSeed}`;
 
     try {
+      const hiddenByShadowGhost = await getUserShadowGhostState(userId);
+      await upsertLikeRow({
+        likerUserId: userId,
+        likedUserId: profileId,
+        wasSuperLike: true,
+        hiddenByShadowGhost,
+        nowIso,
+      });
+
       let recipientUnreadCount = 1;
       const recipientConversationResult = await supabaseAdminClient
         .from("chat_conversations")

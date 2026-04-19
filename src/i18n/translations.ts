@@ -97,6 +97,21 @@ export const translations: Record<Locale, Dictionary> = {
     likes: {
       eyebrow: 'Activity',
       title: 'YOUR LIKES',
+      tabs: {
+        theyLikedMe: 'They liked me',
+        iLiked: 'I liked',
+      },
+      outgoing: {
+        eyebrow: 'Outbound',
+        title: 'I LIKED',
+        subtitle: '{count} pending profiles ready for SuperLike conversion.',
+        loadingTitle: 'Loading sent likes...',
+        errorTitle: 'I liked unavailable',
+        emptyTitle: 'No outbound likes yet',
+        emptySubtitle: 'Swipe right in Discover to build your follow-up list.',
+        sendSuperLike: 'SuperLike',
+        superlikesLeft: 'S {count}',
+      },
       newLikes: '{count} New',
       loadingTitle: 'Syncing your likes',
       loadingSubtitle: 'Preparing your premium activity feed...',
@@ -831,6 +846,21 @@ export const translations: Record<Locale, Dictionary> = {
     likes: {
       eyebrow: 'Активность',
       title: 'ВАШИ ЛАЙКИ',
+      tabs: {
+        theyLikedMe: 'Мне поставили лайк',
+        iLiked: 'Я лайкнул(а)',
+      },
+      outgoing: {
+        eyebrow: 'Исходящие',
+        title: 'Я ЛАЙКНУЛ(А)',
+        subtitle: '{count} профилей ждут конверсию в SuperLike.',
+        loadingTitle: 'Загрузка отправленных лайков...',
+        errorTitle: 'Раздел «Я лайкнул(а)» недоступен',
+        emptyTitle: 'Пока нет исходящих лайков',
+        emptySubtitle: 'Свайпайте вправо в Discover, чтобы собрать список для follow-up.',
+        sendSuperLike: 'SuperLike',
+        superlikesLeft: 'S {count}',
+      },
       newLikes: '{count} новых',
       loadingTitle: 'Синхронизируем лайки',
       loadingSubtitle: 'Подготавливаем вашу premium-активность...',

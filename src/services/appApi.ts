@@ -5,6 +5,7 @@ import type {
   UseIceBreakerResponse,
   GetFeedResponse,
   GetReceivedLikesResponse,
+  GetSentLikesResponse,
   ActivateBoostResponse,
   BoostStatus,
   RewindResponse,
@@ -765,6 +766,24 @@ export const appApi = {
       });
     }
     return withLatency(runtimeApi.getLikes());
+  },
+
+  getSentLikes(): Promise<GetSentLikesResponse> {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('bench') === '1') {
+        return withLatency(runtimeApi.getSentLikes());
+      }
+    }
+    if (DISCOVER_API_URL) {
+      return discoverRequest<GetSentLikesResponse>('/discover/likes/outgoing').catch((error) => {
+        if (!shouldFallbackToRuntime(error)) {
+          return Promise.reject(error);
+        }
+        return withLatency(runtimeApi.getSentLikes());
+      });
+    }
+    return withLatency(runtimeApi.getSentLikes());
   },
 
   decideIncomingLike(request: DecideIncomingLikeRequest): Promise<DecideIncomingLikeResponse> {

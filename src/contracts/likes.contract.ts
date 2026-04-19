@@ -31,6 +31,22 @@ export interface GetReceivedLikesResponse {
   inventory: LikesInventory;
 }
 
+export type SentLikeStatus = 'pending' | 'matched' | 'passed';
+
+export interface SentLike {
+  id: string;
+  profile: ProfileCard;
+  sentAtIso: string;
+  status: SentLikeStatus;
+  wasSuperLike: boolean;
+  hiddenByShadowGhost: boolean;
+}
+
+export interface GetSentLikesResponse {
+  state: 'empty' | 'ready' | 'error';
+  likes: SentLike[];
+}
+
 export interface DecideIncomingLikeRequest {
   likeId: string;
   action: 'like_back' | 'pass';

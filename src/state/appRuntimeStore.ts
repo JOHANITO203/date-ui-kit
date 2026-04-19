@@ -6,6 +6,7 @@ import type {
   FeedQuickFilter,
   GetFeedResponse,
   GetReceivedLikesResponse,
+  GetSentLikesResponse,
   ActivateBoostResponse,
   BoostStatus,
   DecideIncomingLikeRequest,
@@ -758,6 +759,32 @@ export const runtimeApi = {
             ? 'unlocked'
             : 'locked',
       inventory,
+    };
+  },
+
+  getSentLikes(): GetSentLikesResponse {
+    const byProfileId = new Map(state.feedSource.map((profile) => [profile.id, profile]));
+    const likes = state.likedProfileIds
+      .map((profileId, index) => {
+        const profile = byProfileId.get(profileId);
+        if (!profile) return null;
+        const status = state.conversations.some((conversation) => conversation.peer.id === profileId)
+          ? ('matched' as const)
+          : ('pending' as const);
+        return {
+          id: `sent-${profileId}`,
+          profile,
+          sentAtIso: new Date(Date.now() - index * 60_000).toISOString(),
+          status,
+          wasSuperLike: false,
+          hiddenByShadowGhost: false,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+    return {
+      state: likes.length > 0 ? 'ready' : 'empty',
+      likes,
     };
   },
 
