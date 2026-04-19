@@ -694,7 +694,7 @@ const SwipeScreen = () => {
               {balances.rewindsLeft}
             </span>
             <span className="inline min-[390px]:hidden text-[10px] font-black uppercase tracking-[0.06em] text-cyan-200">
-              ↩️{balances.rewindsLeft}
+              R{balances.rewindsLeft}
             </span>
           </button>
           <motion.button
@@ -764,9 +764,6 @@ const SwipeScreen = () => {
             </span>
             <span className="px-2.5 py-1 rounded-full border border-orange-400/35 bg-orange-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-orange-200 shadow-[0_6px_18px_rgba(249,115,22,0.16)]">
               ⚡ {balances.boostsLeft}
-            </span>
-            <span className="px-2.5 py-1 rounded-full border border-cyan-400/35 bg-cyan-500/10 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200 shadow-[0_6px_18px_rgba(6,182,212,0.16)]">
-              ↩️ {balances.rewindsLeft}
             </span>
           </div>
         </div>

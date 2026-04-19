@@ -468,11 +468,11 @@ const ProfileScreen = () => {
     >
       <div
         className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(1200px 800px at 12% 8%, hsl(var(--plan-hue) var(--plan-sat) var(--plan-light) / 0.22), transparent 60%), radial-gradient(1000px 700px at 88% -10%, hsl(var(--plan-comp-hue) 68% 58% / 0.18), transparent 55%), linear-gradient(180deg, hsl(var(--plan-hue) var(--plan-sat) 8% / 0.65), #000 60%)',
-        }}
-      />
+      >
+        <div className="absolute -top-40 left-1/2 h-80 w-[72rem] -translate-x-1/2 bg-[radial-gradient(circle_at_center,rgba(255,20,147,0.15),transparent_68%)]" />
+        <div className="absolute top-28 right-[-12rem] h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,191,255,0.16),transparent_72%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,5,5,0.35),rgba(0,0,0,0.9)_62%)]" />
+      </div>
       {/* Header Section */}
       <div className="relative z-10 px-[var(--page-x)] mb-6 md:mb-8">
         <div className="flex items-start justify-between gap-4">
