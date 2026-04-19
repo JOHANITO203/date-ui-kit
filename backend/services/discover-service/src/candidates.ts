@@ -840,6 +840,9 @@ export const loadCandidatesByProfileIds = async (input: {
   userGeoPoint?: { lat: number; lng: number } | null;
   logger: FastifyBaseLogger;
   resolvePhotoAccess?: PhotoAccessResolver;
+  includeBoostStatus?: boolean;
+  photoProbeMode?: "sync" | "off";
+  source?: string;
 }): Promise<FeedCandidate[]> => {
   if (!supabase) {
     input.logger.error("discover.supabase_config_missing_no_static_fallback");
@@ -850,6 +853,13 @@ export const loadCandidatesByProfileIds = async (input: {
   if (profileIds.length === 0) return [];
 
   try {
+    const functionStartMs = performance.now();
+    const timings: Record<string, number> = {};
+    const mark = (key: string, startMs: number) => {
+      timings[key] = Number((performance.now() - startMs).toFixed(2));
+    };
+
+    const profilesQueryStartMs = performance.now();
     const profilesResult = await withTimeout(
       supabase
         .from("profiles")
@@ -861,96 +871,127 @@ export const loadCandidatesByProfileIds = async (input: {
       env.DISCOVER_SUPABASE_TIMEOUT_MS,
       "discover_profiles_by_ids_query",
     );
+    mark("profiles_query_ms", profilesQueryStartMs);
 
     if (profilesResult.error) throw profilesResult.error;
     const profiles = (profilesResult.data ?? []) as ProfileRow[];
     if (profiles.length === 0) return [];
 
-    let photosRows: ProfilePhotoRow[] = [];
-    try {
-      const photosResult = await withTimeout(
-        supabase
-          .from("profile_photos")
-          .select("user_id,storage_path,sort_order,is_primary,updated_at")
-          .in("user_id", profileIds)
-          .order("is_primary", { ascending: false })
-          .order("sort_order", { ascending: true })
-          .limit(Math.max(96, profileIds.length * 4)),
-        optionalQueryTimeoutMs,
-        "discover_photos_by_ids_query",
-      );
-      if (photosResult.error) throw photosResult.error;
-      photosRows = (photosResult.data ?? []) as ProfilePhotoRow[];
-    } catch (error) {
-      input.logger.warn({ err: error }, "discover.photos_by_ids_query_failed_continue_with_placeholders");
+    const includeBoostStatus = input.includeBoostStatus ?? true;
+    const settingsCacheStartMs = performance.now();
+    const cachedSettings: SettingsRow[] = [];
+    const missingSettingsIds: string[] = [];
+    for (const profileId of profileIds) {
+      const cached = getCachedSettings(profileId);
+      if (cached) cachedSettings.push(cached);
+      else missingSettingsIds.push(profileId);
     }
+    mark("settings_cache_lookup_ms", settingsCacheStartMs);
 
-    let settingsRows: SettingsRow[] = [];
-    try {
-      const cachedSettings: SettingsRow[] = [];
-      const missingIds: string[] = [];
-      for (const profileId of profileIds) {
-        const cached = getCachedSettings(profileId);
-        if (cached) cachedSettings.push(cached);
-        else missingIds.push(profileId);
+    const photosPromise = (async (): Promise<ProfilePhotoRow[]> => {
+      const startMs = performance.now();
+      try {
+        const photosResult = await withTimeout(
+          supabase
+            .from("profile_photos")
+            .select("user_id,storage_path,sort_order,is_primary,updated_at")
+            .in("user_id", profileIds)
+            .order("is_primary", { ascending: false })
+            .order("sort_order", { ascending: true })
+            .limit(Math.max(96, profileIds.length * 4)),
+          optionalQueryTimeoutMs,
+          "discover_photos_by_ids_query",
+        );
+        if (photosResult.error) throw photosResult.error;
+        return (photosResult.data ?? []) as ProfilePhotoRow[];
+      } catch (error) {
+        input.logger.warn({ err: error }, "discover.photos_by_ids_query_failed_continue_with_placeholders");
+        return [];
+      } finally {
+        mark("photos_query_ms", startMs);
       }
+    })();
 
-      if (missingIds.length > 0) {
+    const settingsPromise = (async (): Promise<SettingsRow[]> => {
+      const startMs = performance.now();
+      try {
+        if (missingSettingsIds.length === 0) return cachedSettings;
         const settingsResult = await withTimeout(
           supabase
             .from("settings")
             .select("user_id,hide_age,hide_distance,shadow_ghost")
-            .in("user_id", missingIds)
-            .limit(Math.max(64, missingIds.length * 2)),
+            .in("user_id", missingSettingsIds)
+            .limit(Math.max(64, missingSettingsIds.length * 2)),
           settingsQueryTimeoutMs,
           "discover_settings_by_ids_query",
         );
         if (settingsResult.error) throw settingsResult.error;
         const fresh = (settingsResult.data ?? []) as SettingsRow[];
         for (const row of fresh) setCachedSettings(row);
-        settingsRows = [...cachedSettings, ...fresh];
-      } else {
-        settingsRows = cachedSettings;
+        return [...cachedSettings, ...fresh];
+      } catch (error) {
+        input.logger.warn({ err: error }, "discover.settings_by_ids_query_failed_continue_with_defaults");
+        return cachedSettings;
+      } finally {
+        mark("settings_query_ms", startMs);
       }
-    } catch (error) {
-      input.logger.warn({ err: error }, "discover.settings_by_ids_query_failed_continue_with_defaults");
-    }
+    })();
 
-    let entitlementRows: UserEntitlementRow[] = [];
-    try {
-      const entitlementResult = await withTimeout(
-        supabase
-          .from("user_entitlements")
-          .select("user_id,entitlement_snapshot")
-          .in("user_id", profileIds)
-          .limit(Math.max(64, profileIds.length * 2)),
-        optionalQueryTimeoutMs,
-        "discover_entitlements_by_ids_query",
-      );
-      if (entitlementResult.error) throw entitlementResult.error;
-      entitlementRows = (entitlementResult.data ?? []) as UserEntitlementRow[];
-    } catch (error) {
-      input.logger.warn({ err: error }, "discover.entitlements_by_ids_query_failed_continue_with_free_tier");
-    }
+    const entitlementsPromise = (async (): Promise<UserEntitlementRow[]> => {
+      const startMs = performance.now();
+      try {
+        const entitlementResult = await withTimeout(
+          supabase
+            .from("user_entitlements")
+            .select("user_id,entitlement_snapshot")
+            .in("user_id", profileIds)
+            .limit(Math.max(64, profileIds.length * 2)),
+          optionalQueryTimeoutMs,
+          "discover_entitlements_by_ids_query",
+        );
+        if (entitlementResult.error) throw entitlementResult.error;
+        return (entitlementResult.data ?? []) as UserEntitlementRow[];
+      } catch (error) {
+        input.logger.warn({ err: error }, "discover.entitlements_by_ids_query_failed_continue_with_free_tier");
+        return [];
+      } finally {
+        mark("entitlements_query_ms", startMs);
+      }
+    })();
 
-    let boostedProfileIds = new Set<string>();
-    try {
-      const activeBoostResult = await withTimeout(
-        supabase
-          .from("user_boosts")
-          .select("user_id,active_until")
-          .in("user_id", profileIds)
-          .gt("active_until", new Date().toISOString())
-          .limit(Math.max(64, profileIds.length * 2)),
-        optionalQueryTimeoutMs,
-        "discover_boosts_by_ids_query",
-      );
-      if (activeBoostResult.error) throw activeBoostResult.error;
-      const boostRows = (activeBoostResult.data ?? []) as UserBoostRow[];
-      boostedProfileIds = new Set(boostRows.map((row) => row.user_id));
-    } catch (error) {
-      input.logger.warn({ err: error }, "discover.boosts_by_ids_query_failed_continue_without_boost_bonus");
-    }
+    const boostsPromise = (async (): Promise<Set<string>> => {
+      const startMs = performance.now();
+      try {
+        if (!includeBoostStatus) return new Set<string>();
+        const activeBoostResult = await withTimeout(
+          supabase
+            .from("user_boosts")
+            .select("user_id,active_until")
+            .in("user_id", profileIds)
+            .gt("active_until", new Date().toISOString())
+            .limit(Math.max(64, profileIds.length * 2)),
+          optionalQueryTimeoutMs,
+          "discover_boosts_by_ids_query",
+        );
+        if (activeBoostResult.error) throw activeBoostResult.error;
+        const boostRows = (activeBoostResult.data ?? []) as UserBoostRow[];
+        return new Set(boostRows.map((row) => row.user_id));
+      } catch (error) {
+        input.logger.warn({ err: error }, "discover.boosts_by_ids_query_failed_continue_without_boost_bonus");
+        return new Set<string>();
+      } finally {
+        mark("boosts_query_ms", startMs);
+      }
+    })();
+
+    const parallelQueriesStartMs = performance.now();
+    const [photosRows, settingsRows, entitlementRows, boostedProfileIds] = await Promise.all([
+      photosPromise,
+      settingsPromise,
+      entitlementsPromise,
+      boostsPromise,
+    ]);
+    mark("parallel_secondary_queries_wall_ms", parallelQueriesStartMs);
 
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
     for (const row of photosRows) {
@@ -987,7 +1028,9 @@ export const loadCandidatesByProfileIds = async (input: {
       }
     }
 
+    const bucketCheckStartMs = performance.now();
     const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
+    mark("public_bucket_check_ms", bucketCheckStartMs);
     if (!publicBucketEnabled) {
       input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
     }
@@ -1003,16 +1046,24 @@ export const loadCandidatesByProfileIds = async (input: {
         publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
       }
     }
-    const brokenPublicPaths = publicBucketEnabled
+    const photoProbeMode = input.photoProbeMode ?? "sync";
+    const probeStartMs = performance.now();
+    const brokenPublicPaths = publicBucketEnabled && photoProbeMode !== "off"
       ? await probePublicVariantHealth(publicByPath, input.logger)
       : new Set<string>();
+    if (publicBucketEnabled && photoProbeMode === "off" && publicByPath.size > 0) {
+      void probePublicVariantHealth(publicByPath, input.logger).catch(() => undefined);
+    }
+    mark("public_variant_probe_ms", probeStartMs);
     const signedCandidates = [
       ...signedPaths,
       ...(!publicBucketEnabled ? publicPaths : []),
       ...(publicBucketEnabled ? [...brokenPublicPaths] : []),
     ];
+    const signedUrlsStartMs = performance.now();
     const signedByPath =
       signedCandidates.length > 0 ? await createSignedUrlsForPaths(signedCandidates) : new Map<string, string>();
+    mark("signed_urls_ms", signedUrlsStartMs);
     const resolvedCount = publicByPath.size + signedByPath.size;
     const totalPaths = publicPaths.length + signedPaths.length;
     if (totalPaths > 0 && resolvedCount === 0) {
@@ -1039,6 +1090,7 @@ export const loadCandidatesByProfileIds = async (input: {
       );
     }
 
+    const mappingStartMs = performance.now();
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
       const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
@@ -1060,6 +1112,7 @@ export const loadCandidatesByProfileIds = async (input: {
         ),
       );
     }
+    mark("candidate_mapping_ms", mappingStartMs);
 
     const eligibleCandidates = env.DISCOVER_REQUIRE_PHOTO
       ? candidates.filter((item) => item.photoStatus !== "placeholder")
@@ -1087,6 +1140,24 @@ export const loadCandidatesByProfileIds = async (input: {
       );
     }
 
+    timings.total_wall_ms = Number((performance.now() - functionStartMs).toFixed(2));
+    input.logger.info(
+      {
+        source: input.source ?? "generic",
+        requestedIds: profileIds.length,
+        profiles: profiles.length,
+        photosRows: photosRows.length,
+        settingsRows: settingsRows.length,
+        entitlementRows: entitlementRows.length,
+        boostedProfiles: boostedProfileIds.size,
+        publicPaths: publicPaths.length,
+        signedPaths: signedPaths.length,
+        brokenPublicPaths: brokenPublicPaths.size,
+        signedCandidates: signedCandidates.length,
+        timings,
+      },
+      "discover.load_candidates_by_ids_timing",
+    );
     return eligibleCandidates;
   } catch (error) {
     input.logger.error({ err: error }, "discover.load_candidates_by_ids_failed");

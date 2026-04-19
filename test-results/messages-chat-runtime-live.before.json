@@ -1,0 +1,39 @@
+﻿{
+    "phase":  "before",
+    "timestampIso":  "2026-04-19T13:11:56.0622291+03:00",
+    "commit":  "3bed913",
+    "service":  "chat-service",
+    "baseUrl":  "http://127.0.0.1:4023",
+    "warm_iterations":  20,
+    "metrics":  {
+                    "get_conversations":  {
+                                              "first_hit_ms":  2680.283,
+                                              "warm":  {
+                                                           "n":  20,
+                                                           "p50_ms":  2804.225,
+                                                           "p95_ms":  3252.341,
+                                                           "avg_ms":  2864.553
+                                                       }
+                                          },
+                    "get_messages":  {
+                                         "first_hit_ms":  335.633,
+                                         "warm":  {
+                                                      "n":  20,
+                                                      "p50_ms":  225.784,
+                                                      "p95_ms":  292.51,
+                                                      "avg_ms":  235.715
+                                                  }
+                                     },
+                    "send_message":  {
+                                         "first_hit_ms":  409.057,
+                                         "warm":  {
+                                                      "n":  20,
+                                                      "p50_ms":  225.711,
+                                                      "p95_ms":  292.647,
+                                                      "avg_ms":  237.164
+                                                  }
+                                     }
+                },
+    "conversationId":  "match-962a08ca-80d08d3a",
+    "peerId":  "80d08d3a-7949-421e-8a6f-6ee161da527d"
+}

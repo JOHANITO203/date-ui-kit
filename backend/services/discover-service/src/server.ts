@@ -1102,6 +1102,11 @@ export const buildServer = () => {
   }));
 
   app.get("/discover/likes/incoming", async (request, reply) => {
+    const routeStartMs = performance.now();
+    const timing: Record<string, number> = {};
+    const mark = (key: string, fromMs: number) => {
+      timing[key] = Number((performance.now() - fromMs).toFixed(2));
+    };
     const userId = resolveAuthenticatedUserId(request, reply);
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
@@ -1124,17 +1129,24 @@ export const buildServer = () => {
     }
 
     try {
-      const entitlementSnapshot = await getUserEntitlementSnapshot(userId);
+      const entAndLikesStartMs = performance.now();
+      const [entitlementSnapshot, likesResult] = await Promise.all([
+        getUserEntitlementSnapshot(userId),
+        supabaseAdminClient
+          .from("discover_likes")
+          .select("*")
+          .eq("liked_user_id", userId)
+          .in("status", ["pending", "matched"])
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(2000),
+      ]);
+      mark("entitlement_plus_likes_query_ms", entAndLikesStartMs);
+
+      const planAndStockStartMs = performance.now();
       const planTier = resolveEntitlementPlanTier(entitlementSnapshot);
       const ownedIceBreakers = getIceBreakersLeft(entitlementSnapshot);
-      const likesResult = await supabaseAdminClient
-        .from("discover_likes")
-        .select("*")
-        .eq("liked_user_id", userId)
-        .in("status", ["pending", "matched"])
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .limit(2000);
+      mark("entitlement_compute_ms", planAndStockStartMs);
       if (likesResult.error) throw likesResult.error;
       const likesRows = (likesResult.data ?? []) as DiscoverLikeRow[];
       if (likesRows.length === 0) {
@@ -1154,8 +1166,16 @@ export const buildServer = () => {
         };
       }
 
-      const unlockedByIceBreaker = await loadIceBreakerUnlockedLikeIds(userId);
+      const policyBuildStartMs = performance.now();
       const unlockedByPlan = planTier !== "free";
+      let unlockedByIceBreaker = new Set<string>();
+      if (!unlockedByPlan) {
+        const unlocksLoadStartMs = performance.now();
+        unlockedByIceBreaker = await loadIceBreakerUnlockedLikeIds(userId);
+        mark("icebreaker_unlocks_query_ms", unlocksLoadStartMs);
+      } else {
+        timing.icebreaker_unlocks_query_ms = 0;
+      }
       const senderIds = [...new Set(likesRows.map((row) => row.liker_user_id))];
       const photoPolicyByProfile = new Map<string, ImageAccessPolicy>();
       const mergePolicy = (current: ImageAccessPolicy | undefined, next: ImageAccessPolicy) =>
@@ -1180,16 +1200,24 @@ export const buildServer = () => {
         const existing = photoPolicyByProfile.get(row.liker_user_id);
         photoPolicyByProfile.set(row.liker_user_id, mergePolicy(existing, policy));
       }
+      mark("policy_build_ms", policyBuildStartMs);
+
+      const senderCardsStartMs = performance.now();
       const senderCards = await loadCandidatesByProfileIds({
         profileIds: senderIds,
         userGeoPoint: null,
         logger: app.log,
+        includeBoostStatus: false,
+        photoProbeMode: "off",
+        source: "likes_incoming",
         resolvePhotoAccess: (profileId) =>
           photoPolicyByProfile.get(profileId) ?? resolveImageAccessPolicy("likes", "locked_free"),
       });
+      mark("load_sender_cards_ms", senderCardsStartMs);
       const senderMap = new Map(senderCards.map((entry) => [entry.id, entry]));
       const visibleSlice = likesRows;
 
+      const payloadComposeStartMs = performance.now();
       const visibleLikes = visibleSlice.map((row) => {
         const sender = senderMap.get(row.liker_user_id);
         const hiddenByShadowGhost =
@@ -1245,6 +1273,20 @@ export const buildServer = () => {
       });
       const hiddenCount = visibleLikes.filter((entry) => entry.blurredLocked).length;
       const unlocked = hiddenCount === 0;
+      mark("payload_compose_ms", payloadComposeStartMs);
+      timing.total_ms = Number((performance.now() - routeStartMs).toFixed(2));
+      app.log.info(
+        {
+          userId,
+          likesCount: likesRows.length,
+          senderCount: senderIds.length,
+          hiddenCount,
+          unlockedByPlan,
+          ownedIceBreakers,
+          timings: timing,
+        },
+        "discover.likes_incoming_timing",
+      );
 
       return {
         state: unlocked ? "unlocked" : "locked",

@@ -1,0 +1,17 @@
+﻿{
+    "phase":  "after",
+    "timestampIso":  "2026-04-19T13:18:13.0042992+03:00",
+    "commit":  "3bed913",
+    "allPass":  true,
+    "checks":  {
+                   "get_conversations_ok":  true,
+                   "open_chat_ok":  true,
+                   "get_messages_ok":  true,
+                   "blocked_send_status":  "blocked_by_me",
+                   "blocked_send_ok":  true,
+                   "reopen_send_status":  "sent",
+                   "reopen_send_ok":  true
+               },
+    "conversationId":  "match-962a08ca-80d08d3a",
+    "peerId":  "80d08d3a-7949-421e-8a6f-6ee161da527d"
+}

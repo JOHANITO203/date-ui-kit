@@ -1,0 +1,38 @@
+﻿{
+  "timestampIso": "2026-04-19T04:44:52.493Z",
+  "allPass": true,
+  "checks": [
+    {
+      "name": "unread_reset_on_send",
+      "pass": true,
+      "details": {
+        "beforeUnread": 3,
+        "afterUnread": 0,
+        "status": "sent"
+      }
+    },
+    {
+      "name": "relation_state_blocks_send",
+      "pass": true,
+      "details": {
+        "status": "blocked_by_me"
+      }
+    },
+    {
+      "name": "relation_state_reopen_allows_send",
+      "pass": true,
+      "details": {
+        "status": "sent"
+      }
+    },
+    {
+      "name": "ghost_avatar_masking",
+      "pass": true,
+      "details": {
+        "isGhost": true,
+        "avatarSrc": "/placeholder.svg",
+        "displayName": "Shadow profile"
+      }
+    }
+  ]
+}

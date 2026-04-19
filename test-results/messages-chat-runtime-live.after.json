@@ -1,0 +1,39 @@
+﻿{
+    "phase":  "after",
+    "timestampIso":  "2026-04-19T13:18:35.5851305+03:00",
+    "commit":  "3bed913",
+    "service":  "chat-service",
+    "baseUrl":  "http://127.0.0.1:4023",
+    "warm_iterations":  20,
+    "metrics":  {
+                    "get_conversations":  {
+                                              "first_hit_ms":  634.188,
+                                              "warm":  {
+                                                           "n":  20,
+                                                           "p50_ms":  597.57,
+                                                           "p95_ms":  679.359,
+                                                           "avg_ms":  621.548
+                                                       }
+                                          },
+                    "get_messages":  {
+                                         "first_hit_ms":  231.511,
+                                         "warm":  {
+                                                      "n":  20,
+                                                      "p50_ms":  219.877,
+                                                      "p95_ms":  265.258,
+                                                      "avg_ms":  228.79
+                                                  }
+                                     },
+                    "send_message":  {
+                                         "first_hit_ms":  205.457,
+                                         "warm":  {
+                                                      "n":  20,
+                                                      "p50_ms":  216.012,
+                                                      "p95_ms":  238.394,
+                                                      "avg_ms":  218.548
+                                                  }
+                                     }
+                },
+    "conversationId":  "match-962a08ca-80d08d3a",
+    "peerId":  "80d08d3a-7949-421e-8a6f-6ee161da527d"
+}

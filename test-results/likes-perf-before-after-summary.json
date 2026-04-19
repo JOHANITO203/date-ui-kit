@@ -1,0 +1,46 @@
+{
+  "baseline_from_user_logs": {
+    "first_ms": 2140.98,
+    "warm_ms_samples": [
+      1163.36,
+      1052.28,
+      1057.1,
+      1003.57,
+      1082.76
+    ],
+    "warm_avg_ms": 1071.81,
+    "note": "Logs fournis par l'utilisateur avant ce chantier."
+  },
+  "in_task_before_skip_unlock_optimization": {
+    "runs_ms": [
+      1306.69,
+      570.79,
+      372.22,
+      367.39,
+      378.46,
+      376.63,
+      382.46,
+      373.09
+    ],
+    "first_ms": 1306.69,
+    "warm_avg_ms": 403.01,
+    "hot_avg_ms": 375.04
+  },
+  "in_task_after_all_optimizations": {
+    "runs_ms": [
+      619.94,
+      357.35,
+      296.6,
+      308.8,
+      293.27,
+      590.13,
+      293.17,
+      286.11
+    ],
+    "first_ms": 619.94,
+    "warm_avg_ms": 346.49,
+    "hot_avg_ms": 344.68,
+    "warm_p95_ms": 357.35,
+    "hot_p95_ms": 308.8
+  }
+}

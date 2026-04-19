@@ -1,0 +1,70 @@
+﻿{
+    "generatedAt":  "2026-04-19T13:19:48.5593398+03:00",
+    "endpoint":  "chat-service",
+    "get_conversations":  {
+                              "before":  {
+                                             "first_hit_ms":  2680.283,
+                                             "warm":  {
+                                                          "n":  20,
+                                                          "p50_ms":  2804.225,
+                                                          "p95_ms":  3252.341,
+                                                          "avg_ms":  2864.553
+                                                      }
+                                         },
+                              "after":  {
+                                            "first_hit_ms":  634.188,
+                                            "warm":  {
+                                                         "n":  20,
+                                                         "p50_ms":  597.57,
+                                                         "p95_ms":  679.359,
+                                                         "avg_ms":  621.548
+                                                     }
+                                        },
+                              "delta_warm_p50_ms":  -2206.655,
+                              "improvement_pct":  78.69
+                          },
+    "get_messages":  {
+                         "before":  {
+                                        "first_hit_ms":  335.633,
+                                        "warm":  {
+                                                     "n":  20,
+                                                     "p50_ms":  225.784,
+                                                     "p95_ms":  292.51,
+                                                     "avg_ms":  235.715
+                                                 }
+                                    },
+                         "after":  {
+                                       "first_hit_ms":  231.511,
+                                       "warm":  {
+                                                    "n":  20,
+                                                    "p50_ms":  219.877,
+                                                    "p95_ms":  265.258,
+                                                    "avg_ms":  228.79
+                                                }
+                                   },
+                         "delta_warm_p50_ms":  -5.907,
+                         "improvement_pct":  2.62
+                     },
+    "send_message":  {
+                         "before":  {
+                                        "first_hit_ms":  409.057,
+                                        "warm":  {
+                                                     "n":  20,
+                                                     "p50_ms":  225.711,
+                                                     "p95_ms":  292.647,
+                                                     "avg_ms":  237.164
+                                                 }
+                                    },
+                         "after":  {
+                                       "first_hit_ms":  205.457,
+                                       "warm":  {
+                                                    "n":  20,
+                                                    "p50_ms":  216.012,
+                                                    "p95_ms":  238.394,
+                                                    "avg_ms":  218.548
+                                                }
+                                   },
+                         "delta_warm_p50_ms":  -9.699,
+                         "improvement_pct":  4.30
+                     }
+}

@@ -55,6 +55,17 @@ type ProfilePhotoRow = {
   updated_at: string | null;
 };
 
+type LoadPeerProfilesTiming = {
+  totalMs: number;
+  missingCount: number;
+  profileRows: number;
+  photoRows: number;
+  profilesQueryMs: number;
+  photosQueryMs: number;
+  signedUrlCalls: number;
+  signedUrlMs: number;
+};
+
 const verifyInternalToken = createVerifier({
   key: env.INTERNAL_JWT_SECRET,
   algorithms: ["HS256"],
@@ -133,17 +144,22 @@ const buildPublicPhotoUrl = (
   return `${base}?v=${version}`;
 };
 
-const buildSignedPhotoUrl = async (storagePath: string): Promise<string | null> => {
-  if (!supabaseServiceClient) return null;
-  const result = await supabaseServiceClient.storage
-    .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
-    .createSignedUrls([storagePath], 60 * 60 * 24 * 7, {
-      transform: { width: 256, quality: 72 },
-    } as any);
-  if (result.error || !Array.isArray(result.data)) return null;
-  const entry = result.data[0];
-  if (!entry?.signedUrl) return null;
-  return entry.signedUrl;
+const buildSignedPhotoUrls = async (storagePaths: string[]): Promise<Map<string, string>> => {
+  const out = new Map<string, string>();
+  if (!supabaseServiceClient || storagePaths.length === 0) return out;
+  for (const chunk of chunkArray(storagePaths, 100)) {
+    const result = await supabaseServiceClient.storage
+      .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
+      .createSignedUrls(chunk, 60 * 60 * 24 * 7, {
+        transform: { width: 256, quality: 72 },
+      } as any);
+    if (result.error || !Array.isArray(result.data)) continue;
+    for (let i = 0; i < chunk.length; i += 1) {
+      const entry = result.data[i];
+      if (entry?.signedUrl) out.set(chunk[i], entry.signedUrl);
+    }
+  }
+  return out;
 };
 
 const toOptionalString = (value: unknown) =>
@@ -198,19 +214,38 @@ const buildPeerCardFromSupabase = (row: {
 const loadPeerProfiles = async (
   peerIds: string[],
   resolvePhotoAccess?: (profileId: string) => ImageAccessPolicy,
-): Promise<Map<string, ProfileCard>> => {
+): Promise<{ byId: Map<string, ProfileCard>; timing: LoadPeerProfilesTiming }> => {
+  const startedAt = performance.now();
   const byId = new Map<string, ProfileCard>();
+  const timing: LoadPeerProfilesTiming = {
+    totalMs: 0,
+    missingCount: 0,
+    profileRows: 0,
+    photoRows: 0,
+    profilesQueryMs: 0,
+    photosQueryMs: 0,
+    signedUrlCalls: 0,
+    signedUrlMs: 0,
+  };
   for (const peerId of peerIds) {
     const staticPeer = getProfileById(peerId);
     if (staticPeer) byId.set(peerId, staticPeer);
   }
 
-  if (!supabaseServiceClient) return byId;
+  if (!supabaseServiceClient) {
+    timing.totalMs = performance.now() - startedAt;
+    return { byId, timing };
+  }
 
   const missing = peerIds.filter((peerId) => !byId.has(peerId));
-  if (missing.length === 0) return byId;
+  timing.missingCount = missing.length;
+  if (missing.length === 0) {
+    timing.totalMs = performance.now() - startedAt;
+    return { byId, timing };
+  }
 
   const primaryPathByUser = new Map<string, string>();
+  const primaryUpdatedAtByUser = new Map<string, string | null>();
   const photoAccessResolver =
     resolvePhotoAccess ?? (() => resolveImageAccessPolicy("messages", "pending"));
   const profileRows: {
@@ -225,17 +260,21 @@ const loadPeerProfiles = async (
   }[] = [];
 
   for (const chunk of chunkArray(missing, 100)) {
+    const queryStartedAt = performance.now();
     const profileResult = await supabaseServiceClient
       .from("profiles")
       .select("user_id,first_name,birth_date,city,languages,bio,interests,verified_opt_in")
       .in("user_id", chunk);
+    timing.profilesQueryMs += performance.now() - queryStartedAt;
 
     if (!profileResult.error) {
       profileRows.push(...((profileResult.data ?? []) as typeof profileRows));
     }
   }
+  timing.profileRows = profileRows.length;
 
   for (const chunk of chunkArray(missing, 100)) {
+    const queryStartedAt = performance.now();
     const photoResult = await supabaseServiceClient
       .from("profile_photos")
       .select("user_id,storage_path,sort_order,is_primary,updated_at")
@@ -244,21 +283,40 @@ const loadPeerProfiles = async (
       .order("is_primary", { ascending: false })
       .order("sort_order", { ascending: true })
       .limit(Math.max(200, chunk.length * 3));
+    timing.photosQueryMs += performance.now() - queryStartedAt;
 
     if (!photoResult.error) {
       const rows = (photoResult.data ?? []) as ProfilePhotoRow[];
+      timing.photoRows += rows.length;
       for (const row of rows) {
         if (!primaryPathByUser.has(row.user_id) && typeof row.storage_path === "string" && row.storage_path.length > 0) {
           primaryPathByUser.set(row.user_id, row.storage_path);
+          primaryUpdatedAtByUser.set(row.user_id, row.updated_at ?? null);
         }
       }
       for (const row of rows) {
         if (!primaryPathByUser.has(row.user_id) && row.storage_path) {
           primaryPathByUser.set(row.user_id, row.storage_path);
+          primaryUpdatedAtByUser.set(row.user_id, row.updated_at ?? null);
         }
       }
     }
   }
+
+  const signedPathsSet = new Set<string>();
+  for (const row of profileRows) {
+    const path = primaryPathByUser.get(row.user_id);
+    if (!path) continue;
+    const policy = photoAccessResolver(row.user_id);
+    if (policy !== "public_stable") {
+      signedPathsSet.add(path);
+    }
+  }
+  const signedPaths = [...signedPathsSet];
+  const signStartedAt = performance.now();
+  const signedByPath = await buildSignedPhotoUrls(signedPaths);
+  timing.signedUrlCalls = signedPaths.length;
+  timing.signedUrlMs = performance.now() - signStartedAt;
 
   for (const row of profileRows) {
     const path = primaryPathByUser.get(row.user_id);
@@ -266,9 +324,9 @@ const loadPeerProfiles = async (
     if (path) {
       const policy = photoAccessResolver(row.user_id);
       if (policy === "public_stable") {
-        primarySignedUrl = buildPublicPhotoUrl(path, "avatar", null);
+        primarySignedUrl = buildPublicPhotoUrl(path, "avatar", primaryUpdatedAtByUser.get(row.user_id) ?? null);
       } else {
-        primarySignedUrl = await buildSignedPhotoUrl(path);
+        primarySignedUrl = signedByPath.get(path) ?? null;
       }
     }
     byId.set(
@@ -280,7 +338,8 @@ const loadPeerProfiles = async (
     );
   }
 
-  return byId;
+  timing.totalMs = performance.now() - startedAt;
+  return { byId, timing };
 };
 
 const translationSettingsByConversation = new Map<string, TranslationSetting>();
@@ -325,22 +384,39 @@ export const buildServer = () => {
   }));
 
   app.get("/chat/conversations", async (request, reply) => {
+    const startedAt = performance.now();
+    const buckets = {
+      authMs: 0,
+      conversationsReadMs: 0,
+      peerPreparationMs: 0,
+      loadPeerProfilesMs: 0,
+      shadowGhostMs: 0,
+      safetyBlocksMs: 0,
+      mappingMs: 0,
+      sortMs: 0,
+    };
     const userId = resolveAuthenticatedUserId(request, reply);
+    buckets.authMs = performance.now() - startedAt;
     if (!userId) {
       return { code: "UNAUTHORIZED" };
     }
 
     if (supabaseServiceClient) {
+      let cursor = performance.now();
       const conversationsResult = await supabaseServiceClient
         .from("chat_conversations")
-        .select("*")
+        .select(
+          "conversation_id,peer_profile_id,relation_state,relation_state_updated_at,received_superlike_trace_at,unread_count,last_message_preview,last_message_at",
+        )
         .eq("user_id", userId);
+      buckets.conversationsReadMs = performance.now() - cursor;
 
       if (conversationsResult.error) {
         reply.status(500);
         return { code: "CHAT_CONVERSATIONS_READ_FAILED" };
       }
 
+      cursor = performance.now();
       const peerIds = [...new Set((conversationsResult.data ?? []).map((row) => row.peer_profile_id))].filter(
         (entry): entry is string => typeof entry === "string" && entry.length > 0,
       );
@@ -361,18 +437,33 @@ export const buildServer = () => {
           existing === "signed_private" || policy === "signed_private" ? "signed_private" : "public_stable",
         );
       }
-      const peerMap = await loadPeerProfiles(peerIds, (profileId) =>
+      buckets.peerPreparationMs = performance.now() - cursor;
+      cursor = performance.now();
+      const { byId: peerMap, timing: peerLoadTiming } = await loadPeerProfiles(peerIds, (profileId) =>
         peerPolicyById.get(profileId) ?? resolveImageAccessPolicy("messages", "pending"),
       );
+      buckets.loadPeerProfilesMs = performance.now() - cursor;
       let shadowGhostPeerSet = new Set<string>();
+      let blockedByMeSet = new Set<string>();
       if (peerIds.length > 0) {
-        const shadowGhostResult = await supabaseServiceClient
-          .from("discover_likes")
-          .select("liker_user_id")
-          .eq("liked_user_id", userId)
-          .eq("hidden_by_shadowghost", true)
-          .in("status", ["pending", "matched"])
-          .in("liker_user_id", peerIds);
+        cursor = performance.now();
+        const [shadowGhostResult, blockedResult] = await Promise.all([
+          supabaseServiceClient
+            .from("discover_likes")
+            .select("liker_user_id")
+            .eq("liked_user_id", userId)
+            .eq("hidden_by_shadowghost", true)
+            .in("status", ["pending", "matched"])
+            .in("liker_user_id", peerIds),
+          supabaseServiceClient
+            .from("safety_blocks")
+            .select("blocked_user_id")
+            .eq("user_id", userId)
+            .in("blocked_user_id", peerIds),
+        ]);
+        const parallelDurationMs = performance.now() - cursor;
+        buckets.shadowGhostMs = parallelDurationMs;
+        buckets.safetyBlocksMs = parallelDurationMs;
         if (!shadowGhostResult.error) {
           shadowGhostPeerSet = new Set(
             (shadowGhostResult.data ?? [])
@@ -380,20 +471,16 @@ export const buildServer = () => {
               .filter((value): value is string => typeof value === "string" && value.length > 0),
           );
         }
-      }
-      let blockedByMeSet = new Set<string>();
-      const blockedResult = await supabaseServiceClient
-        .from("safety_blocks")
-        .select("blocked_user_id")
-        .eq("user_id", userId);
-      if (!blockedResult.error) {
-        blockedByMeSet = new Set(
-          (blockedResult.data ?? [])
-            .map((row) => (row as { blocked_user_id?: unknown }).blocked_user_id)
-            .filter((value): value is string => typeof value === "string" && value.length > 0),
-        );
+        if (!blockedResult.error) {
+          blockedByMeSet = new Set(
+            (blockedResult.data ?? [])
+              .map((row) => (row as { blocked_user_id?: unknown }).blocked_user_id)
+              .filter((value): value is string => typeof value === "string" && value.length > 0),
+          );
+        }
       }
 
+      cursor = performance.now();
       const conversations = (conversationsResult.data ?? [])
         .map((row) => {
           const peer = peerMap.get(row.peer_profile_id) ?? null;
@@ -425,9 +512,24 @@ export const buildServer = () => {
           };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      buckets.mappingMs = performance.now() - cursor;
 
+      cursor = performance.now();
+      const sortedConversations = sortConversations(conversations);
+      buckets.sortMs = performance.now() - cursor;
+      const totalMs = performance.now() - startedAt;
+      request.log.info(
+        {
+          totalMs,
+          conversationsCount: conversations.length,
+          peerCount: peerIds.length,
+          buckets,
+          loadPeerProfiles: peerLoadTiming,
+        },
+        "chat.conversations_timing",
+      );
       return {
-        conversations: sortConversations(conversations),
+        conversations: sortedConversations,
       };
     }
 
@@ -466,16 +568,6 @@ export const buildServer = () => {
         }
       }
 
-      const peerMap = await loadPeerProfiles([requestedProfileId], () =>
-        resolveImageAccessPolicy("messages", "pending"),
-      );
-      const peer = peerMap.get(requestedProfileId) ?? null;
-      if (!peer) {
-        reply.status(404);
-        return { code: "PROFILE_NOT_FOUND", message: "Cannot open conversation for this profile." };
-      }
-
-      const nowIso = new Date().toISOString();
       const byPeer = await supabaseServiceClient
         .from("chat_conversations")
         .select("conversation_id")
@@ -493,6 +585,17 @@ export const buildServer = () => {
       if (byPeer.data?.conversation_id) {
         return { conversationId: byPeer.data.conversation_id };
       }
+
+      const { byId: peerMap } = await loadPeerProfiles([requestedProfileId], () =>
+        resolveImageAccessPolicy("messages", "pending"),
+      );
+      const peer = peerMap.get(requestedProfileId) ?? null;
+      if (!peer) {
+        reply.status(404);
+        return { code: "PROFILE_NOT_FOUND", message: "Cannot open conversation for this profile." };
+      }
+
+      const nowIso = new Date().toISOString();
 
       const conversationId = resolveConversationId(userId, requestedProfileId);
 
@@ -571,6 +674,13 @@ export const buildServer = () => {
   });
 
   app.get("/chat/conversations/:conversationId/messages", async (request, reply) => {
+    const startedAt = performance.now();
+    const buckets = {
+      authMs: 0,
+      guardMs: 0,
+      messagesReadMs: 0,
+      mappingMs: 0,
+    };
     const params = request.params as { conversationId?: string };
     const conversationId = params.conversationId;
 
@@ -580,17 +690,20 @@ export const buildServer = () => {
     }
 
     const userId = resolveAuthenticatedUserId(request, reply);
+    buckets.authMs = performance.now() - startedAt;
     if (!userId) {
       return { code: "UNAUTHORIZED" };
     }
 
     if (supabaseServiceClient) {
+      let cursor = performance.now();
       const conversationResult = await supabaseServiceClient
         .from("chat_conversations")
         .select("conversation_id")
         .eq("user_id", userId)
         .eq("conversation_id", conversationId)
         .maybeSingle();
+      buckets.guardMs = performance.now() - cursor;
 
       if (conversationResult.error) {
         reply.status(500);
@@ -602,12 +715,16 @@ export const buildServer = () => {
         return { code: "NOT_FOUND", message: "Conversation not found." };
       }
 
+      cursor = performance.now();
       const messagesResult = await supabaseServiceClient
         .from("chat_messages")
-        .select("*")
+        .select(
+          "message_id,conversation_id,sender_user_id,direction,original_text,translated_text,created_at,read_at",
+        )
         .eq("user_id", userId)
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
+      buckets.messagesReadMs = performance.now() - cursor;
 
       if (messagesResult.error) {
         reply.status(500);
@@ -616,26 +733,39 @@ export const buildServer = () => {
 
       const translation = getTranslationSetting(userId, conversationId);
 
+      cursor = performance.now();
+      const mappedMessages = (messagesResult.data ?? []).map((row) => {
+        const translatedText = translation.enabled
+          ? toOptionalString(row.translated_text) ?? row.original_text
+          : undefined;
+        return {
+          id: row.message_id,
+          conversationId: row.conversation_id,
+          senderUserId: row.sender_user_id,
+          direction: row.direction,
+          originalText: row.original_text,
+          translatedText,
+          translated: translation.enabled,
+          targetLocale: translation.enabled ? translation.targetLocale : undefined,
+          createdAtIso: row.created_at,
+          readAtIso: toOptionalString(row.read_at),
+        };
+      });
+      buckets.mappingMs = performance.now() - cursor;
+      const totalMs = performance.now() - startedAt;
+      request.log.info(
+        {
+          totalMs,
+          conversationId,
+          messageCount: mappedMessages.length,
+          buckets,
+        },
+        "chat.messages_timing",
+      );
       return {
         conversationId,
         translation,
-        messages: (messagesResult.data ?? []).map((row) => {
-          const translatedText = translation.enabled
-            ? toOptionalString(row.translated_text) ?? row.original_text
-            : undefined;
-          return {
-            id: row.message_id,
-            conversationId: row.conversation_id,
-            senderUserId: row.sender_user_id,
-            direction: row.direction,
-            originalText: row.original_text,
-            translatedText,
-            translated: translation.enabled,
-            targetLocale: translation.enabled ? translation.targetLocale : undefined,
-            createdAtIso: row.created_at,
-            readAtIso: toOptionalString(row.read_at),
-          };
-        }),
+        messages: mappedMessages,
       };
     }
 
@@ -763,7 +893,7 @@ export const buildServer = () => {
     if (supabaseServiceClient) {
       const conversationResult = await supabaseServiceClient
         .from("chat_conversations")
-        .select("*")
+        .select("conversation_id,peer_profile_id,relation_state")
         .eq("user_id", userId)
         .eq("conversation_id", conversationId)
         .maybeSingle();

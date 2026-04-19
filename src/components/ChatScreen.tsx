@@ -190,19 +190,20 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       if (inFlight) return;
       inFlight = true;
       try {
-        const [history, list] = await Promise.all([
-          appApi.getMessages(conversationId),
-          appApi.getConversations(),
-        ]);
+        const history = await appApi.getMessages(conversationId);
         if (isCancelled) return;
         setMessages(history);
-        const nextConversation =
-          list.find((entry) => entry.id === conversationId) ??
-          list.find((entry) => entry.peer.id === userId);
-        if (nextConversation) {
-          setConversation(nextConversation);
-          if (nextConversation.unreadCount > 0) {
-            void appApi.markConversationRead(nextConversation.id);
+        if (!embedded) {
+          const list = await appApi.getConversations();
+          if (isCancelled) return;
+          const nextConversation =
+            list.find((entry) => entry.id === conversationId) ??
+            list.find((entry) => entry.peer.id === userId);
+          if (nextConversation) {
+            setConversation(nextConversation);
+            if (nextConversation.unreadCount > 0) {
+              void appApi.markConversationRead(nextConversation.id);
+            }
           }
         }
         failureCount = 0;
@@ -228,7 +229,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       isCancelled = true;
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [conversationId, userId]);
+  }, [conversationId, userId, embedded]);
 
   useEffect(() => {
     const unsubscribe = subscribeConversationRelationChange(({ conversationId: changedConversationId, state }) => {
