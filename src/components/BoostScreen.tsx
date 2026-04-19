@@ -246,23 +246,23 @@ const catalogToneByView: Record<CatalogView, CatalogTone> = {
   instant: {
     token: '--glow-orange',
     sectionClass:
-      'rounded-[var(--glass-card-radius-soft)] border border-orange-300/25 bg-[linear-gradient(165deg,rgba(251,146,60,0.12),rgba(12,10,8,0.92))] p-3 md:p-4',
-    activeTabClass: 'bg-gradient-to-r from-orange-500 to-amber-400 text-black shadow-[0_10px_24px_rgba(251,146,60,0.34)]',
-    ghostButtonClass: 'border border-orange-300/30 bg-orange-500/10 text-orange-100 hover:bg-orange-500/18',
+      'rounded-[var(--glass-card-radius-soft)] border border-amber-300/20 bg-[linear-gradient(165deg,rgba(120,74,28,0.2),rgba(11,10,8,0.94))] p-3 md:p-4',
+    activeTabClass: 'bg-gradient-to-r from-amber-500/90 to-orange-400/90 text-black shadow-[0_10px_24px_rgba(180,110,36,0.28)]',
+    ghostButtonClass: 'border border-amber-200/25 bg-amber-500/8 text-amber-100 hover:bg-amber-500/14',
   },
   passes: {
     token: '--glow-cyan',
     sectionClass:
-      'rounded-[var(--glass-card-radius-soft)] border border-cyan-300/25 bg-[linear-gradient(165deg,rgba(34,211,238,0.11),rgba(7,11,14,0.92))] p-3 md:p-4',
-    activeTabClass: 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-[0_10px_24px_rgba(34,211,238,0.3)]',
-    ghostButtonClass: 'border border-cyan-300/30 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/18',
+      'rounded-[var(--glass-card-radius-soft)] border border-teal-300/20 bg-[linear-gradient(165deg,rgba(34,120,125,0.18),rgba(8,11,13,0.94))] p-3 md:p-4',
+    activeTabClass: 'bg-gradient-to-r from-teal-500/90 to-cyan-500/90 text-white shadow-[0_10px_24px_rgba(45,170,175,0.26)]',
+    ghostButtonClass: 'border border-teal-200/25 bg-teal-500/8 text-teal-100 hover:bg-teal-500/14',
   },
   bundles: {
     token: '--glow-pink',
     sectionClass:
-      'rounded-[var(--glass-card-radius-soft)] border border-fuchsia-300/25 bg-[linear-gradient(165deg,rgba(236,72,153,0.12),rgba(13,8,14,0.92))] p-3 md:p-4',
-    activeTabClass: 'bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.32)]',
-    ghostButtonClass: 'border border-fuchsia-300/30 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/18',
+      'rounded-[var(--glass-card-radius-soft)] border border-violet-300/20 bg-[linear-gradient(165deg,rgba(95,69,155,0.2),rgba(12,9,15,0.94))] p-3 md:p-4',
+    activeTabClass: 'bg-gradient-to-r from-violet-500/92 to-fuchsia-500/88 text-white shadow-[0_10px_24px_rgba(139,92,246,0.28)]',
+    ghostButtonClass: 'border border-violet-200/25 bg-violet-500/8 text-violet-100 hover:bg-violet-500/14',
   },
 };
 
@@ -1052,18 +1052,18 @@ const BoostScreen = () => {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)] rounded-[var(--card-radius)] border border-white/10 bg-[linear-gradient(160deg,rgba(14,16,23,0.84),rgba(7,8,13,0.9))] p-3 md:p-4">
-          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-blue-400/25 bg-blue-500/5">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-black">
+          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-slate-300/20 bg-[linear-gradient(155deg,rgba(19,30,46,0.34),rgba(10,13,19,0.9))]">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-sky-100/85 font-black">
               {t('boost.badges.identityTitle')}
             </p>
             <h3 className="mt-2 text-lg font-black">{t('boost.badges.identityBadge')}</h3>
             <p className="mt-2 text-sm text-white/70">{t('boost.badges.identityDesc')}</p>
-            <p className="mt-3 text-[10px] uppercase tracking-[0.16em] text-blue-100/80">
+            <p className="mt-3 text-[10px] uppercase tracking-[0.16em] text-sky-100/70">
               {t('boost.badges.identityRule')}
             </p>
           </div>
-          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-fuchsia-400/25 bg-fuchsia-500/5">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-fuchsia-200 font-black">
+          <div className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] border-slate-300/20 bg-[linear-gradient(155deg,rgba(43,20,62,0.32),rgba(10,13,19,0.9))]">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-violet-100/85 font-black">
               {locale === 'ru' ? 'СТАТУСНЫЕ БЕЙДЖИ' : t('boost.badges.premiumTitle')}
             </p>
             <h3 className="mt-2 text-lg font-black">{t('boost.badges.premiumBadge')}</h3>
@@ -1081,7 +1081,7 @@ const BoostScreen = () => {
               ))}
             </ul>
             {TRAVEL_PASS_ENABLED && (
-              <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-fuchsia-100/65">
+              <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-violet-100/65">
                 {t('boost.badges.travelPassRule')}
               </p>
             )}
@@ -1118,10 +1118,10 @@ const BoostScreen = () => {
             <div className={activeCatalogTone.sectionClass} style={glowShadow(activeCatalogTone.token, 0.22, 28)}>
               <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
                 <div className="inline-flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/18 border border-orange-300/30">
-                    <ICONS.Zap size={15} className="text-orange-200" />
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/12 border border-amber-300/24">
+                    <ICONS.Zap size={15} className="text-amber-100" />
                   </span>
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-100">{t('boost.catalog.instant')}</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-100/90">{t('boost.catalog.instant')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--grid-gap)]">
@@ -1131,7 +1131,7 @@ const BoostScreen = () => {
                     whileHover={{ ...glowShadow(item.glowToken, 0.34, 34), scale: 1.01 }}
                     key={item.id}
                     className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] transition-colors"
-                    style={glowCardStyle(item.glowToken, 0.2, 0.08, 0.26)}
+                    style={glowCardStyle(item.glowToken, 0.12, 0.05, 0.18)}
                   >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -1185,17 +1185,17 @@ const BoostScreen = () => {
           {catalogView === 'passes' && (
             <>
               <div className={activeCatalogTone.sectionClass} style={glowShadow(activeCatalogTone.token, 0.22, 28)}>
-                <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
-                  <div className="inline-flex items-center gap-2">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/18 border border-cyan-300/30">
-                      <ICONS.Shield size={15} className="text-cyan-100" />
+              <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
+                <div className="inline-flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-teal-500/12 border border-teal-300/24">
+                      <ICONS.Shield size={15} className="text-teal-100" />
                     </span>
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100">{t('boost.catalog.passes')}</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-teal-100/90">{t('boost.catalog.passes')}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[var(--grid-gap)]">
                   {resolvedTimePacks.map((item) => (
-                    <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.32, 32), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.18, 0.07, 0.24)}>
+                    <motion.div whileTap={tapGlow(item.glowToken, 0.4)} whileHover={{ ...glowShadow(item.glowToken, 0.22, 30), scale: 1.01 }} key={item.id} className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)]" style={glowCardStyle(item.glowToken, 0.12, 0.05, 0.18)}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-black text-lg tracking-tight uppercase">
                         {resolveLabelByOfferId(
@@ -1225,7 +1225,7 @@ const BoostScreen = () => {
                       <button
                         onClick={() => handleBuyPass(item.id)}
                         disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByPassId[item.id])}
-                        className={`${buyBtnBase} bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-[0_10px_24px_rgba(34,211,238,0.28)]`}
+                        className={`${buyBtnBase} bg-gradient-to-r from-teal-500/90 to-cyan-500/90 text-white shadow-[0_10px_24px_rgba(45,170,175,0.24)]`}
                       >
                         {paymentBusyOfferId
                           ? '...'
@@ -1250,20 +1250,20 @@ const BoostScreen = () => {
             <div className={activeCatalogTone.sectionClass} style={glowShadow(activeCatalogTone.token, 0.24, 30)}>
               <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
                 <div className="inline-flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-fuchsia-500/18 border border-fuchsia-300/30">
-                    <ICONS.Star size={15} className="text-fuchsia-100" />
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/12 border border-violet-300/24">
+                    <ICONS.Star size={15} className="text-violet-100" />
                   </span>
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-fuchsia-100">{t('boost.catalog.bundles')}</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-violet-100/90">{t('boost.catalog.bundles')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--grid-gap)]">
                 {bundles.map((item) => (
                   <motion.div
                     whileTap={tapGlow(item.glowToken, item.id === 'datingpro' ? 0.48 : 0.4)}
-                    whileHover={{ ...glowShadow(item.glowToken, item.id === 'datingpro' ? 0.38 : 0.3, 34), scale: 1.01 }}
+                    whileHover={{ ...glowShadow(item.glowToken, item.id === 'datingpro' ? 0.28 : 0.22, 30), scale: 1.01 }}
                     key={item.id}
                     className="rounded-[var(--glass-card-radius-soft)] glass-panel glass-panel-float p-[var(--glass-card-pad)] grid grid-rows-[auto_1fr_auto] min-h-[19rem]"
-                    style={glowCardStyle(item.glowToken, item.id === 'datingpro' ? 0.26 : 0.18, item.id === 'datingpro' ? 0.11 : 0.07, item.id === 'datingpro' ? 0.34 : 0.24)}
+                    style={glowCardStyle(item.glowToken, item.id === 'datingpro' ? 0.18 : 0.12, item.id === 'datingpro' ? 0.08 : 0.05, item.id === 'datingpro' ? 0.24 : 0.18)}
                   >
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-black text-xl tracking-tight uppercase">
@@ -1294,7 +1294,7 @@ const BoostScreen = () => {
                     <button
                       onClick={() => handleBuyBundle(item.id)}
                       disabled={paymentBusyOfferId !== null || !isOfferPurchasable(offerIdByBundleId[item.id])}
-                      className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.3)]' : 'border border-fuchsia-300/30 bg-fuchsia-500/10 text-fuchsia-100 hover:bg-fuchsia-500/18'}`}
+                      className={`${buyBtnBase} w-full ${item.id === 'datingpro' ? 'bg-gradient-to-r from-violet-500/92 to-fuchsia-500/86 text-white shadow-[0_10px_24px_rgba(139,92,246,0.26)]' : 'border border-violet-300/26 bg-violet-500/8 text-violet-100 hover:bg-violet-500/14'}`}
                     >
                       {paymentBusyOfferId
                         ? '...'
