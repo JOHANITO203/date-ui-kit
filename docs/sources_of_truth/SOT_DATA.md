@@ -1,6 +1,7 @@
-﻿# SOURCE OF TRUTH — DONNEES
+# SOURCE OF TRUTH — DONNEES
 
 Date de verrouillage: 2026-03-30
+Derniere mise a jour: 2026-04-19
 
 ## 1) Contrats centraux
 Source: `src/contracts/*`
@@ -38,6 +39,16 @@ Source: `src/contracts/*`
 - `preferences.shadowGhostEntitlementExpiresAtIso?`
 - `privacy.shadowGhost` est force a `false` si entitlement invalide/expire.
 
+### Likes contracts (inbound + outbound)
+- Inbound:
+  - `GetReceivedLikesResponse`
+  - `ReceivedLike`
+  - `UseIceBreakerResponse`
+- Outbound:
+  - `GetSentLikesResponse`
+  - `SentLike`
+  - `SentLikeStatus = pending | matched | passed`
+
 ## 2) Runtime state (local)
 Source: `src/state/appRuntimeStore.ts`
 
@@ -50,6 +61,7 @@ Source: `src/state/appRuntimeStore.ts`
 - `likes`, `likesUnlocked`
 - `conversations`, `messagesByConversation`
 - translation toggles par conversation
+- `getSentLikes()` fallback runtime pour la surface `I liked`
 
 ## 3) Persistence locale
 - `exotic.runtime.settings.v1` (settings)
@@ -67,12 +79,26 @@ Source: `src/state/appRuntimeStore.ts`
 - Validation anti-produit vide:
   - un produit sans effet metier est considere invalide lors de l'attribution.
 
-## 6) Likes unlock unitaires
-- Table `public.discover_likes`: source de verite des likes entrants.
+## 6) Likes data model (verrouille)
+- Table `public.discover_likes`: source de verite des likes entrants et sortants.
+  - cles directionnelles: `liker_user_id`, `liked_user_id`
+  - `status`: `pending | matched | passed`
+  - `was_superlike`, `hidden_by_shadowghost`
 - Table `public.discover_like_unlocks`: unlock ponctuel IceBreaker par `(user_id, like_id)`.
 - Entitlement stock: `user_entitlements.entitlement_snapshot.balancesDelta.icebreakersLeft`.
 
-## 7) Mapping abonnements (page-level)
+## 7) Endpoints Likes (verrouilles)
+- Inbound:
+  - `GET /discover/likes/incoming`
+  - `POST /discover/likes/:likeId/decision`
+  - `POST /discover/likes/:likeId/icebreaker/use`
+- Outbound:
+  - `GET /discover/likes/outgoing?status=pending|matched|passed|all`
+- SuperLike direct:
+  - `POST /discover/superlike/send`
+  - effet data attendu: upsert/merge `discover_likes.was_superlike=true` sur la ligne outbound concernee.
+
+## 8) Mapping abonnements (page-level)
 - Source unique frontend: `src/domain/subscriptionBenefits.ts`.
 - Source auditable backend: `backend/services/payments-service/src/entitlements.ts` via `resolveEffectiveBenefitsSnapshot` retourne dans `GET /entitlements/me`.
 - Ce mapping pilote les deriveurs/transitions UI suivants:

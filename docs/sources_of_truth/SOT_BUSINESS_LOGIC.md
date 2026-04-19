@@ -1,6 +1,7 @@
-﻿# SOURCE OF TRUTH — LOGIQUES METIER
+# SOURCE OF TRUTH — LOGIQUES METIER
 
 Date de verrouillage: 2026-03-30
+Derniere mise a jour: 2026-04-19
 
 ## 1) Badges
 - `verified` = identite verifiee (non vendable).
@@ -76,6 +77,29 @@ Date de verrouillage: 2026-03-30
   3. unlock ponctuel par IceBreaker,
   4. lock free par defaut.
 
+## 8.1) Likes split inbound/outbound (verrouille)
+- La page Likes est separee en 2 surfaces fonctionnelles:
+  - `They liked me`:
+    - flux inbound historique,
+    - logique lock/unlock/icebreaker/ghost intacte,
+    - actions `like_back` / `pass` preservees.
+  - `I liked`:
+    - flux outbound (`profiles I liked`),
+    - surface de suivi et de re-engagement.
+- Regle de clarte produit:
+  - ne pas melanger inbound/outbound dans une seule liste.
+  - la separation est obligatoire pour eviter la confusion des intents.
+
+## 8.2) SuperLike depuis I liked (verrouille)
+- SuperLike depuis `I liked` suit strictement la meme SOT que Discover:
+  - ouverture composer,
+  - message direct,
+  - confirmation `SuperLike sent.`,
+  - consommation unitaire.
+- Aucune dependance a un match.
+- Persistence d'etat outbound attendue:
+  - le profil outbound est marque `wasSuperLike=true`.
+
 ## 9) Items / inventaire / consommation
 - Source de verite item: `user_entitlements.entitlement_snapshot` + `in_app_offers`.
 - Achat item:
@@ -127,3 +151,9 @@ Date de verrouillage: 2026-03-30
   - Messages/Chat: presence online conditionnee par `messages_see_online`, traduction conditionnee par `messages_translation`.
 - Audit runtime:
   - `GET /entitlements/me` expose aussi `effectiveBenefits` (flags + mapping par page) pour verifier la propagation serveur -> UI.
+
+## 12) Cloture du sujet Likes split + SuperLike conversion
+- Bloc ferme en SOT:
+  - `They liked me` conserve le comportement inbound valide.
+  - `I liked` devient une surface active de conversion SuperLike.
+  - SuperLike depuis `I liked` reste strictement message-direct, sans dependance au match.
