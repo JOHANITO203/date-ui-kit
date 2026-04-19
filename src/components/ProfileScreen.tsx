@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
-import GlassButton from './ui/GlassButton';
 import { useDevice } from '../hooks/useDevice';
 import { motion } from 'motion/react';
 import { useI18n } from '../i18n/I18nProvider';
@@ -489,14 +488,14 @@ const ProfileScreen = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/profile/edit')}
-              className="h-11 px-4 rounded-2xl glass-panel-soft text-[10px] uppercase tracking-[0.16em] font-black text-white/90 inline-flex items-center gap-2 hover:border-white/30 transition-colors"
+              className="ui21-btn ui21-btn-ghost inline-flex items-center gap-2 h-11 px-4 rounded-2xl"
             >
               <ICONS.Edit size={14} />
               {t('profile.improve')}
             </button>
             <button
               onClick={() => navigate('/settings')}
-              className="w-11 h-11 rounded-2xl glass-panel-soft flex items-center justify-center hover:border-white/30 transition-colors"
+              className="ui21-card-soft w-11 h-11 rounded-2xl flex items-center justify-center"
             >
               <ICONS.Settings size={18} className="text-white" />
             </button>
@@ -512,7 +511,7 @@ const ProfileScreen = () => {
               ref={(el) => {
                 sectionRefs.current[0] = el;
               }}
-              className="rounded-[var(--card-radius)] overflow-hidden border glass-panel glass-panel-float"
+              className="ui21-card rounded-[var(--card-radius)] overflow-hidden"
               style={{ borderColor: 'hsl(var(--plan-hue) var(--plan-sat) 62% / 0.25)' }}
             >
               <div className="relative aspect-[0.95]">
@@ -554,7 +553,7 @@ const ProfileScreen = () => {
                 <div className="absolute top-4 left-4 right-4 flex items-center justify-end gap-2">
                   <button
                     onClick={() => navigate('/profile/edit')}
-                    className="w-9 h-9 rounded-xl bg-black/45 border border-white/20 inline-flex items-center justify-center hover:bg-black/60 transition-colors"
+                    className="ui21-card-soft w-9 h-9 rounded-xl inline-flex items-center justify-center"
                   >
                     <ICONS.Edit size={14} />
                   </button>
@@ -604,17 +603,13 @@ const ProfileScreen = () => {
               <div className="p-4 grid grid-cols-2 gap-2 bg-black/20">
                 <button
                   onClick={() => navigate('/discover')}
-                  className="h-10 rounded-xl bg-white/8 border border-white/15 text-[10px] font-black uppercase tracking-[0.15em] hover:bg-white/12 transition-colors"
+                  className="ui21-btn ui21-btn-ghost h-10 rounded-xl"
                 >
                   {t('profile.preview')}
                 </button>
                 <button
                   onClick={() => navigate('/boost')}
-                  className="h-10 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] text-black"
-                  style={{
-                    background:
-                      'linear-gradient(90deg, hsl(var(--plan-hue) var(--plan-sat) 64% / 0.95), hsl(var(--plan-comp-hue) 72% 60% / 0.95))',
-                  }}
+                  className="ui21-btn ui21-btn-primary h-10 rounded-xl"
                 >
                   {t('settings.plan.manage')}
                 </button>
@@ -625,7 +620,7 @@ const ProfileScreen = () => {
               ref={(el) => {
                 sectionRefs.current[1] = el;
               }}
-              className="rounded-[var(--card-radius)] p-5 md:p-6 space-y-5 border"
+              className="ui21-card rounded-[var(--card-radius)] p-5 md:p-6 space-y-5 border"
               style={planCardToneStyle}
             >
               <div className="flex items-start justify-between gap-3">
@@ -670,7 +665,7 @@ const ProfileScreen = () => {
                     iconStyle: { color: 'hsl(var(--plan-comp-hue) 68% 72% / 0.9)' },
                   },
                 ] as const).map((item) => (
-                  <div key={item.id} className="rounded-xl glass-panel-soft px-3 py-2.5 border border-white/10">
+                  <div key={item.id} className="ui21-card-soft rounded-xl px-3 py-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5" style={item.iconStyle}>
                         <item.Icon size={12} />
@@ -699,7 +694,7 @@ const ProfileScreen = () => {
               }}
               className={`grid gap-3 ${isDesktop ? 'grid-cols-3' : 'grid-cols-1'}`}
             >
-              <div className="p-5 rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10">
+              <div className="ui21-card p-5 rounded-[var(--card-radius)]">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex p-2 rounded-xl bg-white/6" style={accentTone}>
                     <ICONS.Eye size={16} />
@@ -709,7 +704,7 @@ const ProfileScreen = () => {
                 <p className="mt-4 text-3xl font-black tracking-tight">{profileViewsCount.toLocaleString()}</p>
               </div>
 
-              <div className="p-5 rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10">
+              <div className="ui21-card p-5 rounded-[var(--card-radius)]">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex p-2 rounded-xl bg-white/6" style={accentCompTone}>
                     <ICONS.Heart size={16} />
@@ -723,7 +718,7 @@ const ProfileScreen = () => {
                 ref={(el) => {
                   sectionRefs.current[3] = el;
                 }}
-                className="p-5 rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10"
+                className="ui21-card p-5 rounded-[var(--card-radius)]"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase tracking-[0.14em] text-white/45 font-black">{t('profile.visibilityTitle')}</span>
@@ -750,7 +745,7 @@ const ProfileScreen = () => {
               </div>
             </section>
 
-            <section className="rounded-[var(--card-radius)] glass-panel glass-panel-float border border-white/10 p-5 md:p-6 space-y-5">
+            <section className="ui21-card rounded-[var(--card-radius)] p-5 md:p-6 space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <h4 className="text-lg font-black uppercase tracking-[0.08em]">{t('profile.controlTitle')}</h4>
                 {isDesktop && (
@@ -769,7 +764,7 @@ const ProfileScreen = () => {
               </div>
 
               <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <div className="rounded-2xl glass-panel-soft border border-white/10 p-4 space-y-4">
+                <div className="ui21-card-soft rounded-2xl p-4 space-y-4">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 font-black">{t('profile.privacyLabel')}</p>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold">{t('settings.items.hideAge')}</span>
@@ -819,16 +814,13 @@ const ProfileScreen = () => {
                       <span className={`absolute top-[3px] h-5 w-5 rounded-full transition-all ${hideDistance ? 'left-[25px] bg-black' : 'left-[3px] bg-black/90'}`} />
                     </button>
                   </div>
-                  <button
-                    onClick={() => navigate('/settings/privacy')}
-                    className="w-full h-9 rounded-xl bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black inline-flex items-center justify-center gap-1.5 hover:bg-white/12 transition-colors"
-                  >
+                  <button onClick={() => navigate('/settings/privacy')} className="ui21-btn ui21-btn-ghost w-full h-9 rounded-xl inline-flex items-center justify-center gap-1.5">
                     {!canManagePrivacyControls && <ICONS.Lock size={11} style={warningToneStyle} />}
                     {t('settings.sections.privacy')}
                   </button>
                 </div>
 
-                <div className="rounded-2xl glass-panel-soft border border-white/10 p-4 space-y-4">
+                <div className="ui21-card-soft rounded-2xl p-4 space-y-4">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-white/50 font-black">{t('profile.benefits')}</p>
                   <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2">
                     <span className="inline-flex items-center gap-2 text-sm font-semibold">
@@ -849,7 +841,7 @@ const ProfileScreen = () => {
                           },
                         });
                       }}
-                      className="h-8 px-3 rounded-full bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.14em] font-black text-secondary hover:bg-white/12 transition-colors inline-flex items-center gap-1.5"
+                      className="ui21-btn ui21-btn-ghost h-8 px-3 inline-flex items-center gap-1.5"
                     >
                       {shadowGhostLocked && <ICONS.Lock size={11} style={warningToneStyle} />}
                       {settings.privacy.shadowGhost ? t('profile.stateOn') : t('profile.stateOff')}
@@ -878,9 +870,7 @@ const ProfileScreen = () => {
                         onClick={openServerSettings}
                         disabled={travelPassUiLocked}
                         aria-disabled={travelPassUiLocked}
-                        className={`h-7 px-2.5 rounded-lg bg-white/8 border border-white/18 text-[10px] uppercase tracking-[0.12em] font-black ${
-                          travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/12'
-                        }`}
+                        className={`ui21-btn ui21-btn-ghost h-7 px-2.5 rounded-lg ${travelPassUiLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                       >
                         {t('settings.travelPass.changeServerCta')}
                       </button>
@@ -912,7 +902,7 @@ const ProfileScreen = () => {
                   <button
                     key={action.to}
                     onClick={() => navigate(action.to)}
-                    className="h-20 rounded-2xl glass-panel glass-panel-float border border-white/10 hover:border-white/25 transition-colors flex flex-col items-center justify-center gap-2"
+                    className="h-20 ui21-card rounded-2xl flex flex-col items-center justify-center gap-2"
                   >
                     <span className="text-white/80">{action.icon}</span>
                     <span className="text-[10px] font-black uppercase tracking-[0.12em] text-white/70">{action.label}</span>
@@ -920,7 +910,7 @@ const ProfileScreen = () => {
                 ))}
               </div>
 
-              <div className="rounded-2xl glass-panel glass-panel-float border border-white/10 overflow-hidden">
+              <div className="ui21-card rounded-2xl overflow-hidden">
                 {[
                   { icon: <ICONS.Profile size={16} />, label: t('settings.sections.account'), to: '/settings/account' },
                   { icon: <ICONS.Shield size={16} />, label: t('settings.sections.privacy'), to: '/settings/privacy' },
