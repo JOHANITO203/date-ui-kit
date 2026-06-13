@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, type PanInfo } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
-import GlassButton from './ui/GlassButton';
+import MatchCelebration from './ui/MatchCelebration';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
@@ -299,16 +299,6 @@ const SwipeScreen = () => {
   const nextPhotoAttrs = nextUser
     ? buildResponsiveImageAttrs(nextUser.photos[0], 'card', '(max-width: 1024px) 100vw, 720px')
     : null;
-  const matchSelfPhotoAttrs = buildResponsiveImageAttrs(
-    selfPrimaryPhotoUrl || '/placeholder.svg',
-    'profile',
-    '144px',
-  );
-  const matchPeerPhotoAttrs = buildResponsiveImageAttrs(
-    matchedUser?.photos?.[0] || '/placeholder.svg',
-    'profile',
-    '144px',
-  );
 
   useEffect(() => {
     if (!user) return;
@@ -329,11 +319,14 @@ const SwipeScreen = () => {
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     const threshold = 80;
-    if (info.offset.x > threshold) {
+    // A fast flick throws the card even if it didn't pass the distance threshold.
+    const flungX = Math.abs(info.velocity.x) > 600;
+    const flungUp = info.velocity.y < -600;
+    if (info.offset.x > threshold || (flungX && info.offset.x > 0)) {
       swipe('right');
-    } else if (info.offset.x < -threshold) {
+    } else if (info.offset.x < -threshold || (flungX && info.offset.x < 0)) {
       swipe('left');
-    } else if (info.offset.y < -threshold) {
+    } else if (info.offset.y < -threshold || flungUp) {
       openSuperLikeComposer();
     }
   };
@@ -437,7 +430,7 @@ const SwipeScreen = () => {
       .swipe(user.id, decision, feedCursor)
       .then((response) => {
         if (response.matched) {
-          haptic('success');
+          // MatchCelebration fires hapticFor.match() on open — avoid a double buzz here.
           setMatchedUser(user);
           setMatchedProfileIds((prev) => (prev.includes(user.id) ? prev : [...prev, user.id]));
           setShowMatch(true);
@@ -1246,73 +1239,21 @@ const SwipeScreen = () => {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showMatch && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-2xl">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="w-full max-w-sm text-center space-y-10">
-              <div className="relative h-56 flex justify-center items-center">
-                <div className="flex -space-x-8 relative z-10">
-                  <motion.div initial={{ x: -50, rotate: -15 }} animate={{ x: 0, rotate: -10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img
-                      src={matchSelfPhotoAttrs.src}
-                      srcSet={matchSelfPhotoAttrs.srcSet}
-                      sizes={matchSelfPhotoAttrs.sizes}
-                      className="w-full h-full object-cover"
-                      alt="Me"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </motion.div>
-                  <motion.div initial={{ x: 50, rotate: 15 }} animate={{ x: 0, rotate: 10 }} className="w-36 h-36 rounded-[32px] border-4 border-white/10 overflow-hidden shadow-2xl">
-                    <img
-                      src={matchPeerPhotoAttrs.src}
-                      srcSet={matchPeerPhotoAttrs.srcSet}
-                      sizes={matchPeerPhotoAttrs.sizes}
-                      className="w-full h-full object-cover"
-                      alt="Match"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </motion.div>
-                </div>
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: 'spring' }} className="absolute bottom-0 z-20 bg-white text-black px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs shadow-2xl">
-                  {t('discover.itsAMatch')}
-                </motion.div>
-              </div>
-
-              <div className="space-y-3">
-                <h2 className="text-4xl font-bold text-white tracking-tight">{t('discover.matchPair', { name: matchedUser?.name ?? '' })}</h2>
-                <p className="text-white/40 text-sm max-w-[240px] mx-auto leading-relaxed">{t('discover.matchSubtitle')}</p>
-              </div>
-
-              <div className="space-y-4">
-                <GlassButton
-                  variant="premium"
-                  onClick={() => {
-                    if (!matchedUser) return;
-                    void appApi
-                      .openChat(matchedUser.id)
-                      .then(() => navigate(`/chat/${matchedUser.id}`))
-                      .catch(() => navigate(`/chat/${matchedUser.id}`));
-                  }}
-                  className="w-full py-5 text-sm font-bold uppercase tracking-widest"
-                >
-                  {t('discover.sendMessage')}
-                </GlassButton>
-                <button
-                  onClick={() => {
-                    setShowMatch(false);
-                    setMatchedUser(null);
-                  }}
-                  className="w-full py-2 text-white/30 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors"
-                >
-                  {t('discover.continueSwiping')}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MatchCelebration
+        open={showMatch}
+        peerName={matchedUser?.name}
+        onMessage={() => {
+          if (!matchedUser) return;
+          void appApi
+            .openChat(matchedUser.id)
+            .then(() => navigate(`/chat/${matchedUser.id}`))
+            .catch(() => navigate(`/chat/${matchedUser.id}`));
+        }}
+        onClose={() => {
+          setShowMatch(false);
+          setMatchedUser(null);
+        }}
+      />
     </div>
   );
 };
