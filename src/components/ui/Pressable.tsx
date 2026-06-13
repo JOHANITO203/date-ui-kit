@@ -11,6 +11,7 @@ type PressableProps = {
   disabled?: boolean;
   className?: string;
   ariaLabel?: string;
+  key?: string; // allow list usage (this project ships no @types/react to special-case `key`)
 };
 
 export default function Pressable({
