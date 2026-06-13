@@ -28,8 +28,13 @@ import { I18nProvider } from './i18n/I18nProvider';
 import { AuthProvider } from './auth/AuthProvider';
 import { initMonitoring } from './services/monitoring';
 import { runtimeApi } from './state/appRuntimeStore';
+import { registerSW } from 'virtual:pwa-register';
 
 initMonitoring();
+
+// Register the service worker (app-shell precache + image cache). autoUpdate
+// pulls new builds in the background; immediate claims the page on first load.
+registerSW({ immediate: true });
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const params = new URLSearchParams(window.location.search);

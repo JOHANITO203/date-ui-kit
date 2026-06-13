@@ -12,6 +12,7 @@ import { useRuntimeSelector } from '../state';
 import type { FeedCandidate, FeedQuickFilter, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
 import { buildOptimizedImageUrl, buildResponsiveImageAttrs } from '../utils/imageDelivery';
+import { haptic } from '../utils/haptics';
 
 const resolveDisplayPremiumTier = (tier: PlanTier, shortPassTier?: 'day' | 'week'): PlanTier => {
   if (tier !== 'free') return tier;
@@ -390,6 +391,7 @@ const SwipeScreen = () => {
     void sendSuperLikeDirect(superLikeTarget, text)
       .then((response) => {
         if (response.status !== 'sent') {
+          haptic('error');
           setSuperLikeComposerError(
             response.status === 'no_stock'
               ? t('discover.superLikeComposerNoStock')
@@ -397,6 +399,7 @@ const SwipeScreen = () => {
           );
           return;
         }
+        haptic('medium');
         setFeedCandidates((prev) => prev.filter((candidate) => candidate.id !== superLikeTarget.id));
         setCurrentIndex(0);
         setPhotoIndex(0);
@@ -427,11 +430,14 @@ const SwipeScreen = () => {
     if (!hasUsers || !user || isSwipePending) return;
     setIsSwipePending(true);
     const decision = dir === 'left' ? 'dislike' : 'like';
+    // Subtle tap on commit: a like feels a touch stronger than a pass.
+    haptic(decision === 'like' ? 'light' : 'select');
 
     void appApi
       .swipe(user.id, decision, feedCursor)
       .then((response) => {
         if (response.matched) {
+          haptic('success');
           setMatchedUser(user);
           setMatchedProfileIds((prev) => (prev.includes(user.id) ? prev : [...prev, user.id]));
           setShowMatch(true);

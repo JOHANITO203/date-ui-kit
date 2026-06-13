@@ -835,12 +835,33 @@
     }
   }
 
+  html {
+    /* Stop the browser pull-to-refresh / scroll-chaining bounce — reads as web. */
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-black text-white antialiased overflow-hidden;
     font-family: var(--font-family-base);
     background: radial-gradient(120% 90% at 50% -10%, #1c1326 0%, #07070b 45%, #000000 100%);
     min-height: 100dvh;
     width: 100vw;
+    /* Native-app feel */
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent; /* no grey flash on tap */
+    -webkit-touch-callout: none;              /* no iOS long-press menu */
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Controls: kill the 300ms tap delay + double-tap zoom, and don't select chrome.
+     Text content (chat bubbles, bios, inputs) stays selectable. */
+  button,
+  a,
+  [role="button"],
+  .swipe-deck {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* Pointer-based interactions */
