@@ -678,9 +678,6 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             embedded ? '' : 'container-chat'
           } rounded-[28px] p-1.5 flex items-center gap-2 border border-white/10 bg-[#0f1118]/92 backdrop-blur-xl focus-within:border-white/25 transition-all`}
         >
-          <button className="p-3 text-secondary hover:text-white transition-colors rounded-full hover:bg-white/5">
-            <ICONS.Globe size={20} />
-          </button>
           <input
             type="text"
             value={draft}

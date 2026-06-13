@@ -1,11 +1,9 @@
 import { config as loadEnv } from "dotenv";
-import { createClient, type User } from "@supabase/supabase-js";
+import { PrismaClient } from "@prisma/client";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-type LaunchServerCode = "moscow" | "saint-petersburg" | "voronezh" | "sochi";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,30 +11,20 @@ const rootDir = path.resolve(__dirname, "../../../../");
 const serviceDir = path.resolve(__dirname, "..");
 
 loadEnv({ path: path.join(rootDir, ".env") });
-loadEnv({ path: path.join(serviceDir, ".env") });
+loadEnv({ path: path.join(serviceDir, ".env"), override: true });
 loadEnv();
 
-const requiredEnv = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE"] as const;
-for (const key of requiredEnv) {
-  if (!process.env[key] || process.env[key]!.trim().length === 0) {
-    throw new Error(`Missing required env: ${key}`);
-  }
-}
+type LaunchServerCode = "moscow" | "saint-petersburg" | "voronezh" | "sochi";
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE!, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
-
-const bucket = process.env.STORAGE_PROFILE_PHOTOS_BUCKET?.trim() || "profile-photos";
-const publicBucket = process.env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET?.trim() || "profile-photos-public";
+const privateBucket = process.env.S3_BUCKET_PRIVATE?.trim() || "profile-photos";
+const publicBucket = process.env.S3_BUCKET_PUBLIC?.trim() || "profile-photos-public";
 const assetsRoot =
   process.env.SEED_ASSETS_DIR?.trim() || path.join(rootDir, "seed-assets", "launch-servers");
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const prisma = new PrismaClient();
 const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 type PhotoVariant = "card" | "avatar" | "profile";
 const VARIANT_PRESETS: Record<
@@ -58,12 +46,7 @@ const optimizeVariant = async (buffer: Buffer, variant: PhotoVariant) => {
   const preset = VARIANT_PRESETS[variant];
   return sharp(buffer, { failOnError: false })
     .rotate()
-    .resize({
-      width: preset.width,
-      height: preset.height,
-      fit: preset.fit,
-      withoutEnlargement: true,
-    })
+    .resize({ width: preset.width, height: preset.height, fit: preset.fit, withoutEnlargement: true })
     .jpeg({ quality: preset.quality, mozjpeg: true })
     .toBuffer();
 };
@@ -88,119 +71,116 @@ const parseSeedEmail = (email: string | undefined): { server: LaunchServerCode; 
   if (!match) return null;
   const index = Number(match[2]);
   if (!Number.isFinite(index) || index <= 0) return null;
-  return {
-    server: match[1] as LaunchServerCode,
-    index,
-  };
+  return { server: match[1] as LaunchServerCode, index };
 };
 
-const getSeedUsers = async (): Promise<User[]> => {
-  const result: User[] = [];
-  let page = 1;
-  const perPage = 200;
-  while (true) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
-    const users = data.users ?? [];
-    result.push(...users.filter((user) => Boolean(parseSeedEmail(user.email))));
-    if (users.length < perPage) break;
-    page += 1;
-  }
-  return result;
+const buildS3Client = async () => {
+  const { S3Client } = await import("@aws-sdk/client-s3");
+  return new S3Client({
+    region: process.env.S3_REGION || "us-east-1",
+    endpoint: process.env.S3_ENDPOINT || undefined,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+    },
+    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+  });
+};
+
+const uploadObject = async (
+  s3: Awaited<ReturnType<typeof buildS3Client>>,
+  bucket: string,
+  key: string,
+  body: Buffer,
+  contentType: string,
+) => {
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+  await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
 };
 
 const resolveImageForSeedUser = async (email: string) => {
   const parsed = parseSeedEmail(email);
   if (!parsed) return null;
   const folder = path.join(assetsRoot, parsed.server);
-  const entries = await fs.readdir(folder, { withFileTypes: true });
-  const files = entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => path.join(folder, entry.name))
-    .filter((fullPath) => allowedExtensions.has(path.extname(fullPath).toLowerCase()))
-    .sort((a, b) => a.localeCompare(b));
-  const target = files[parsed.index - 1];
-  return target ?? null;
+  try {
+    const entries = await fs.readdir(folder, { withFileTypes: true });
+    const files = entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => path.join(folder, entry.name))
+      .filter((fullPath) => allowedExtensions.has(path.extname(fullPath).toLowerCase()))
+      .sort((a, b) => a.localeCompare(b));
+    return files[parsed.index - 1] ?? null;
+  } catch {
+    return null;
+  }
 };
 
-const uploadSinglePhoto = async (userId: string, localImagePath: string) => {
+const uploadSinglePhoto = async (
+  s3: Awaited<ReturnType<typeof buildS3Client>>,
+  userId: string,
+  localImagePath: string,
+) => {
   const ext = path.extname(localImagePath).toLowerCase();
-  const contentType =
-    ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  const contentType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
   const body = await fs.readFile(localImagePath);
   const objectPath = `${userId}/seed/${Date.now()}-${path.basename(localImagePath)}`;
 
-  await withRetry(`upload ${objectPath}`, async () => {
-    const { error } = await supabase.storage.from(bucket).upload(objectPath, body, {
-      contentType,
-      upsert: true,
-    });
-    if (error) throw error;
-  });
+  await withRetry(`upload ${objectPath}`, () =>
+    uploadObject(s3, privateBucket, objectPath, body, contentType),
+  );
 
-  await withRetry(`insert profile_photos ${userId}`, async () => {
-    const { error } = await supabase.from("profile_photos").insert({
-      user_id: userId,
-      storage_path: objectPath,
-      sort_order: 1,
-      is_primary: true,
-    });
-    if (error) throw error;
-  });
+  await withRetry(`insert profile_photos ${userId}`, () =>
+    prisma.profilePhoto.create({
+      data: { userId, storagePath: objectPath, sortOrder: 1, isPrimary: true },
+    }).then(() => undefined),
+  );
 
-  const variants: PhotoVariant[] = ["card", "avatar", "profile"];
-  for (const variant of variants) {
+  for (const variant of ["card", "avatar", "profile"] as PhotoVariant[]) {
     await withRetry(`upload ${variant} variant ${objectPath}`, async () => {
       const optimized = await optimizeVariant(body, variant);
-      const variantPath = toVariantPath(objectPath, variant);
-      const { error } = await supabase.storage.from(publicBucket).upload(variantPath, optimized, {
-        contentType: "image/jpeg",
-        cacheControl: "public, max-age=31536000, immutable",
-        upsert: true,
-      });
-      if (error) throw error;
+      await uploadObject(s3, publicBucket, toVariantPath(objectPath, variant), optimized, "image/jpeg");
     });
   }
 
-  await supabase.from("profiles").update({ photos_count: 1 }).eq("user_id", userId);
+  await prisma.profile.update({ where: { userId }, data: { photosCount: 1 } }).catch(() => undefined);
 };
 
 const main = async () => {
-  const users = await getSeedUsers();
+  const s3 = await buildS3Client();
+
+  const seedUsers = await prisma.user.findMany({
+    where: { email: { contains: "@exotic.local" } },
+    select: { id: true, email: true },
+  });
+
   let filled = 0;
   let skipped = 0;
 
-  for (const user of users) {
-    const userId = user.id;
-    const email = user.email ?? user.id;
-    const { count, error } = await supabase
-      .from("profile_photos")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId);
-    if (error) throw error;
+  for (const user of seedUsers) {
+    if (!parseSeedEmail(user.email)) { skipped += 1; continue; }
 
-    if ((count ?? 0) > 0) {
-      skipped += 1;
-      continue;
-    }
+    const photoCount = await prisma.profilePhoto.count({ where: { userId: user.id } });
+    if (photoCount > 0) { skipped += 1; continue; }
 
-    const imagePath = await resolveImageForSeedUser(email);
+    const imagePath = await resolveImageForSeedUser(user.email);
     if (!imagePath) {
-      console.warn(`[seed:photos:retry] missing source image for ${email}`);
+      console.warn(`[seed:photos:retry] missing source image for ${user.email}`);
       skipped += 1;
       continue;
     }
 
     try {
-      await uploadSinglePhoto(userId, imagePath);
+      await uploadSinglePhoto(s3, user.id, imagePath);
       filled += 1;
-      console.log(`[seed:photos:retry] filled ${email}`);
+      console.log(`[seed:photos:retry] filled ${user.email}`);
     } catch (uploadError) {
-      console.warn(`[seed:photos:retry] failed for ${email}: ${String(uploadError)}`);
+      console.warn(`[seed:photos:retry] failed for ${user.email}: ${String(uploadError)}`);
+      skipped += 1;
     }
   }
 
-  console.log(`[seed:photos:retry] done | filled=${filled} skipped=${skipped}`);
+  console.log(`[seed:photos:retry] done filled=${filled} skipped=${skipped}`);
+  await prisma.$disconnect();
 };
 
 main().catch((error) => {

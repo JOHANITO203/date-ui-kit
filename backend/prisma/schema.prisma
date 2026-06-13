@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth & Users ──────────────────────────────────────────────────────────────
+
+model User {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique @db.VarChar(255)
+  passwordHash   String?   @map("password_hash") @db.VarChar(255)
+  googleSub      String?   @unique @map("google_sub") @db.VarChar(255)
+  role           String    @default("member") @db.VarChar(50)
+  emailVerified  Boolean   @default(false) @map("email_verified")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  profile        Profile?
+  settings       UserSettings?
+  photos         ProfilePhoto[]
+  kycSubmissions KycSelfieSubmission[]
+  entitlement    UserEntitlement?
+  refreshTokens  RefreshToken[]
+  location       UserLocation?
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model EmailOtp {
+  id        String    @id @default(uuid()) @db.Uuid
+  email     String    @db.VarChar(255)
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  type      String    @db.VarChar(20)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("email_otps")
+}
+
+// ─── Profiles ──────────────────────────────────────────────────────────────────
+
+model Profile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  firstName         String?  @map("first_name") @db.VarChar(100)
+  lastName          String?  @map("last_name") @db.VarChar(100)
+  locale            String?  @db.VarChar(16)
+  bio               String?  @db.Text
+  birthDate         String?  @map("birth_date") @db.VarChar(20)
+  gender            String?  @db.VarChar(50)
+  city              String?  @db.VarChar(120)
+  originCountry     String?  @map("origin_country") @db.VarChar(120)
+  languages         String[] @default([])
+  intent            String?  @db.VarChar(50)
+  interests         String[] @default([])
+  photosCount       Int      @default(0) @map("photos_count")
+  verifiedOptIn     Boolean  @default(false) @map("verified_opt_in")
+  onboardingVersion String?  @map("onboarding_version") @db.VarChar(20)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model UserSettings {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @unique @map("user_id") @db.Uuid
+  language               String?  @db.VarChar(10)
+  targetLang             String?  @map("target_lang") @db.VarChar(10)
+  autoTranslate          Boolean  @default(false) @map("auto_translate")
+  autoDetectLanguage     Boolean  @default(false) @map("auto_detect_language")
+  notificationsEnabled   Boolean  @default(true) @map("notifications_enabled")
+  preciseLocationEnabled Boolean  @default(false) @map("precise_location_enabled")
+  visibility             String   @default("public") @db.VarChar(20)
+  hideAge                Boolean  @default(false) @map("hide_age")
+  hideDistance           Boolean  @default(false) @map("hide_distance")
+  incognito              Boolean  @default(false)
+  readReceipts           Boolean  @default(true) @map("read_receipts")
+  shadowGhost            Boolean  @default(false) @map("shadow_ghost")
+  travelPassCity         String?  @map("travel_pass_city") @db.VarChar(50)
+  phoneCountryCode       String?  @map("phone_country_code") @db.VarChar(10)
+  phoneNationalNumber    String?  @map("phone_national_number") @db.VarChar(20)
+  distanceKm             Int      @default(50) @map("distance_km")
+  ageMin                 Int      @default(18) @map("age_min")
+  ageMax                 Int      @default(45) @map("age_max")
+  genderPreference       String   @default("everyone") @map("gender_preference") @db.VarChar(20)
+  lastSeenAt             DateTime? @map("last_seen_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+model UserLocation {
+  userId    String   @id @map("user_id") @db.Uuid
+  lat       Float
+  lng       Float
+  accuracy  Float?
+  city      String?  @db.VarChar(120)
+  country   String?  @db.VarChar(120)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_locations")
+}
+
+model ProfilePhoto {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  storagePath String   @map("storage_path") @db.VarChar(500)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sortOrder])
+  @@map("profile_photos")
+}
+
+model KycSelfieSubmission {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  storagePath String   @map("storage_path") @db.VarChar(500)
+  status      String   @default("pending") @db.VarChar(20)
+  provider    String   @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kyc_selfie_submissions")
+}
+
+model UserEntitlement {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @map("user_id") @db.Uuid
+  entitlementSnapshot Json     @map("entitlement_snapshot")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_entitlements")
+}
+
+// ─── Chat ──────────────────────────────────────────────────────────────────────
+
+model ChatConversation {
+  userId                   String    @map("user_id") @db.Uuid
+  conversationId           String    @map("conversation_id") @db.VarChar(100)
+  peerProfileId            String    @map("peer_profile_id") @db.Uuid
+  relationState            String    @default("active") @map("relation_state") @db.VarChar(30)
+  relationStateUpdatedAt   DateTime? @map("relation_state_updated_at")
+  receivedSuperlikeTraceAt DateTime? @map("received_superlike_trace_at")
+  unreadCount              Int       @default(0) @map("unread_count")
+  lastMessagePreview       String    @default("") @map("last_message_preview") @db.Text
+  lastMessageAt            DateTime  @default(now()) @map("last_message_at")
+
+  @@id([userId, conversationId])
+  @@index([userId])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  userId         String    @map("user_id") @db.Uuid
+  messageId      String    @map("message_id") @db.VarChar(100)
+  conversationId String    @map("conversation_id") @db.VarChar(100)
+  senderUserId   String    @map("sender_user_id") @db.Uuid
+  direction      String    @db.VarChar(10)
+  originalText   String    @map("original_text") @db.Text
+  translatedText String?   @map("translated_text") @db.Text
+  translated     Boolean   @default(false)
+  targetLocale   String?   @map("target_locale") @db.VarChar(10)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  readAt         DateTime? @map("read_at")
+
+  @@id([userId, messageId])
+  @@index([userId, conversationId])
+  @@map("chat_messages")
+}
+
+// ─── Discover ──────────────────────────────────────────────────────────────────
+
+model DiscoverLike {
+  id                  String    @id @default(uuid()) @db.Uuid
+  likerUserId         String    @map("liker_user_id") @db.Uuid
+  likedUserId         String    @map("liked_user_id") @db.Uuid
+  status              String    @default("pending") @db.VarChar(20)
+  wasSuperlike        Boolean   @default(false) @map("was_superlike")
+  hiddenByShadowghost Boolean   @default(false) @map("hidden_by_shadowghost")
+  matchedAt           DateTime? @map("matched_at")
+  passedAt            DateTime? @map("passed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([likerUserId, likedUserId])
+  @@index([likedUserId, status])
+  @@index([likerUserId])
+  @@map("discover_likes")
+}
+
+model DiscoverBoost {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  activeUntil DateTime @map("active_until")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("user_boosts")
+}
+
+model DiscoverFeedEvent {
+  userId        String   @map("user_id") @db.Uuid
+  profileId     String   @map("profile_id") @db.Uuid
+  firstSeenAt   DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt    DateTime @default(now()) @map("last_seen_at")
+  lastSwipedAt  DateTime @default(now()) @map("last_swiped_at")
+  lastDecision  String?  @map("last_decision") @db.VarChar(20)
+  seenCount     Int      @default(1) @map("seen_count")
+  lastFeedCursor String? @map("last_feed_cursor") @db.VarChar(100)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@id([userId, profileId])
+  @@index([userId])
+  @@map("discover_feed_events")
+}
+
+model DiscoverLikeUnlock {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  likeId         String   @map("like_id") @db.Uuid
+  unlockMethod   String   @map("unlock_method") @db.VarChar(50)
+  consumedItemId String?  @map("consumed_item_id") @db.VarChar(100)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([userId, likeId])
+  @@map("discover_like_unlocks")
+}
+
+// ─── Discover — idempotency ────────────────────────────────────────────────────
+
+model EntitlementConsumption {
+  id        String   @id @db.VarChar(100)
+  userId    String   @map("user_id") @db.Uuid
+  itemType  String   @map("item_type") @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("entitlement_consumptions")
+}
+
+// ─── Payments ──────────────────────────────────────────────────────────────────
+
+model PaymentCheckout {
+  checkoutId          String   @id @map("checkout_id") @db.VarChar(100)
+  yookassaPaymentId   String?  @unique @map("yookassa_payment_id") @db.VarChar(100)
+  orderNumber         String   @unique @map("order_number") @db.VarChar(200)
+  userId              String   @map("user_id") @db.Uuid
+  offerId             String   @map("offer_id") @db.VarChar(100)
+  mode                String   @db.VarChar(20)
+  status              String   @default("pending") @db.VarChar(20)
+  attributed          Boolean  @default(false)
+  entitlementSnapshot Json?    @map("entitlement_snapshot")
+  providerRaw         Json?    @map("provider_raw")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status, attributed])
+  @@map("payments_checkouts")
+}
+
+model InAppOffer {
+  id              String  @id @db.VarChar(100)
+  label           String  @db.VarChar(200)
+  description     String? @db.Text
+  tag             String? @db.VarChar(100)
+  amountMinor     Int     @map("amount_minor")
+  currencyNumeric Int     @map("currency_numeric")
+  type            String  @db.VarChar(30)
+  durationHours   Int?    @map("duration_hours")
+  isActive        Boolean @default(true) @map("is_active")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  @@map("in_app_offers")
+}
+
+// ─── Safety ────────────────────────────────────────────────────────────────────
+
+model SafetyBlock {
+  userId        String   @map("user_id") @db.Uuid
+  blockedUserId String   @map("blocked_user_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@id([userId, blockedUserId])
+  @@index([userId])
+  @@map("safety_blocks")
+}
+
+model SafetyReport {
+  userId         String   @map("user_id") @db.Uuid
+  reportId       String   @map("report_id") @db.VarChar(100)
+  reportedUserId String   @map("reported_user_id") @db.Uuid
+  reason         String   @db.VarChar(50)
+  note           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@id([userId, reportId])
+  @@index([userId])
+  @@map("safety_reports")
+}

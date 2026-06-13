@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useTransform, type PanInfo } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import GlassButton from './ui/GlassButton';
@@ -32,19 +32,16 @@ const reshuffleCandidates = (candidates: FeedCandidate[]): FeedCandidate[] => {
     if (!unique.has(candidate.id)) unique.set(candidate.id, candidate);
   }
 
-  return [...unique.values()].sort((a, b) => {
-    const scoreA =
-      (typeof a.rankScore === 'number' ? a.rankScore : a.compatibility) +
-      (a.online ? 2 : 0) +
-      (a.flags.verifiedIdentity ? 1 : 0) +
-      (Math.random() * 10 - 5);
-    const scoreB =
-      (typeof b.rankScore === 'number' ? b.rankScore : b.compatibility) +
-      (b.online ? 2 : 0) +
-      (b.flags.verifiedIdentity ? 1 : 0) +
-      (Math.random() * 10 - 5);
-    return scoreB - scoreA;
-  });
+  const scored = [...unique.values()].map((c) => ({
+    candidate: c,
+    score:
+      (typeof c.rankScore === 'number' ? c.rankScore : c.compatibility) +
+      (c.online ? 2 : 0) +
+      (c.flags.verifiedIdentity ? 1 : 0) +
+      (Math.random() * 10 - 5),
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.candidate);
 };
 
 type DiscoverImageProps = {
@@ -329,7 +326,7 @@ const SwipeScreen = () => {
   const nopeScale = useTransform(x, [0, -150], [0.5, 1.2]);
   const superLikeScale = useTransform(y, [0, -150], [0.5, 1.2]);
 
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
     const threshold = 80;
     if (info.offset.x > threshold) {
       swipe('right');
@@ -824,13 +821,6 @@ const SwipeScreen = () => {
             style={{ gridTemplateColumns: `${isDesktop ? 'var(--panel-width-md)' : 'var(--panel-width-sm)'} minmax(0, 1fr)` }}
           >
             <aside className={`rounded-[30px] border border-[var(--menu-premium-border)] bg-[linear-gradient(160deg,rgba(24,29,39,0.86),rgba(10,11,17,0.9))] backdrop-blur-2xl ${isTablet ? 'p-4 space-y-4' : 'p-5 space-y-5'} h-fit shadow-[0_22px_50px_rgba(0,0,0,0.35)]`}>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/38 font-black">{t('discover.activeFilters')}</p>
-                <p className="mt-2 text-sm font-semibold text-white/82">
-                  {activeFilterIds.length > 0 ? `${activeFilterIds.length} active` : t('discover.noActiveFilters')}
-                </p>
-              </div>
-
               <div className="flex items-center">
                 <button
                   onClick={() => navigate('/settings/preferences')}

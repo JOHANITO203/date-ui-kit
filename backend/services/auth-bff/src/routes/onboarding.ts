@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { supabaseServiceClient } from "../lib/supabaseClient";
+import { prismaClient } from "../lib/prismaClient";
 import { sendAuthError, sendAuthSuccess } from "./auth/utils";
 import type { AuthResponse } from "./auth/types";
 import { requireSessionMiddleware } from "../middleware/requireSession";
@@ -50,58 +50,79 @@ export async function registerOnboardingRoutes(app: FastifyInstance) {
       }
 
       const payload = parse.data;
+      const userId = session.user.id;
 
-      const profileUpsert = await supabaseServiceClient.from("profiles").upsert(
-        {
-          user_id: session.user.id,
-          first_name: payload.firstName,
-          locale: payload.locale,
-          birth_date: payload.birthDate,
-          gender: payload.gender,
-          city: payload.city,
-          origin_country: payload.originCountry,
-          languages: payload.languages,
-          intent: payload.intent,
-          interests: payload.interests,
-          photos_count: payload.photosCount,
-          verified_opt_in: payload.verifyNow,
-          onboarding_version: payload.version,
-        },
-        { onConflict: "user_id" }
-      );
-
-      if (profileUpsert.error) {
-        request.log.error({ err: profileUpsert.error, userId: session.user.id }, "onboarding.complete.profile_failed");
-        return sendAuthError(reply, 500, "ONBOARDING_PROFILE_FAILED", "Unable to save onboarding profile.");
-      }
-
-      const settingsUpsert = await supabaseServiceClient.from("settings").upsert(
-        {
-          user_id: session.user.id,
-          language: payload.locale,
-          distance_km: payload.distanceKm,
-          age_min: payload.ageMin,
-          age_max: payload.ageMax,
-          gender_preference: mapLookingFor(payload.lookingFor),
-          target_lang: payload.targetLang,
-          auto_translate: payload.autoTranslate,
-          auto_detect_language: payload.autoDetectLanguage,
-          notifications_enabled: payload.notifications,
-          precise_location_enabled: payload.preciseLocation,
-        },
-        { onConflict: "user_id" }
-      );
-
-      if (settingsUpsert.error) {
-        request.log.error({ err: settingsUpsert.error, userId: session.user.id }, "onboarding.complete.settings_failed");
-        return sendAuthError(reply, 500, "ONBOARDING_SETTINGS_FAILED", "Unable to save onboarding settings.");
+      try {
+        await prismaClient.$transaction([
+          prismaClient.profile.upsert({
+            where: { userId },
+            update: {
+              firstName: payload.firstName,
+              locale: payload.locale,
+              birthDate: payload.birthDate,
+              gender: payload.gender,
+              city: payload.city,
+              originCountry: payload.originCountry,
+              languages: payload.languages,
+              intent: payload.intent,
+              interests: payload.interests,
+              photosCount: payload.photosCount,
+              verifiedOptIn: payload.verifyNow,
+              onboardingVersion: payload.version,
+            },
+            create: {
+              userId,
+              firstName: payload.firstName,
+              locale: payload.locale,
+              birthDate: payload.birthDate,
+              gender: payload.gender,
+              city: payload.city,
+              originCountry: payload.originCountry,
+              languages: payload.languages,
+              intent: payload.intent,
+              interests: payload.interests,
+              photosCount: payload.photosCount,
+              verifiedOptIn: payload.verifyNow,
+              onboardingVersion: payload.version,
+            },
+          }),
+          prismaClient.userSettings.upsert({
+            where: { userId },
+            update: {
+              language: payload.locale,
+              targetLang: payload.targetLang,
+              autoTranslate: payload.autoTranslate,
+              autoDetectLanguage: payload.autoDetectLanguage,
+              distanceKm: payload.distanceKm,
+              ageMin: payload.ageMin,
+              ageMax: payload.ageMax,
+              genderPreference: mapLookingFor(payload.lookingFor),
+              notificationsEnabled: payload.notifications,
+              preciseLocationEnabled: payload.preciseLocation,
+            },
+            create: {
+              userId,
+              language: payload.locale,
+              targetLang: payload.targetLang,
+              autoTranslate: payload.autoTranslate,
+              autoDetectLanguage: payload.autoDetectLanguage,
+              distanceKm: payload.distanceKm,
+              ageMin: payload.ageMin,
+              ageMax: payload.ageMax,
+              genderPreference: mapLookingFor(payload.lookingFor),
+              notificationsEnabled: payload.notifications,
+              preciseLocationEnabled: payload.preciseLocation,
+            },
+          }),
+        ]);
+      } catch (err) {
+        request.log.error({ err, userId }, "onboarding.complete.db_failed");
+        return sendAuthError(reply, 500, "ONBOARDING_FAILED", "Unable to save onboarding data.");
       }
 
       return sendAuthSuccess(reply, {
         ok: true,
-        data: {
-          completed: true,
-        },
+        data: { completed: true },
       } satisfies AuthResponse<{ completed: boolean }>);
     });
   });

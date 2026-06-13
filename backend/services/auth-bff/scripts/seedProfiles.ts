@@ -1,5 +1,7 @@
 import { config as loadEnv } from "dotenv";
-import { createClient } from "@supabase/supabase-js";
+import { PrismaClient } from "@prisma/client";
+import { S3Client, PutObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
+import bcrypt from "bcryptjs";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -35,24 +37,33 @@ loadEnv({ path: path.join(rootDir, ".env") });
 loadEnv({ path: path.join(serviceDir, ".env") });
 loadEnv();
 
-const requiredEnv = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE"] as const;
+const requiredEnv = ["DATABASE_URL"] as const;
 for (const key of requiredEnv) {
   if (!process.env[key] || process.env[key]!.trim().length === 0) {
     throw new Error(`Missing required env: ${key}`);
   }
 }
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE!;
-const bucket = process.env.STORAGE_PROFILE_PHOTOS_BUCKET?.trim() || "profile-photos";
-const publicBucket =
-  process.env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET?.trim() || "profile-photos-public";
+const privateBucket = process.env.S3_BUCKET_PRIVATE?.trim() || "profile-photos";
+const publicBucket = process.env.S3_BUCKET_PUBLIC?.trim() || "profile-photos-public";
 const seedPassword = process.env.SEED_PROFILE_PASSWORD?.trim() || "ExoticSeed!2026";
 const seedPerServer = Number(process.env.SEED_PER_SERVER ?? "13");
 const shouldReset = process.env.SEED_RESET === "1";
 
 const assetsRoot =
   process.env.SEED_ASSETS_DIR?.trim() || path.join(rootDir, "seed-assets", "launch-servers");
+
+const prisma = new PrismaClient();
+
+const s3 = new S3Client({
+  endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
+  region: process.env.S3_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || "minioadmin",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "minioadmin",
+  },
+  forcePathStyle: true,
+});
 
 const launchServers: LaunchServerConfig[] = [
   { code: "moscow", city: "Moscow", country: "russian", languages: ["Russian", "English"] },
@@ -119,13 +130,6 @@ const interestsPool = [
   "Sport",
   "Culture",
 ];
-
-const supabase = createClient(supabaseUrl, supabaseServiceRole, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
 
 const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
@@ -215,111 +219,151 @@ const readImagesForServer = async (serverCode: LaunchServerCode) => {
 };
 
 const findUserByEmail = async (email: string) => {
-  let page = 1;
-  const perPage = 200;
-
-  while (true) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
-
-    const users = data.users ?? [];
-    const found = users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
-    if (found) return found;
-    if (users.length < perPage) break;
-    page += 1;
-  }
-
-  return null;
+  return prisma.user.findUnique({ where: { email: email.toLowerCase() } });
 };
 
 const ensureUser = async (seedUser: SeedUser) => {
   const existing = await findUserByEmail(seedUser.email);
   if (existing && shouldReset) {
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(existing.id);
-    if (deleteError) throw deleteError;
+    await prisma.user.delete({ where: { id: existing.id } });
   }
 
   const maybeExistingAfterReset = shouldReset ? null : existing;
   if (maybeExistingAfterReset) return maybeExistingAfterReset.id;
 
-  const { data, error } = await supabase.auth.admin.createUser({
-    email: seedUser.email,
-    password: seedUser.password,
-    email_confirm: true,
-    user_metadata: {
-      source: "seed_profiles_v1",
-      first_name: seedUser.firstName,
-      launch_city: seedUser.city,
+  const passwordHash = await bcrypt.hash(seedUser.password, 12);
+  const created = await prisma.user.create({
+    data: {
+      email: seedUser.email,
+      passwordHash,
+      role: "member",
+      emailVerified: true,
+      profile: {
+        create: {
+          firstName: seedUser.firstName,
+          locale: "en",
+          birthDate: seedUser.birthDate,
+          gender: seedUser.gender,
+          city: seedUser.city,
+          originCountry: seedUser.country,
+          languages: seedUser.languages,
+          intent: "dating",
+          interests: seedUser.interests,
+          bio: `${seedUser.firstName} is looking for meaningful connections in ${seedUser.city}.`,
+          onboardingVersion: "v1",
+          verifiedOptIn: false,
+          photosCount: 1,
+        },
+      },
+      settings: {
+        create: {
+          language: "en",
+          targetLang: "ru",
+          autoTranslate: true,
+          autoDetectLanguage: true,
+          notificationsEnabled: true,
+          preciseLocationEnabled: true,
+          distanceKm: 60,
+          ageMin: 18,
+          ageMax: 40,
+          genderPreference: "everyone",
+        },
+      },
     },
   });
 
-  if (error) throw error;
-  if (!data.user?.id) throw new Error(`Unable to create user for ${seedUser.email}`);
-  return data.user.id;
+  return created.id;
 };
 
 const resetExistingPhotos = async (userId: string) => {
-  const { data: rows, error: readError } = await supabase
-    .from("profile_photos")
-    .select("id,storage_path")
-    .eq("user_id", userId);
-  if (readError) throw readError;
+  const rows = await prisma.profilePhoto.findMany({
+    where: { userId },
+    select: { storagePath: true },
+  });
 
-  const storagePaths = (rows ?? []).map((row) => row.storage_path).filter(Boolean);
+  const storagePaths = rows.map((row) => row.storagePath).filter(Boolean);
   if (storagePaths.length > 0) {
     try {
       await withRetry(`remove storage objects for ${userId}`, async () => {
-        const { error } = await supabase.storage.from(bucket).remove(storagePaths);
-        if (error) throw error;
+        await s3.send(
+          new DeleteObjectsCommand({
+            Bucket: privateBucket,
+            Delete: { Objects: storagePaths.map((Key) => ({ Key })) },
+          }),
+        );
       });
     } catch {
       // Keep seed resilient on unstable network/storage endpoint.
     }
   }
 
-  const { error: deleteError } = await supabase.from("profile_photos").delete().eq("user_id", userId);
-  if (deleteError) throw deleteError;
+  await prisma.profilePhoto.deleteMany({ where: { userId } });
 };
 
 const upsertProfileAndSettings = async (userId: string, seedUser: SeedUser) => {
-  const { error: profileError } = await supabase.from("profiles").upsert(
-    {
-      user_id: userId,
-      first_name: seedUser.firstName,
+  await prisma.profile.upsert({
+    where: { userId },
+    update: {
+      firstName: seedUser.firstName,
       locale: "en",
-      birth_date: seedUser.birthDate,
+      birthDate: seedUser.birthDate,
       gender: seedUser.gender,
       city: seedUser.city,
-      origin_country: seedUser.country,
+      originCountry: seedUser.country,
       languages: seedUser.languages,
       intent: "dating",
       interests: seedUser.interests,
       bio: `${seedUser.firstName} is looking for meaningful connections in ${seedUser.city}.`,
-      onboarding_version: "v1",
-      verified_opt_in: false,
-      photos_count: 1,
+      onboardingVersion: "v1",
+      verifiedOptIn: false,
+      photosCount: 1,
     },
-    { onConflict: "user_id" },
-  );
-  if (profileError) throw profileError;
+    create: {
+      userId,
+      firstName: seedUser.firstName,
+      locale: "en",
+      birthDate: seedUser.birthDate,
+      gender: seedUser.gender,
+      city: seedUser.city,
+      originCountry: seedUser.country,
+      languages: seedUser.languages,
+      intent: "dating",
+      interests: seedUser.interests,
+      bio: `${seedUser.firstName} is looking for meaningful connections in ${seedUser.city}.`,
+      onboardingVersion: "v1",
+      verifiedOptIn: false,
+      photosCount: 1,
+    },
+  });
 
-  const { error: settingsError } = await supabase.from("settings").upsert(
-    {
-      user_id: userId,
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: {
       language: "en",
-      target_lang: "ru",
-      auto_translate: true,
-      auto_detect_language: true,
-      notifications_enabled: true,
-      precise_location_enabled: true,
-      distance_km: 60,
-      age_min: 18,
-      age_max: 40,
-      gender_preference: "everyone",
+      targetLang: "ru",
+      autoTranslate: true,
+      autoDetectLanguage: true,
+      notificationsEnabled: true,
+      preciseLocationEnabled: true,
+      distanceKm: 60,
+      ageMin: 18,
+      ageMax: 40,
+      genderPreference: "everyone",
     },
-    { onConflict: "user_id" },
-  );
-  if (settingsError) throw settingsError;
+    create: {
+      userId,
+      language: "en",
+      targetLang: "ru",
+      autoTranslate: true,
+      autoDetectLanguage: true,
+      notificationsEnabled: true,
+      preciseLocationEnabled: true,
+      distanceKm: 60,
+      ageMin: 18,
+      ageMax: 40,
+      genderPreference: "everyone",
+    },
+  });
 };
 
 const uploadPrimaryPhoto = async (userId: string, localImagePath: string) => {
@@ -334,21 +378,25 @@ const uploadPrimaryPhoto = async (userId: string, localImagePath: string) => {
         : "image/jpeg";
 
   await withRetry(`upload photo ${objectPath}`, async () => {
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(objectPath, fileBuffer, {
-      contentType,
-      upsert: true,
-    });
-    if (uploadError) throw uploadError;
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: privateBucket,
+        Key: objectPath,
+        Body: fileBuffer,
+        ContentType: contentType,
+      }),
+    );
   });
 
   await withRetry(`insert profile_photos row for ${userId}`, async () => {
-    const { error: insertPhotoError } = await supabase.from("profile_photos").insert({
-      user_id: userId,
-      storage_path: objectPath,
-      sort_order: 1,
-      is_primary: true,
+    await prisma.profilePhoto.create({
+      data: {
+        userId,
+        storagePath: objectPath,
+        sortOrder: 1,
+        isPrimary: true,
+      },
     });
-    if (insertPhotoError) throw insertPhotoError;
   });
 
   const variants: PhotoVariant[] = ["card", "avatar", "profile"];
@@ -356,12 +404,15 @@ const uploadPrimaryPhoto = async (userId: string, localImagePath: string) => {
     await withRetry(`upload public ${variant} variant for ${objectPath}`, async () => {
       const optimized = await optimizeVariant(fileBuffer, variant);
       const variantPath = toVariantPath(objectPath, variant);
-      const { error: publicError } = await supabase.storage.from(publicBucket).upload(variantPath, optimized, {
-        contentType: "image/jpeg",
-        cacheControl: "public, max-age=31536000, immutable",
-        upsert: true,
-      });
-      if (publicError) throw publicError;
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: publicBucket,
+          Key: variantPath,
+          Body: optimized,
+          ContentType: "image/jpeg",
+          CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
     });
   }
 };
@@ -385,35 +436,39 @@ const buildSeedUser = (server: LaunchServerConfig, index: number): SeedUser => {
 
 const main = async () => {
   console.log(`[seed:profiles] assetsRoot=${assetsRoot}`);
-  console.log(`[seed:profiles] bucket=${bucket}`);
+  console.log(`[seed:profiles] bucket=${privateBucket}`);
   console.log(`[seed:profiles] perServer=${seedPerServer}`);
   console.log(`[seed:profiles] reset=${shouldReset ? "yes" : "no"}`);
 
   const created: Array<{ email: string; userId: string; city: string }> = [];
 
-  for (const server of launchServers) {
-    const images = await readImagesForServer(server.code);
+  try {
+    for (const server of launchServers) {
+      const images = await readImagesForServer(server.code);
 
-    for (let i = 0; i < seedPerServer; i += 1) {
-      const seedUser = buildSeedUser(server, i);
-      const image = images[i];
-      const userId = await ensureUser(seedUser);
-      await upsertProfileAndSettings(userId, seedUser);
-      await resetExistingPhotos(userId);
-      try {
-        await uploadPrimaryPhoto(userId, image);
-      } catch (error) {
-        await supabase.from("profiles").update({ photos_count: 0 }).eq("user_id", userId);
-        console.warn(`[seed:profiles] photo upload skipped for ${seedUser.email}: ${String(error)}`);
+      for (let i = 0; i < seedPerServer; i += 1) {
+        const seedUser = buildSeedUser(server, i);
+        const image = images[i];
+        const userId = await ensureUser(seedUser);
+        await upsertProfileAndSettings(userId, seedUser);
+        await resetExistingPhotos(userId);
+        try {
+          await uploadPrimaryPhoto(userId, image);
+        } catch (error) {
+          await prisma.profile.update({ where: { userId }, data: { photosCount: 0 } });
+          console.warn(`[seed:profiles] photo upload skipped for ${seedUser.email}: ${String(error)}`);
+        }
+        created.push({ email: seedUser.email, userId, city: server.city });
+        console.log(`[seed:profiles] ok ${seedUser.email} (${server.city})`);
       }
-      created.push({ email: seedUser.email, userId, city: server.city });
-      console.log(`[seed:profiles] ok ${seedUser.email} (${server.city})`);
     }
-  }
 
-  console.log("\n[seed:profiles] done");
-  console.table(created.slice(0, 12));
-  console.log(`[seed:profiles] total=${created.length}`);
+    console.log("\n[seed:profiles] done");
+    console.table(created.slice(0, 12));
+    console.log(`[seed:profiles] total=${created.length}`);
+  } finally {
+    await prisma.$disconnect();
+  }
 };
 
 main().catch((error) => {

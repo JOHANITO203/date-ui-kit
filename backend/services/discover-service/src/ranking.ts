@@ -251,6 +251,16 @@ const getNationalityScoreDelta = (candidate: FeedCandidate, originCountry: FeedP
   return 0;
 };
 
+const getDistanceScoreDelta = (effectiveDistanceKm: number, maxDistanceKm: number): number => {
+  const ratio = effectiveDistanceKm / Math.max(1, maxDistanceKm);
+  if (ratio <= 0.05) return 15;
+  if (ratio <= 0.15) return 12;
+  if (ratio <= 0.30) return 9;
+  if (ratio <= 0.50) return 6;
+  if (ratio <= 0.70) return 3;
+  return 0;
+};
+
 const getLanguageScoreDelta = (candidate: FeedCandidate, userLanguages: FeedPreferences["userLanguages"]) => {
   const candidateLanguages = candidate.languages
     .map((value) => normalizeTag(value))
@@ -306,13 +316,15 @@ export const applyFiltersAndRank = (
   return filtered
     .map((candidate) => {
       const effectiveDistanceKm = resolveCandidateDistanceKm(candidate, userGeoPoint);
+      const distanceDelta = getDistanceScoreDelta(effectiveDistanceKm, preferences.distanceKm);
       const intentDelta = getIntentScoreDelta(candidate, preferences.intent, effectiveDistanceKm);
       const interestDelta = getInterestsScoreDelta(candidate, preferences.interests);
       const launchCityDelta = getLaunchCityScoreDelta(candidate, preferences.launchCity);
       const nationalityDelta = getNationalityScoreDelta(candidate, preferences.originCountry);
       const languageDelta = getLanguageScoreDelta(candidate, preferences.userLanguages);
-      const delta = intentDelta + interestDelta + launchCityDelta + nationalityDelta + languageDelta;
+      const delta = distanceDelta + intentDelta + interestDelta + launchCityDelta + nationalityDelta + languageDelta;
       const compatibilityDelta =
+        distanceDelta * 0.5 +
         intentDelta * 1.2 +
         interestDelta * 1.5 +
         launchCityDelta * 1.1 +
@@ -323,6 +335,7 @@ export const applyFiltersAndRank = (
         Math.min(85, Math.round(candidate.compatibility + compatibilityDelta)),
       );
       const reasonSuffix = [
+        distanceDelta >= 9 ? "nearby_bonus" : null,
         intentDelta > 0 && preferences.intent ? `intent_${preferences.intent}` : null,
         interestDelta > 0 ? "interest_match" : null,
         launchCityDelta > 0 ? "launch_city_match" : null,

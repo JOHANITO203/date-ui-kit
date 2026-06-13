@@ -10,9 +10,14 @@
     "check:ranking": "tsx src/scripts/ranking-regression.ts",
     "test:policy": "tsx src/imageAccessPolicy.test.ts"
   },
+  "prisma": {
+    "schema": "../../prisma/schema.prisma"
+  },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.650.0",
+    "@aws-sdk/s3-request-presigner": "^3.650.0",
     "@fastify/cors": "^10.0.1",
-    "@supabase/supabase-js": "^2.57.4",
+    "@prisma/client": "^5.22.0",
     "dotenv": "^16.4.5",
     "fast-jwt": "^5.0.6",
     "fastify": "^5.8.4",
@@ -20,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.8.5",
+    "prisma": "^5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
   }

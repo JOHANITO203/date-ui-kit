@@ -703,6 +703,10 @@ export const appApi = {
             runtimeApi.patchBalances({ rewindsLeft: response.rewindsLeft });
           }
           return response;
+        })
+        .catch((error) => {
+          if (!shouldFallbackToRuntime(error)) throw error;
+          return withLatency(runtimeApi.rewind(), 80);
         });
     }
     return withLatency(runtimeApi.rewind(), 80);
@@ -1234,7 +1238,14 @@ export const appApi = {
 
   createCheckout(request: CreateCheckoutRequest): Promise<CreateCheckoutResponse> {
     if (!PAYMENTS_API_URL) {
-      return Promise.reject(new Error('payments_api_not_configured'));
+      return Promise.resolve({
+        mode: 'mock' as const,
+        orderNumber: `mock-${Date.now()}`,
+        checkoutId: `mock-checkout-${Date.now()}`,
+        offer: { id: request.offerId, label: request.offerId, amountMinor: 0, currencyNumeric: 643, type: 'tier' as const },
+        status: 'pending' as const,
+        attributed: false,
+      });
     }
 
     return paymentsRequest<CreateCheckoutResponse>('/payments/checkout', {

@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { env } from "./config";
+import { prismaClient } from "./lib/prismaClient";
 import type { FeedCandidate } from "./data";
 import type { CandidatePhotoStatus } from "./data";
 import type { FastifyBaseLogger } from "fastify";
@@ -8,31 +8,38 @@ import type { ImageAccessPolicy } from "./imageAccessPolicy";
 import { resolveImageAccessPolicy } from "./imageAccessPolicy";
 
 type ProfileRow = {
-  user_id: string;
-  first_name: string | null;
-  birth_date: string | null;
+  userId: string;
+  firstName: string | null;
+  birthDate: string | null;
   gender: string | null;
   city: string | null;
-  origin_country: string | null;
-  languages: string[] | null;
+  originCountry: string | null;
+  languages: string[];
   bio: string | null;
-  interests: string[] | null;
-  verified_opt_in: boolean | null;
+  interests: string[];
+  verifiedOptIn: boolean;
 };
 
 type ProfilePhotoRow = {
-  user_id: string;
-  storage_path: string;
-  sort_order: number | null;
-  is_primary: boolean | null;
-  updated_at: string | null;
+  userId: string;
+  storagePath: string;
+  sortOrder: number;
+  isPrimary: boolean;
+  updatedAt: Date;
 };
 
 type SettingsRow = {
-  user_id: string;
-  hide_age: boolean | null;
-  hide_distance: boolean | null;
-  shadow_ghost: boolean | null;
+  userId: string;
+  hideAge: boolean;
+  hideDistance: boolean;
+  shadowGhost: boolean;
+  lastSeenAt: Date | null;
+};
+
+type UserLocationRow = {
+  userId: string;
+  lat: number;
+  lng: number;
 };
 
 type EntitlementSnapshot = {
@@ -46,56 +53,13 @@ type EntitlementSnapshot = {
 };
 
 type UserEntitlementRow = {
-  user_id: string;
-  entitlement_snapshot: EntitlementSnapshot | null;
+  userId: string;
+  entitlementSnapshot: EntitlementSnapshot | null;
 };
 
 type UserBoostRow = {
-  user_id: string;
-  active_until: string | null;
-};
-
-const hasSupabase =
-  typeof env.SUPABASE_URL === "string" &&
-  env.SUPABASE_URL.length > 0 &&
-  typeof env.SUPABASE_SERVICE_ROLE === "string" &&
-  env.SUPABASE_SERVICE_ROLE.length > 0;
-
-const supabase = hasSupabase
-  ? createClient(env.SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE!, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-  : null;
-const optionalQueryTimeoutMs = Math.min(
-  env.DISCOVER_SUPABASE_TIMEOUT_MS,
-  env.DISCOVER_OPTIONAL_QUERY_TIMEOUT_MS,
-);
-const settingsQueryTimeoutMs = Math.min(
-  env.DISCOVER_SUPABASE_TIMEOUT_MS,
-  env.DISCOVER_SETTINGS_QUERY_TIMEOUT_MS,
-);
-const encodeStoragePath = (value: string) =>
-  value
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-
-const buildPublicPhotoUrl = (
-  storagePath: string,
-  variant: "card",
-  updatedAtIso: string | null,
-) => {
-  if (!env.SUPABASE_URL) return "/placeholder.svg";
-  const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
-  const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
-  const clean = storagePath.replace(/^\/+/, "");
-  const withoutExt = clean.replace(/\.[^/.]+$/, "");
-  const variantPath = `variants/${variant}/${withoutExt}.jpg`;
-  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(variantPath)}`;
-  const params = new URLSearchParams();
-  if (version) params.set("v", String(version));
-  const query = params.toString();
-  return query ? `${base}?${query}` : base;
+  userId: string;
+  activeUntil: Date | null;
 };
 
 const SIGNED_URL_CACHE_VERSION = "v2-card";
@@ -133,7 +97,7 @@ const getCachedSettings = (userId: string): SettingsRow | null => {
   return entry.value;
 };
 const setCachedSettings = (row: SettingsRow) => {
-  settingsCache.set(row.user_id, {
+  settingsCache.set(row.userId, {
     value: row,
     expiresAtMs: Date.now() + env.DISCOVER_SETTINGS_CACHE_TTL_MS,
   });
@@ -158,9 +122,36 @@ type CandidatePhotoResolution = {
   storagePath: string | null;
 };
 
+const buildPublicPhotoUrl = (storagePath: string, variant: string, versionMs?: number): string => {
+  if (!env.S3_PUBLIC_URL) return "/placeholder.svg";
+  const clean = storagePath.replace(/^\/+/, "").replace(/\.[^/.]+$/, "");
+  const variantPath = `variants/${variant}/${clean}.jpg`;
+  return versionMs ? `${env.S3_PUBLIC_URL}/${variantPath}?v=${versionMs}` : `${env.S3_PUBLIC_URL}/${variantPath}`;
+};
+
+const buildSignedPhotoUrls = async (paths: string[]): Promise<Map<string, string>> => {
+  const out = new Map<string, string>();
+  if (paths.length === 0 || !env.S3_BUCKET_PRIVATE) return out;
+  try {
+    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const s3 = new S3Client({
+      region: env.S3_REGION,
+      endpoint: env.S3_ENDPOINT || undefined,
+      credentials: { accessKeyId: env.S3_ACCESS_KEY_ID!, secretAccessKey: env.S3_SECRET_ACCESS_KEY! },
+      forcePathStyle: Boolean(env.S3_ENDPOINT),
+    });
+    await Promise.all(paths.map(async (key) => {
+      const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: env.S3_BUCKET_PRIVATE, Key: key }), { expiresIn: 3600 });
+      out.set(key, url);
+    }));
+  } catch {}
+  return out;
+};
+
 const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, string>> => {
   const result = new Map<string, string>();
-  if (!supabase || paths.length === 0) return result;
+  if (paths.length === 0) return result;
 
   const uniquePaths = [...new Set(paths.filter((entry) => typeof entry === "string" && entry.length > 0))];
   const missingPaths: string[] = [];
@@ -177,25 +168,10 @@ const createSignedUrlsForPaths = async (paths: string[]): Promise<Map<string, st
   if (missingPaths.length > 0) {
     const chunks = chunkArray(missingPaths, 100);
     for (const chunk of chunks) {
-      const signedBatch = await withTimeout(
-        supabase.storage
-          .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
-          .createSignedUrls(chunk, env.STORAGE_SIGNED_URL_TTL_SEC, {
-            transform: {
-              width: 960,
-              quality: 76,
-            },
-          } as any),
-        optionalQueryTimeoutMs,
-        "discover_create_signed_urls",
-      );
-
-      if (!signedBatch.error && Array.isArray(signedBatch.data)) {
-        for (const entry of signedBatch.data) {
-          if (!entry?.path || !entry?.signedUrl) continue;
-          result.set(entry.path, entry.signedUrl);
-          setCachedSignedPhotoUrl(entry.path, entry.signedUrl);
-        }
+      const signedBatch = await buildSignedPhotoUrls(chunk);
+      for (const [path, url] of signedBatch.entries()) {
+        result.set(path, url);
+        setCachedSignedPhotoUrl(path, url);
       }
     }
   }
@@ -230,12 +206,14 @@ const probePublicVariantHealth = async (
   const checks = await Promise.all(
     toProbe.map(async ([storagePath, url]) => {
       try {
-        const response = await withTimeout(
-          fetch(url, { method: "HEAD" }),
-          Math.min(env.DISCOVER_SUPABASE_TIMEOUT_MS, 1400),
-          "discover_public_variant_probe",
-        );
-        return { storagePath, status: response.status, ok: response.ok, networkError: false };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), Math.min(2000, 1400));
+        try {
+          const response = await fetch(url, { method: "HEAD", signal: controller.signal });
+          return { storagePath, status: response.status, ok: response.ok, networkError: false };
+        } finally {
+          clearTimeout(timer);
+        }
       } catch {
         return { storagePath, status: 0, ok: false, networkError: true };
       }
@@ -244,96 +222,25 @@ const probePublicVariantHealth = async (
 
   for (const check of checks) {
     if (check.ok) {
-      publicVariantHealthCache.set(check.storagePath, {
-        healthy: true,
-        checkedAtMs: now,
-      });
+      publicVariantHealthCache.set(check.storagePath, { healthy: true, checkedAtMs: now });
       continue;
     }
-
-    // Network errors/timeouts are inconclusive: keep public URL and do not poison cache as broken.
     if (check.networkError || check.status === 0 || check.status >= 500 || check.status === 429) {
-      logger.debug(
-        {
-          storagePath: check.storagePath,
-          status: check.status,
-        },
-        "discover.public_variant_probe_inconclusive_keep_public",
-      );
+      logger.debug({ storagePath: check.storagePath, status: check.status }, "discover.public_variant_probe_inconclusive_keep_public");
       continue;
     }
-
-    // Explicit negative HTTP responses (403/404/...) are treated as broken public variants.
-    publicVariantHealthCache.set(check.storagePath, {
-      healthy: false,
-      checkedAtMs: now,
-    });
+    publicVariantHealthCache.set(check.storagePath, { healthy: false, checkedAtMs: now });
     if (!check.ok) {
       broken.add(check.storagePath);
-      logger.warn(
-        {
-          storagePath: check.storagePath,
-          status: check.status,
-        },
-        "discover.public_variant_unavailable_fallback_to_signed",
-      );
+      logger.warn({ storagePath: check.storagePath, status: check.status }, "discover.public_variant_unavailable_fallback_to_signed");
     }
   }
 
   return broken;
 };
 
-const publicBucketState = {
-  checkedAt: 0,
-  isPublic: false,
-};
-const PUBLIC_BUCKET_CHECK_TTL_MS = 60_000;
-
-const checkPublicBucketViaStorageApi = async (): Promise<boolean> => {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE) return false;
-  const response = await withTimeout(
-    fetch(`${env.SUPABASE_URL}/storage/v1/bucket`, {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE}`,
-      },
-    }),
-    Math.min(env.DISCOVER_SUPABASE_TIMEOUT_MS, env.DISCOVER_PUBLIC_BUCKET_CHECK_TIMEOUT_MS),
-    "discover_public_bucket_storage_api",
-  );
-  if (!response.ok) return false;
-  const buckets = (await response.json()) as Array<{ id?: string; public?: boolean }>;
-  const target = buckets.find((bucket) => bucket.id === env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET);
-  return Boolean(target?.public);
-};
-
-const isPublicBucketEnabled = async () => {
-  if (env.DISCOVER_PUBLIC_BUCKET_ASSUME_ENABLED) return true;
-  const now = Date.now();
-  if (publicBucketState.checkedAt > 0 && now - publicBucketState.checkedAt < PUBLIC_BUCKET_CHECK_TTL_MS) {
-    return publicBucketState.isPublic;
-  }
-  try {
-    publicBucketState.isPublic = await checkPublicBucketViaStorageApi();
-  } catch {
-    // Keep last known state on transient failure to avoid false negatives.
-    publicBucketState.isPublic = publicBucketState.isPublic;
-  }
-  publicBucketState.checkedAt = now;
-  return publicBucketState.isPublic;
-};
-const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number, label: string): Promise<T> => {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label}_timeout_${timeoutMs}ms`)), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+const isPublicBucketEnabled = (): boolean => {
+  return Boolean(env.S3_PUBLIC_URL);
 };
 
 const cityCoordinates: Record<string, { lat: number; lng: number }> = {
@@ -373,8 +280,6 @@ const computeAge = (birthDate: string | null): number => {
   return Math.max(18, Math.min(45, age));
 };
 
-const deterministicScore = (seed: string) =>
-  [...seed].reduce((acc, ch, index) => (acc + ch.charCodeAt(0) * (index + 1)) % 1000, 0);
 
 const isIsoActive = (value?: string | null) => {
   if (!value) return false;
@@ -447,65 +352,23 @@ const resolveCandidatePhoto = (input: {
   if (input.accessPolicy === "public_stable") {
     if (input.brokenPublicPaths.has(primaryPath)) {
       if (input.signedByPath.has(primaryPath)) {
-        return {
-          urls,
-          status: "signed_fallback",
-          url: primaryUrl,
-          reason: "public_variant_unavailable_signed_fallback",
-          storagePath: primaryPath,
-        };
+        return { urls, status: "signed_fallback", url: primaryUrl, reason: "public_variant_unavailable_signed_fallback", storagePath: primaryPath };
       }
-      return {
-        urls: ["/placeholder.svg"],
-        status: "placeholder",
-        url: "/placeholder.svg",
-        reason: "public_variant_unavailable_no_signed",
-        storagePath: primaryPath,
-      };
+      return { urls: ["/placeholder.svg"], status: "placeholder", url: "/placeholder.svg", reason: "public_variant_unavailable_no_signed", storagePath: primaryPath };
     }
     if (input.publicByPath.has(primaryPath)) {
-      return {
-        urls,
-        status: "public",
-        url: primaryUrl,
-        reason: "public_variant_ok",
-        storagePath: primaryPath,
-      };
+      return { urls, status: "public", url: primaryUrl, reason: "public_variant_ok", storagePath: primaryPath };
     }
     if (input.signedByPath.has(primaryPath)) {
-      return {
-        urls,
-        status: "signed_fallback",
-        url: primaryUrl,
-        reason: "public_variant_missing_signed_fallback",
-        storagePath: primaryPath,
-      };
+      return { urls, status: "signed_fallback", url: primaryUrl, reason: "public_variant_missing_signed_fallback", storagePath: primaryPath };
     }
-    return {
-      urls: ["/placeholder.svg"],
-      status: "placeholder",
-      url: "/placeholder.svg",
-      reason: "public_candidate_unresolved",
-      storagePath: primaryPath,
-    };
+    return { urls: ["/placeholder.svg"], status: "placeholder", url: "/placeholder.svg", reason: "public_candidate_unresolved", storagePath: primaryPath };
   }
 
   if (input.signedByPath.has(primaryPath)) {
-    return {
-      urls,
-      status: "signed_fallback",
-      url: primaryUrl,
-      reason: "signed_policy_private",
-      storagePath: primaryPath,
-    };
+    return { urls, status: "signed_fallback", url: primaryUrl, reason: "signed_policy_private", storagePath: primaryPath };
   }
-  return {
-    urls: ["/placeholder.svg"],
-    status: "placeholder",
-    url: "/placeholder.svg",
-    reason: "signed_policy_missing_source",
-    storagePath: primaryPath,
-  };
+  return { urls: ["/placeholder.svg"], status: "placeholder", url: "/placeholder.svg", reason: "signed_policy_missing_source", storagePath: primaryPath };
 };
 
 const mapProfileToCandidate = (
@@ -515,24 +378,48 @@ const mapProfileToCandidate = (
   settings: SettingsRow | undefined,
   entitlement: UserEntitlementRow | undefined,
   hasActiveBoost: boolean,
+  candidateLocation: UserLocationRow | undefined,
 ): FeedCandidate => {
   const city = profile.city?.trim() || "Moscow";
-  const cityGeo = cityCoordinates[city];
+  const candidateGeo = candidateLocation
+    ? { lat: candidateLocation.lat, lng: candidateLocation.lng }
+    : cityCoordinates[city];
   const effectiveDistanceKm =
-    userGeoPoint && cityGeo ? Math.max(1, Math.round(haversineKm(userGeoPoint, cityGeo))) : 7;
-  const scoreSeed = deterministicScore(profile.user_id);
-  const planTier = resolveEntitlementPlanTier(entitlement?.entitlement_snapshot);
-  const shortPassTier = resolveShortPassTier(entitlement?.entitlement_snapshot);
-  const shadowGhostEnabledByUser = Boolean(settings?.shadow_ghost);
+    userGeoPoint && candidateGeo ? Math.max(1, Math.round(haversineKm(userGeoPoint, candidateGeo))) : 7;
+  const planTier = resolveEntitlementPlanTier(entitlement?.entitlementSnapshot);
+  const shortPassTier = resolveShortPassTier(entitlement?.entitlementSnapshot);
+  const shadowGhostEnabledByUser = Boolean(settings?.shadowGhost);
   const boostRankBonus = hasActiveBoost ? env.DISCOVER_ACTIVE_BOOST_SCORE_BONUS : 0;
 
+  const photosCount = photoResolution.urls.filter((u) => u !== "/placeholder.svg").length;
+  const hasBio = Boolean(profile.bio?.trim() && profile.bio.trim().length > 10);
+  const hasInterests = Boolean(profile.interests && profile.interests.length > 0);
+  const hasOriginCountry = Boolean(profile.originCountry?.trim());
+
+  const completenessBonus =
+    (hasBio ? 4 : 0) +
+    (photosCount >= 3 ? 6 : photosCount >= 2 ? 4 : photosCount >= 1 ? 2 : 0) +
+    (hasInterests ? 3 : 0) +
+    (hasOriginCountry ? 2 : 0);
+
+  const qualityBonus =
+    (Boolean(profile.verifiedOptIn) ? 5 : 0) +
+    (planTier === "platinum" || planTier === "elite" ? 3 : planTier === "gold" ? 2 : planTier === "essential" ? 1 : 0) +
+    (profile.languages && profile.languages.length >= 2 ? 2 : 0);
+
+  const profileQualityScore = completenessBonus + qualityBonus;
+  const qualityLabel = profileQualityScore >= 20 ? "high" : profileQualityScore >= 10 ? "mid" : "basic";
+  const onlineWindowMs = env.ONLINE_ACTIVE_WINDOW_SEC * 1000;
+  const lastSeenAt = settings?.lastSeenAt ?? null;
+  const online = Boolean(lastSeenAt && Date.now() - lastSeenAt.getTime() < onlineWindowMs);
+
   return {
-    id: profile.user_id,
-    name: profile.first_name?.trim() || "Profile",
+    id: profile.userId,
+    name: profile.firstName?.trim() || "Profile",
     gender: normalizeGender(profile.gender),
-    age: computeAge(profile.birth_date),
+    age: computeAge(profile.birthDate),
     city,
-    originCountry: profile.origin_country?.trim() || "russian",
+    originCountry: profile.originCountry?.trim() || "russian",
     distanceKm: effectiveDistanceKm,
     languages: profile.languages && profile.languages.length > 0 ? profile.languages : ["English", "Russian"],
     bio: profile.bio?.trim() || "Looking for meaningful connections.",
@@ -541,83 +428,90 @@ const mapProfileToCandidate = (
     photoUrl: photoResolution.url,
     photoReason: photoResolution.reason,
     photoStoragePath: photoResolution.storagePath,
-    compatibility: 70 + (scoreSeed % 28),
+    compatibility: Math.round(55 + completenessBonus * 0.8 + qualityBonus * 1.2),
     interests: profile.interests && profile.interests.length > 0 ? profile.interests : ["Travel", "Music"],
-    online: scoreSeed % 3 !== 0,
+    online,
     flags: {
-      verifiedIdentity: Boolean(profile.verified_opt_in),
+      verifiedIdentity: Boolean(profile.verifiedOptIn),
       premiumTier: planTier,
       shortPassTier,
-      hideAge: Boolean(settings?.hide_age),
-      hideDistance: Boolean(settings?.hide_distance),
-      shadowGhost: shadowGhostEnabledByUser && canUseShadowGhost(entitlement?.entitlement_snapshot),
+      hideAge: Boolean(settings?.hideAge),
+      hideDistance: Boolean(settings?.hideDistance),
+      shadowGhost: shadowGhostEnabledByUser && canUseShadowGhost(entitlement?.entitlementSnapshot),
       boostActive: hasActiveBoost,
     },
-    rankScore: 80 + (scoreSeed % 20) + boostRankBonus,
-    scoreReason: hasActiveBoost ? "supabase_seed_boost_active" : "supabase_seed",
+    rankScore: 50 + completenessBonus + qualityBonus + boostRankBonus,
+    scoreReason: hasActiveBoost ? `quality_${qualityLabel}_boost_active` : `quality_${qualityLabel}`,
   };
 };
 
-const createPublicUrlsForPaths = (
+const buildPublicUrlsForPhotos = (
   rows: ProfilePhotoRow[],
-  available: Set<string>,
 ): Map<string, string> => {
   const result = new Map<string, string>();
   for (const row of rows) {
-    if (!row.storage_path) continue;
-    if (available.has(row.storage_path)) {
-      result.set(row.storage_path, buildPublicPhotoUrl(row.storage_path, "card", row.updated_at));
-    }
+    if (!row.storagePath) continue;
+    const versionMs = row.updatedAt ? new Date(row.updatedAt).getTime() : undefined;
+    result.set(row.storagePath, buildPublicPhotoUrl(row.storagePath, "card", versionMs));
   }
   return result;
 };
 
-export const loadCandidatesFromSupabase = async (input: {
+export const loadCandidatesFromDb = async (input: {
   currentUserId: string;
   userGeoPoint: { lat: number; lng: number } | null;
   logger: FastifyBaseLogger;
   resolvePhotoAccess?: PhotoAccessResolver;
 }): Promise<FeedCandidate[]> => {
-  if (!supabase) {
-    input.logger.error("discover.supabase_config_missing_no_static_fallback");
-    return [];
-  }
-
   try {
-    const profilesResult = await withTimeout(
-      supabase
-        .from("profiles")
-        .select(
-          "user_id,first_name,birth_date,gender,city,origin_country,languages,bio,interests,verified_opt_in",
-        )
-        .neq("user_id", input.currentUserId)
-        .limit(env.DISCOVER_FEED_PROFILE_LIMIT),
-      env.DISCOVER_SUPABASE_TIMEOUT_MS,
-      "discover_profiles_query",
-    );
+    const profilesRaw = await prismaClient.profile.findMany({
+      where: { userId: { not: input.currentUserId } },
+      select: {
+        userId: true,
+        firstName: true,
+        birthDate: true,
+        gender: true,
+        city: true,
+        originCountry: true,
+        languages: true,
+        bio: true,
+        interests: true,
+        verifiedOptIn: true,
+      },
+      take: env.DISCOVER_FEED_PROFILE_LIMIT,
+    });
 
-    if (profilesResult.error) throw profilesResult.error;
-    const profiles = (profilesResult.data ?? []) as ProfileRow[];
+    const profiles: ProfileRow[] = profilesRaw.map((p) => ({
+      userId: p.userId,
+      firstName: p.firstName,
+      birthDate: p.birthDate,
+      gender: p.gender,
+      city: p.city,
+      originCountry: p.originCountry,
+      languages: p.languages,
+      bio: p.bio,
+      interests: p.interests,
+      verifiedOptIn: p.verifiedOptIn,
+    }));
+
     if (profiles.length === 0) return [];
 
-    const profileIds = profiles.map((row) => row.user_id);
+    const profileIds = profiles.map((row) => row.userId);
 
     let photosRows: ProfilePhotoRow[] = [];
     try {
-      const photosResult = await withTimeout(
-        supabase
-          .from("profile_photos")
-          .select("user_id,storage_path,sort_order,is_primary,updated_at")
-          .in("user_id", profileIds)
-          .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1,sort_order.eq.2")
-          .order("is_primary", { ascending: false })
-          .order("sort_order", { ascending: true })
-        .limit(Math.max(160, env.DISCOVER_FEED_PROFILE_LIMIT * 4)),
-        optionalQueryTimeoutMs,
-        "discover_photos_query",
-      );
-      if (photosResult.error) throw photosResult.error;
-      photosRows = (photosResult.data ?? []) as ProfilePhotoRow[];
+      const photosRaw = await prismaClient.profilePhoto.findMany({
+        where: { userId: { in: profileIds } },
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+        take: Math.max(160, env.DISCOVER_FEED_PROFILE_LIMIT * 4),
+      });
+      photosRows = photosRaw.map((p) => ({
+        userId: p.userId,
+        storagePath: p.storagePath,
+        sortOrder: p.sortOrder,
+        isPrimary: p.isPrimary,
+        updatedAt: p.updatedAt,
+      }));
     } catch (error) {
       input.logger.warn({ err: error }, "discover.photos_query_failed_continue_with_placeholders");
     }
@@ -633,17 +527,18 @@ export const loadCandidatesFromSupabase = async (input: {
       }
 
       if (missingIds.length > 0) {
-        const settingsResult = await withTimeout(
-          supabase
-            .from("settings")
-            .select("user_id,hide_age,hide_distance,shadow_ghost")
-            .in("user_id", missingIds)
-            .limit(500),
-          settingsQueryTimeoutMs,
-          "discover_settings_query",
-        );
-        if (settingsResult.error) throw settingsResult.error;
-        const fresh = (settingsResult.data ?? []) as SettingsRow[];
+        const settingsRaw = await prismaClient.userSettings.findMany({
+          where: { userId: { in: missingIds } },
+          select: { userId: true, shadowGhost: true, hideAge: true, hideDistance: true, lastSeenAt: true },
+          take: 500,
+        });
+        const fresh: SettingsRow[] = settingsRaw.map((s) => ({
+          userId: s.userId,
+          hideAge: s.hideAge,
+          hideDistance: s.hideDistance,
+          shadowGhost: s.shadowGhost,
+          lastSeenAt: s.lastSeenAt,
+        }));
         for (const row of fresh) setCachedSettings(row);
         settingsRows = [...cachedSettings, ...fresh];
       } else {
@@ -653,82 +548,80 @@ export const loadCandidatesFromSupabase = async (input: {
       input.logger.warn({ err: error }, "discover.settings_query_failed_continue_with_defaults");
     }
 
+    let locationRows: UserLocationRow[] = [];
+    try {
+      const locRaw = await prismaClient.userLocation.findMany({
+        where: { userId: { in: profileIds } },
+        select: { userId: true, lat: true, lng: true },
+        take: 500,
+      });
+      locationRows = locRaw.map((l) => ({ userId: l.userId, lat: l.lat, lng: l.lng }));
+    } catch (error) {
+      input.logger.warn({ err: error }, "discover.locations_query_failed_continue_without_gps");
+    }
+
     let entitlementRows: UserEntitlementRow[] = [];
     try {
-      const entitlementResult = await withTimeout(
-        supabase
-          .from("user_entitlements")
-          .select("user_id,entitlement_snapshot")
-          .in("user_id", profileIds)
-          .limit(500),
-        optionalQueryTimeoutMs,
-        "discover_entitlements_query",
-      );
-      if (entitlementResult.error) throw entitlementResult.error;
-      entitlementRows = (entitlementResult.data ?? []) as UserEntitlementRow[];
+      const entRaw = await prismaClient.userEntitlement.findMany({
+        where: { userId: { in: profileIds } },
+        select: { userId: true, entitlementSnapshot: true },
+        take: 500,
+      });
+      entitlementRows = entRaw.map((e) => ({
+        userId: e.userId,
+        entitlementSnapshot: (e.entitlementSnapshot as EntitlementSnapshot | null),
+      }));
     } catch (error) {
       input.logger.warn({ err: error }, "discover.entitlements_query_failed_continue_with_free_tier");
     }
 
     let boostedProfileIds = new Set<string>();
     try {
-      const activeBoostResult = await withTimeout(
-        supabase
-          .from("user_boosts")
-          .select("user_id,active_until")
-          .in("user_id", profileIds)
-          .gt("active_until", new Date().toISOString())
-          .limit(500),
-        optionalQueryTimeoutMs,
-        "discover_boosts_query",
-      );
-      if (activeBoostResult.error) throw activeBoostResult.error;
-      const boostRows = (activeBoostResult.data ?? []) as UserBoostRow[];
-      boostedProfileIds = new Set(boostRows.map((row) => row.user_id));
+      const nowIso = new Date().toISOString();
+      const boostRaw = await prismaClient.discoverBoost.findMany({
+        where: { userId: { in: profileIds }, activeUntil: { gt: new Date(nowIso) } },
+        select: { userId: true, activeUntil: true },
+        take: 500,
+      });
+      boostedProfileIds = new Set(boostRaw.map((b) => b.userId));
     } catch (error) {
       input.logger.warn({ err: error }, "discover.boosts_query_failed_continue_without_boost_bonus");
     }
 
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
     for (const row of photosRows) {
-      const bucketRows = photosByUser.get(row.user_id) ?? [];
+      const bucketRows = photosByUser.get(row.userId) ?? [];
       bucketRows.push(row);
-      photosByUser.set(row.user_id, bucketRows);
+      photosByUser.set(row.userId, bucketRows);
     }
 
-    const settingsByUser = new Map(
-      settingsRows.map((row) => [row.user_id, row]),
-    );
-
-    const entitlementsByUser = new Map(
-      entitlementRows.map((row) => [row.user_id, row]),
-    );
+    const settingsByUser = new Map(settingsRows.map((row) => [row.userId, row]));
+    const entitlementsByUser = new Map(entitlementRows.map((row) => [row.userId, row]));
+    const locationsByUser = new Map(locationRows.map((row) => [row.userId, row]));
 
     const topPhotoPathsByUser = new Map<string, string[]>();
     const photoAccessByUser = new Map<string, ImageAccessPolicy>();
-    const allTopPaths: string[] = [];
     const publicPaths: string[] = [];
     const signedPaths: string[] = [];
     const resolvePhotoAccess =
-      input.resolvePhotoAccess ??
-      (() => resolveImageAccessPolicy("discover", "visible_standard"));
+      input.resolvePhotoAccess ?? (() => resolveImageAccessPolicy("discover", "visible_standard"));
     for (const profile of profiles) {
-      const photoRows = photosByUser.get(profile.user_id) ?? [];
+      const photoRows = photosByUser.get(profile.userId) ?? [];
       const topPaths = photoRows
         .slice(0, 3)
-        .map((row) => row.storage_path)
+        .map((row) => row.storagePath)
         .filter((value): value is string => typeof value === "string" && value.length > 0);
-      topPhotoPathsByUser.set(profile.user_id, topPaths);
-      allTopPaths.push(...topPaths);
-      const accessPolicy = resolvePhotoAccess(profile.user_id);
-      photoAccessByUser.set(profile.user_id, accessPolicy);
+      topPhotoPathsByUser.set(profile.userId, topPaths);
+      const accessPolicy = resolvePhotoAccess(profile.userId);
+      photoAccessByUser.set(profile.userId, accessPolicy);
       if (accessPolicy === "public_stable") {
         publicPaths.push(...topPaths);
       } else {
         signedPaths.push(...topPaths);
       }
     }
-    const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
+
+    const publicBucketEnabled = isPublicBucketEnabled();
     if (!publicBucketEnabled) {
       input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
     }
@@ -736,12 +629,13 @@ export const loadCandidatesFromSupabase = async (input: {
     if (publicBucketEnabled) {
       const rowByPath = new Map<string, ProfilePhotoRow>();
       for (const row of photosRows) {
-        if (row.storage_path) rowByPath.set(row.storage_path, row);
+        if (row.storagePath) rowByPath.set(row.storagePath, row);
       }
       for (const storagePath of publicPaths) {
         if (!storagePath) continue;
         const row = rowByPath.get(storagePath);
-        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
+        const versionMs = row?.updatedAt ? new Date(row.updatedAt).getTime() : undefined;
+        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", versionMs));
       }
     }
     const brokenPublicPaths = publicBucketEnabled
@@ -754,37 +648,20 @@ export const loadCandidatesFromSupabase = async (input: {
     ];
     const signedByPath =
       signedCandidates.length > 0 ? await createSignedUrlsForPaths(signedCandidates) : new Map<string, string>();
+
     const resolvedCount = publicByPath.size + signedByPath.size;
     const totalPaths = publicPaths.length + signedPaths.length;
     if (totalPaths > 0 && resolvedCount === 0) {
-      input.logger.error(
-        {
-          total: totalPaths,
-          publicAvailable: publicByPath.size,
-          signedAvailable: signedByPath.size,
-          publicBucketEnabled,
-        },
-        "discover.photos_url_map_empty",
-      );
+      input.logger.error({ total: totalPaths, publicAvailable: publicByPath.size, signedAvailable: signedByPath.size, publicBucketEnabled }, "discover.photos_url_map_empty");
     } else if (totalPaths > 0 && resolvedCount < totalPaths) {
-      input.logger.warn(
-        {
-          total: totalPaths,
-          resolved: resolvedCount,
-          missing: totalPaths - resolvedCount,
-          publicAvailable: publicByPath.size,
-          signedAvailable: signedByPath.size,
-          publicBucketEnabled,
-        },
-        "discover.photos_url_map_partial",
-      );
+      input.logger.warn({ total: totalPaths, resolved: resolvedCount, missing: totalPaths - resolvedCount, publicAvailable: publicByPath.size, signedAvailable: signedByPath.size, publicBucketEnabled }, "discover.photos_url_map_partial");
     }
 
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
-      const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
+      const accessPolicy = photoAccessByUser.get(profile.userId) ?? "public_stable";
       const photoResolution = resolveCandidatePhoto({
-        topPaths: topPhotoPathsByUser.get(profile.user_id) ?? [],
+        topPaths: topPhotoPathsByUser.get(profile.userId) ?? [],
         accessPolicy,
         publicByPath,
         signedByPath,
@@ -795,9 +672,10 @@ export const loadCandidatesFromSupabase = async (input: {
           profile,
           photoResolution,
           input.userGeoPoint,
-          settingsByUser.get(profile.user_id),
-          entitlementsByUser.get(profile.user_id),
-          boostedProfileIds.has(profile.user_id),
+          settingsByUser.get(profile.userId),
+          entitlementsByUser.get(profile.userId),
+          boostedProfileIds.has(profile.userId),
+          locationsByUser.get(profile.userId),
         ),
       );
     }
@@ -816,21 +694,14 @@ export const loadCandidatesFromSupabase = async (input: {
         return acc;
       }, {});
       input.logger.info(
-        {
-          candidates: candidates.length,
-          eligibleCandidates: eligibleCandidates.length,
-          droppedNoPhoto: candidates.length - eligibleCandidates.length,
-          requirePhoto: env.DISCOVER_REQUIRE_PHOTO,
-          photoStatus: statusCounts,
-          photoReason: reasonCounts,
-        },
+        { candidates: candidates.length, eligibleCandidates: eligibleCandidates.length, droppedNoPhoto: candidates.length - eligibleCandidates.length, requirePhoto: env.DISCOVER_REQUIRE_PHOTO, photoStatus: statusCounts, photoReason: reasonCounts },
         "discover.photo_resolution_summary",
       );
     }
 
     return eligibleCandidates;
   } catch (error) {
-    input.logger.error({ err: error }, "discover.load_candidates_supabase_failed_no_static_fallback");
+    input.logger.error({ err: error }, "discover.load_candidates_prisma_failed_no_static_fallback");
     return [];
   }
 };
@@ -844,11 +715,6 @@ export const loadCandidatesByProfileIds = async (input: {
   photoProbeMode?: "sync" | "off";
   source?: string;
 }): Promise<FeedCandidate[]> => {
-  if (!supabase) {
-    input.logger.error("discover.supabase_config_missing_no_static_fallback");
-    return [];
-  }
-
   const profileIds = [...new Set(input.profileIds.filter((entry) => typeof entry === "string" && entry.length > 0))];
   if (profileIds.length === 0) return [];
 
@@ -860,21 +726,37 @@ export const loadCandidatesByProfileIds = async (input: {
     };
 
     const profilesQueryStartMs = performance.now();
-    const profilesResult = await withTimeout(
-      supabase
-        .from("profiles")
-        .select(
-          "user_id,first_name,birth_date,gender,city,origin_country,languages,bio,interests,verified_opt_in",
-        )
-        .in("user_id", profileIds)
-        .limit(Math.max(32, profileIds.length * 2)),
-      env.DISCOVER_SUPABASE_TIMEOUT_MS,
-      "discover_profiles_by_ids_query",
-    );
+    const profilesRaw = await prismaClient.profile.findMany({
+      where: { userId: { in: profileIds } },
+      select: {
+        userId: true,
+        firstName: true,
+        birthDate: true,
+        gender: true,
+        city: true,
+        originCountry: true,
+        languages: true,
+        bio: true,
+        interests: true,
+        verifiedOptIn: true,
+      },
+      take: Math.max(32, profileIds.length * 2),
+    });
     mark("profiles_query_ms", profilesQueryStartMs);
 
-    if (profilesResult.error) throw profilesResult.error;
-    const profiles = (profilesResult.data ?? []) as ProfileRow[];
+    const profiles: ProfileRow[] = profilesRaw.map((p) => ({
+      userId: p.userId,
+      firstName: p.firstName,
+      birthDate: p.birthDate,
+      gender: p.gender,
+      city: p.city,
+      originCountry: p.originCountry,
+      languages: p.languages,
+      bio: p.bio,
+      interests: p.interests,
+      verifiedOptIn: p.verifiedOptIn,
+    }));
+
     if (profiles.length === 0) return [];
 
     const includeBoostStatus = input.includeBoostStatus ?? true;
@@ -891,19 +773,18 @@ export const loadCandidatesByProfileIds = async (input: {
     const photosPromise = (async (): Promise<ProfilePhotoRow[]> => {
       const startMs = performance.now();
       try {
-        const photosResult = await withTimeout(
-          supabase
-            .from("profile_photos")
-            .select("user_id,storage_path,sort_order,is_primary,updated_at")
-            .in("user_id", profileIds)
-            .order("is_primary", { ascending: false })
-            .order("sort_order", { ascending: true })
-            .limit(Math.max(96, profileIds.length * 4)),
-          optionalQueryTimeoutMs,
-          "discover_photos_by_ids_query",
-        );
-        if (photosResult.error) throw photosResult.error;
-        return (photosResult.data ?? []) as ProfilePhotoRow[];
+        const photosRaw = await prismaClient.profilePhoto.findMany({
+          where: { userId: { in: profileIds } },
+          orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+          take: Math.max(96, profileIds.length * 4),
+        });
+        return photosRaw.map((p) => ({
+          userId: p.userId,
+          storagePath: p.storagePath,
+          sortOrder: p.sortOrder,
+          isPrimary: p.isPrimary,
+          updatedAt: p.updatedAt,
+        }));
       } catch (error) {
         input.logger.warn({ err: error }, "discover.photos_by_ids_query_failed_continue_with_placeholders");
         return [];
@@ -916,17 +797,18 @@ export const loadCandidatesByProfileIds = async (input: {
       const startMs = performance.now();
       try {
         if (missingSettingsIds.length === 0) return cachedSettings;
-        const settingsResult = await withTimeout(
-          supabase
-            .from("settings")
-            .select("user_id,hide_age,hide_distance,shadow_ghost")
-            .in("user_id", missingSettingsIds)
-            .limit(Math.max(64, missingSettingsIds.length * 2)),
-          settingsQueryTimeoutMs,
-          "discover_settings_by_ids_query",
-        );
-        if (settingsResult.error) throw settingsResult.error;
-        const fresh = (settingsResult.data ?? []) as SettingsRow[];
+        const settingsRaw = await prismaClient.userSettings.findMany({
+          where: { userId: { in: missingSettingsIds } },
+          select: { userId: true, hideAge: true, hideDistance: true, shadowGhost: true, lastSeenAt: true },
+          take: Math.max(64, missingSettingsIds.length * 2),
+        });
+        const fresh: SettingsRow[] = settingsRaw.map((s) => ({
+          userId: s.userId,
+          hideAge: s.hideAge,
+          hideDistance: s.hideDistance,
+          shadowGhost: s.shadowGhost,
+          lastSeenAt: s.lastSeenAt,
+        }));
         for (const row of fresh) setCachedSettings(row);
         return [...cachedSettings, ...fresh];
       } catch (error) {
@@ -937,20 +819,35 @@ export const loadCandidatesByProfileIds = async (input: {
       }
     })();
 
+    const locationsPromise = (async (): Promise<UserLocationRow[]> => {
+      const startMs = performance.now();
+      try {
+        const locRaw = await prismaClient.userLocation.findMany({
+          where: { userId: { in: profileIds } },
+          select: { userId: true, lat: true, lng: true },
+          take: Math.max(64, profileIds.length * 2),
+        });
+        return locRaw.map((l) => ({ userId: l.userId, lat: l.lat, lng: l.lng }));
+      } catch (error) {
+        input.logger.warn({ err: error }, "discover.locations_by_ids_query_failed_continue_without_gps");
+        return [];
+      } finally {
+        mark("locations_query_ms", startMs);
+      }
+    })();
+
     const entitlementsPromise = (async (): Promise<UserEntitlementRow[]> => {
       const startMs = performance.now();
       try {
-        const entitlementResult = await withTimeout(
-          supabase
-            .from("user_entitlements")
-            .select("user_id,entitlement_snapshot")
-            .in("user_id", profileIds)
-            .limit(Math.max(64, profileIds.length * 2)),
-          optionalQueryTimeoutMs,
-          "discover_entitlements_by_ids_query",
-        );
-        if (entitlementResult.error) throw entitlementResult.error;
-        return (entitlementResult.data ?? []) as UserEntitlementRow[];
+        const entRaw = await prismaClient.userEntitlement.findMany({
+          where: { userId: { in: profileIds } },
+          select: { userId: true, entitlementSnapshot: true },
+          take: Math.max(64, profileIds.length * 2),
+        });
+        return entRaw.map((e) => ({
+          userId: e.userId,
+          entitlementSnapshot: (e.entitlementSnapshot as EntitlementSnapshot | null),
+        }));
       } catch (error) {
         input.logger.warn({ err: error }, "discover.entitlements_by_ids_query_failed_continue_with_free_tier");
         return [];
@@ -963,19 +860,12 @@ export const loadCandidatesByProfileIds = async (input: {
       const startMs = performance.now();
       try {
         if (!includeBoostStatus) return new Set<string>();
-        const activeBoostResult = await withTimeout(
-          supabase
-            .from("user_boosts")
-            .select("user_id,active_until")
-            .in("user_id", profileIds)
-            .gt("active_until", new Date().toISOString())
-            .limit(Math.max(64, profileIds.length * 2)),
-          optionalQueryTimeoutMs,
-          "discover_boosts_by_ids_query",
-        );
-        if (activeBoostResult.error) throw activeBoostResult.error;
-        const boostRows = (activeBoostResult.data ?? []) as UserBoostRow[];
-        return new Set(boostRows.map((row) => row.user_id));
+        const boostRaw = await prismaClient.discoverBoost.findMany({
+          where: { userId: { in: profileIds }, activeUntil: { gt: new Date() } },
+          select: { userId: true, activeUntil: true },
+          take: Math.max(64, profileIds.length * 2),
+        });
+        return new Set(boostRaw.map((b) => b.userId));
       } catch (error) {
         input.logger.warn({ err: error }, "discover.boosts_by_ids_query_failed_continue_without_boost_bonus");
         return new Set<string>();
@@ -985,42 +875,41 @@ export const loadCandidatesByProfileIds = async (input: {
     })();
 
     const parallelQueriesStartMs = performance.now();
-    const [photosRows, settingsRows, entitlementRows, boostedProfileIds] = await Promise.all([
+    const [photosRows, settingsRows, entitlementRows, boostedProfileIds, locationRows] = await Promise.all([
       photosPromise,
       settingsPromise,
       entitlementsPromise,
       boostsPromise,
+      locationsPromise,
     ]);
     mark("parallel_secondary_queries_wall_ms", parallelQueriesStartMs);
 
     const photosByUser = new Map<string, ProfilePhotoRow[]>();
     for (const row of photosRows) {
-      const bucketRows = photosByUser.get(row.user_id) ?? [];
+      const bucketRows = photosByUser.get(row.userId) ?? [];
       bucketRows.push(row);
-      photosByUser.set(row.user_id, bucketRows);
+      photosByUser.set(row.userId, bucketRows);
     }
 
-    const settingsByUser = new Map(settingsRows.map((row) => [row.user_id, row]));
-    const entitlementsByUser = new Map(entitlementRows.map((row) => [row.user_id, row]));
+    const settingsByUser = new Map(settingsRows.map((row) => [row.userId, row]));
+    const entitlementsByUser = new Map(entitlementRows.map((row) => [row.userId, row]));
+    const locationsByUser = new Map(locationRows.map((row) => [row.userId, row]));
 
     const topPhotoPathsByUser = new Map<string, string[]>();
     const photoAccessByUser = new Map<string, ImageAccessPolicy>();
-    const allTopPaths: string[] = [];
     const publicPaths: string[] = [];
     const signedPaths: string[] = [];
     const resolvePhotoAccess =
-      input.resolvePhotoAccess ??
-      (() => resolveImageAccessPolicy("discover", "visible_standard"));
+      input.resolvePhotoAccess ?? (() => resolveImageAccessPolicy("discover", "visible_standard"));
     for (const profile of profiles) {
-      const photoRows = photosByUser.get(profile.user_id) ?? [];
+      const photoRows = photosByUser.get(profile.userId) ?? [];
       const topPaths = photoRows
         .slice(0, 3)
-        .map((row) => row.storage_path)
+        .map((row) => row.storagePath)
         .filter((value): value is string => typeof value === "string" && value.length > 0);
-      topPhotoPathsByUser.set(profile.user_id, topPaths);
-      allTopPaths.push(...topPaths);
-      const accessPolicy = resolvePhotoAccess(profile.user_id);
-      photoAccessByUser.set(profile.user_id, accessPolicy);
+      topPhotoPathsByUser.set(profile.userId, topPaths);
+      const accessPolicy = resolvePhotoAccess(profile.userId);
+      photoAccessByUser.set(profile.userId, accessPolicy);
       if (accessPolicy === "public_stable") {
         publicPaths.push(...topPaths);
       } else {
@@ -1029,7 +918,7 @@ export const loadCandidatesByProfileIds = async (input: {
     }
 
     const bucketCheckStartMs = performance.now();
-    const publicBucketEnabled = await isPublicBucketEnabled().catch(() => false);
+    const publicBucketEnabled = isPublicBucketEnabled();
     mark("public_bucket_check_ms", bucketCheckStartMs);
     if (!publicBucketEnabled) {
       input.logger.warn("discover.public_bucket_disabled_fallback_to_signed");
@@ -1038,12 +927,13 @@ export const loadCandidatesByProfileIds = async (input: {
     if (publicBucketEnabled) {
       const rowByPath = new Map<string, ProfilePhotoRow>();
       for (const row of photosRows) {
-        if (row.storage_path) rowByPath.set(row.storage_path, row);
+        if (row.storagePath) rowByPath.set(row.storagePath, row);
       }
       for (const storagePath of publicPaths) {
         if (!storagePath) continue;
         const row = rowByPath.get(storagePath);
-        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", row?.updated_at ?? null));
+        const versionMs = row?.updatedAt ? new Date(row.updatedAt).getTime() : undefined;
+        publicByPath.set(storagePath, buildPublicPhotoUrl(storagePath, "card", versionMs));
       }
     }
     const photoProbeMode = input.photoProbeMode ?? "sync";
@@ -1067,35 +957,17 @@ export const loadCandidatesByProfileIds = async (input: {
     const resolvedCount = publicByPath.size + signedByPath.size;
     const totalPaths = publicPaths.length + signedPaths.length;
     if (totalPaths > 0 && resolvedCount === 0) {
-      input.logger.error(
-        {
-          total: totalPaths,
-          publicAvailable: publicByPath.size,
-          signedAvailable: signedByPath.size,
-          publicBucketEnabled,
-        },
-        "discover.photos_url_map_empty",
-      );
+      input.logger.error({ total: totalPaths, publicAvailable: publicByPath.size, signedAvailable: signedByPath.size, publicBucketEnabled }, "discover.photos_url_map_empty");
     } else if (totalPaths > 0 && resolvedCount < totalPaths) {
-      input.logger.warn(
-        {
-          total: totalPaths,
-          resolved: resolvedCount,
-          missing: totalPaths - resolvedCount,
-          publicAvailable: publicByPath.size,
-          signedAvailable: signedByPath.size,
-          publicBucketEnabled,
-        },
-        "discover.photos_url_map_partial",
-      );
+      input.logger.warn({ total: totalPaths, resolved: resolvedCount, missing: totalPaths - resolvedCount, publicAvailable: publicByPath.size, signedAvailable: signedByPath.size, publicBucketEnabled }, "discover.photos_url_map_partial");
     }
 
     const mappingStartMs = performance.now();
     const candidates: FeedCandidate[] = [];
     for (const profile of profiles) {
-      const accessPolicy = photoAccessByUser.get(profile.user_id) ?? "public_stable";
+      const accessPolicy = photoAccessByUser.get(profile.userId) ?? "public_stable";
       const photoResolution = resolveCandidatePhoto({
-        topPaths: topPhotoPathsByUser.get(profile.user_id) ?? [],
+        topPaths: topPhotoPathsByUser.get(profile.userId) ?? [],
         accessPolicy,
         publicByPath,
         signedByPath,
@@ -1106,9 +978,10 @@ export const loadCandidatesByProfileIds = async (input: {
           profile,
           photoResolution,
           input.userGeoPoint ?? null,
-          settingsByUser.get(profile.user_id),
-          entitlementsByUser.get(profile.user_id),
-          boostedProfileIds.has(profile.user_id),
+          settingsByUser.get(profile.userId),
+          entitlementsByUser.get(profile.userId),
+          boostedProfileIds.has(profile.userId),
+          locationsByUser.get(profile.userId),
         ),
       );
     }
@@ -1128,14 +1001,7 @@ export const loadCandidatesByProfileIds = async (input: {
         return acc;
       }, {});
       input.logger.info(
-        {
-          candidates: candidates.length,
-          eligibleCandidates: eligibleCandidates.length,
-          droppedNoPhoto: candidates.length - eligibleCandidates.length,
-          requirePhoto: env.DISCOVER_REQUIRE_PHOTO,
-          photoStatus: statusCounts,
-          photoReason: reasonCounts,
-        },
+        { candidates: candidates.length, eligibleCandidates: eligibleCandidates.length, droppedNoPhoto: candidates.length - eligibleCandidates.length, requirePhoto: env.DISCOVER_REQUIRE_PHOTO, photoStatus: statusCounts, photoReason: reasonCounts },
         "discover.photo_resolution_summary",
       );
     }
