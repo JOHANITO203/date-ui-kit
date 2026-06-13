@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
-import { motion } from 'motion/react';
+import { motion, useScroll, useTransform } from 'motion/react';
+import { prefersReducedMotion } from '../design/motion';
+import { hapticFor } from '../utils/haptics';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, getTrackedEvents } from '../services';
 import { useRuntimeSelector } from '../state';
@@ -105,6 +107,14 @@ const ProfileScreen = () => {
   const sectionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [profileScrollProgress, setProfileScrollProgress] = useState(0);
   const [profileScrollThumb, setProfileScrollThumb] = useState(28);
+  const reduceMotion = prefersReducedMotion();
+  // iOS collapsing large title + hero parallax, driven by the existing scroll
+  // owner (scrollRef). When reduced motion is requested, render a static header.
+  const { scrollY } = useScroll({ container: scrollRef });
+  const titleScale = useTransform(scrollY, [0, 80], [1, 0.82]);
+  const titleOpacity = useTransform(scrollY, [0, 60], [1, 0]);
+  const compactOpacity = useTransform(scrollY, [40, 80], [0, 1]);
+  const heroY = useTransform(scrollY, [0, 200], [0, -30]);
   const planTitle = t(`settings.plan.${previewPlan}`);
   const planPalette = useMemo(() => {
     if (previewPlan === 'elite') {
@@ -474,10 +484,28 @@ const ProfileScreen = () => {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,5,5,0.35),rgba(0,0,0,0.9)_62%)]" />
       </div>
       {/* Header Section */}
-      <div className="relative z-10 px-[var(--page-x)] mb-6 md:mb-8">
+      <div className="sticky top-0 z-20 px-[var(--page-x)] mb-6 md:mb-8 bg-black/0">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-none">{t('profile.title')}</h2>
+          <div className="relative min-w-0">
+            {reduceMotion ? (
+              <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-none">{t('profile.title')}</h2>
+            ) : (
+              <>
+                <motion.h2
+                  className="text-3xl md:text-4xl font-black tracking-tight leading-none origin-left"
+                  style={{ scale: titleScale, opacity: titleOpacity }}
+                >
+                  {t('profile.title')}
+                </motion.h2>
+                <motion.span
+                  aria-hidden
+                  className="pointer-events-none absolute left-0 top-1 text-xl font-black tracking-tight leading-none whitespace-nowrap"
+                  style={{ opacity: compactOpacity }}
+                >
+                  {t('profile.title')}
+                </motion.span>
+              </>
+            )}
             <p
               className="mt-2 text-[11px] uppercase tracking-[0.22em] font-bold"
               style={{ color: 'hsl(var(--plan-hue) var(--plan-sat) 72% / 0.72)' }}
@@ -527,17 +555,32 @@ const ProfileScreen = () => {
                     <span className="sr-only">{t('profile.stateOn')}</span>
                   </div>
                 ) : profilePhotoUrl ? (
-                  <img
-                    src={profilePhotoAttrs.src}
-                    srcSet={profilePhotoAttrs.srcSet}
-                    sizes={profilePhotoAttrs.sizes}
-                    className="w-full h-full object-cover"
-                    alt="Me"
-                    loading="eager"
-                    decoding="async"
-                    fetchPriority="high"
-                    referrerPolicy="no-referrer"
-                  />
+                  reduceMotion ? (
+                    <img
+                      src={profilePhotoAttrs.src}
+                      srcSet={profilePhotoAttrs.srcSet}
+                      sizes={profilePhotoAttrs.sizes}
+                      className="w-full h-full object-cover"
+                      alt="Me"
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <motion.img
+                      src={profilePhotoAttrs.src}
+                      srcSet={profilePhotoAttrs.srcSet}
+                      sizes={profilePhotoAttrs.sizes}
+                      className="absolute inset-0 w-full h-[112%] object-cover will-change-transform"
+                      alt="Me"
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                      referrerPolicy="no-referrer"
+                      style={{ y: heroY }}
+                    />
+                  )
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center"
@@ -770,6 +813,7 @@ const ProfileScreen = () => {
                     <span className="text-sm font-semibold">{t('settings.items.hideAge')}</span>
                     <button
                       onClick={() => {
+                        hapticFor.toggle();
                         if (!canManagePrivacyControls) {
                           navigate('/boost');
                           return;
@@ -794,6 +838,7 @@ const ProfileScreen = () => {
                     <span className="text-sm font-semibold">{t('settings.items.hideDistance')}</span>
                     <button
                       onClick={() => {
+                        hapticFor.toggle();
                         if (!canManagePrivacyControls) {
                           navigate('/boost');
                           return;
@@ -829,6 +874,7 @@ const ProfileScreen = () => {
                     </span>
                     <button
                       onClick={() => {
+                        hapticFor.toggle();
                         if (shadowGhostLocked) {
                           navigate('/boost');
                           return;
@@ -851,7 +897,10 @@ const ProfileScreen = () => {
                   <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-3 py-2">
                     <span className="text-sm font-semibold">{t('profile.onlineFilter')}</span>
                     <button
-                      onClick={() => setOnlineOnly((v) => !v)}
+                      onClick={() => {
+                        hapticFor.toggle();
+                        setOnlineOnly((v) => !v);
+                      }}
                       aria-pressed={onlineOnly}
                       className={`group relative inline-flex h-7 w-12 rounded-full border transition-colors ${
                         onlineOnly ? 'bg-white border-white/30' : 'bg-white/10 border-white/20 hover:border-white/35'
