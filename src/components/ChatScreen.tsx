@@ -4,6 +4,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
+import Sheet from './ui/Sheet';
+import Skeleton from './ui/Skeleton';
+import Pressable from './ui/Pressable';
+import { fadeUp } from '../design/motion';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, subscribeConversationRelationChange } from '../services';
@@ -603,43 +607,6 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             >
               <ICONS.Shield size={18} />
             </button>
-            {showSafetyMenu && (
-              <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-white/15 bg-[#0c0f15]/95 p-2 shadow-2xl z-20">
-                <p className="px-2 py-1 text-[9px] uppercase tracking-[0.14em] font-black text-white/55">
-                  {t('chat.safetyActions')}
-                </p>
-                <button
-                  onClick={() => reportPeer('spam')}
-                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
-                >
-                  {t('chat.reportReasonSpam')}
-                </button>
-                <button
-                  onClick={() => reportPeer('scam')}
-                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
-                >
-                  {t('chat.reportReasonScam')}
-                </button>
-                <button
-                  onClick={() => reportPeer('abuse')}
-                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
-                >
-                  {t('chat.reportReasonAbuse')}
-                </button>
-                <button
-                  onClick={() => reportPeer('fake_profile')}
-                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
-                >
-                  {t('chat.reportReasonFakeProfile')}
-                </button>
-                <button
-                  onClick={() => reportPeer('other')}
-                  className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-white/90 hover:bg-white/10"
-                >
-                  {t('chat.reportReasonOther')}
-                </button>
-              </div>
-            )}
           </div>
           <button
             onClick={handleToggleTranslation}
@@ -705,11 +672,27 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
           </div>
         )}
 
+        {isLoading && orderedMessages.length === 0 && (
+          <>
+            {[0, 1, 2, 3].map((index) => (
+              <div key={`chat-skeleton-${index}`} className={`flex ${index % 2 === 0 ? '' : 'justify-end'}`}>
+                <Skeleton className="h-12 w-2/3" />
+              </div>
+            ))}
+          </>
+        )}
+
         {orderedMessages.map((message) => {
           const isIncoming = message.direction === 'incoming';
           if (isIncoming) {
             return (
-              <div key={message.id} className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]">
+              <motion.div
+                key={message.id}
+                variants={fadeUp}
+                initial="hidden"
+                animate="show"
+                className="flex gap-3 max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]"
+              >
                 {shadowGhostMasked ? (
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/30 via-black/70 to-sky-500/30 flex items-center justify-center text-white self-end shrink-0">
                     <ICONS.Ghost size={12} className="text-violet-200" />
@@ -739,13 +722,16 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                     </motion.div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           }
 
           return (
-            <div
+            <motion.div
               key={message.id}
+              variants={fadeUp}
+              initial="hidden"
+              animate="show"
               className="flex flex-col items-end gap-1.5 ml-auto max-w-[86%] md:max-w-[74%] lg:max-w-[68%] xl:max-w-[62%]"
             >
               <div
@@ -767,7 +753,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                   ? `${t('chat.readAtLabel')} ${formatTime(message.readAtIso)}`
                   : formatTime(message.createdAtIso)}
               </span>
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -847,6 +833,26 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
         </div>
         {isTouch && isKeyboardOpen && <div className="h-[max(env(safe-area-inset-bottom),0px)]" />}
       </div>
+
+      <Sheet open={showSafetyMenu} onClose={() => setShowSafetyMenu(false)} title={t('chat.safetyActions')}>
+        <div className="space-y-1">
+          {(['spam', 'scam', 'abuse', 'fake_profile', 'other'] as const).map((reason) => (
+            <Pressable
+              key={reason}
+              onPress={() => reportPeer(reason)}
+              disabled={isApplyingSafetyAction}
+              haptic="tap"
+              className="w-full rounded-xl px-3 py-3 text-left text-sm font-bold text-white/90 hover:bg-white/10 disabled:opacity-50"
+            >
+              {reason === 'spam' && t('chat.reportReasonSpam')}
+              {reason === 'scam' && t('chat.reportReasonScam')}
+              {reason === 'abuse' && t('chat.reportReasonAbuse')}
+              {reason === 'fake_profile' && t('chat.reportReasonFakeProfile')}
+              {reason === 'other' && t('chat.reportReasonOther')}
+            </Pressable>
+          ))}
+        </div>
+      </Sheet>
     </motion.div>
   );
 };

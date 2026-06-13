@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./design/tokens.css";
 
 @theme {
   --color-premium-start: #FF1493;
