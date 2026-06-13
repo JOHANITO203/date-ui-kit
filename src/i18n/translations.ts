@@ -98,6 +98,11 @@ export const translations: Record<Locale, Dictionary> = {
       sayHello: 'Say hello',
       keepSwiping: 'Keep swiping',
     },
+    pullToRefresh: {
+      pull: 'Pull to refresh',
+      refreshing: 'Refreshing…',
+      release: 'Release to refresh',
+    },
     likes: {
       eyebrow: 'Activity',
       title: 'YOUR LIKES',
@@ -854,6 +859,11 @@ export const translations: Record<Locale, Dictionary> = {
       subtitle: 'Вы понравились друг другу.',
       sayHello: 'Поздороваться',
       keepSwiping: 'Продолжить',
+    },
+    pullToRefresh: {
+      pull: 'Потяните, чтобы обновить',
+      refreshing: 'Обновление…',
+      release: 'Отпустите, чтобы обновить',
     },
     likes: {
       eyebrow: 'Активность',

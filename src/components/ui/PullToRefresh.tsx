@@ -3,10 +3,12 @@ import { useRef, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { springs } from '../../design/motion';
 import { hapticFor } from '../../utils/haptics';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const THRESHOLD = 72;
 
 export default function PullToRefresh({ onRefresh, children }: { onRefresh: () => Promise<void>; children: ReactNode }) {
+  const { t } = useI18n();
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef<number | null>(null);
@@ -33,7 +35,7 @@ export default function PullToRefresh({ onRefresh, children }: { onRefresh: () =
     >
       <motion.div animate={{ y: pull }} transition={springs.smooth} style={{ height: 0 }}>
         <div className="flex h-12 items-center justify-center -mt-12 text-xs" style={{ color: 'var(--c-text-3)' }}>
-          {refreshing ? 'Refreshing…' : pull >= THRESHOLD ? 'Release' : 'Pull'}
+          {refreshing ? t('pullToRefresh.refreshing') : pull >= THRESHOLD ? t('pullToRefresh.release') : t('pullToRefresh.pull')}
         </div>
       </motion.div>
       {children}
