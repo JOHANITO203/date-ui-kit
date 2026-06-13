@@ -10,6 +10,7 @@ import { env } from "../config/env";
 // it's actually warranted. Default is "fast" (the cost-safe default).
 
 export type AiTier = "fast" | "smart";
+export type AiProvider = "anthropic" | "deepseek";
 
 let anthropicClient: Anthropic | null = null;
 const getAnthropic = (): Anthropic | null => {
@@ -20,13 +21,28 @@ const getAnthropic = (): Anthropic | null => {
 
 export const isAiEnabled = (): boolean => env.hasAI;
 
-/** Resolve the concrete model id for the active provider + requested tier. */
-const resolveModel = (tier: AiTier): string => {
-  if (env.AI_PROVIDER === "deepseek") {
+/** Resolve the concrete model id for a provider + tier. */
+const resolveModel = (provider: AiProvider, tier: AiTier): string => {
+  if (provider === "deepseek") {
     return tier === "smart" ? env.DEEPSEEK_MODEL : env.DEEPSEEK_MODEL_FAST;
   }
   return tier === "smart" ? env.AI_MODEL : env.AI_MODEL_FAST;
 };
+
+// A call may override the provider/model (e.g. translation → DeepSeek for cost)
+// while the rest of the app runs on the default provider.
+const resolveTarget = (opts: {
+  tier?: AiTier;
+  provider?: AiProvider;
+  model?: string;
+}): { provider: AiProvider; model: string } => {
+  const provider = opts.provider ?? (env.AI_PROVIDER as AiProvider);
+  const model = opts.model && opts.model.length > 0 ? opts.model : resolveModel(provider, opts.tier ?? "fast");
+  return { provider, model };
+};
+
+const providerHasKey = (provider: AiProvider): boolean =>
+  provider === "deepseek" ? Boolean(env.DEEPSEEK_API_KEY) : Boolean(env.ANTHROPIC_API_KEY);
 
 const extractAnthropicText = (message: Anthropic.Message): string =>
   message.content
@@ -67,18 +83,20 @@ const deepseekChat = async (input: {
   }
 };
 
-/** Single-shot text generation via the configured provider + tier. */
+/** Single-shot text generation. Provider/model optionally overridable per call. */
 export const generateText = async (input: {
   system: string;
   prompt: string;
   maxTokens?: number;
   tier?: AiTier;
+  provider?: AiProvider;
+  model?: string;
 }): Promise<string | null> => {
-  if (!env.hasAI) return null;
+  const { provider, model } = resolveTarget(input);
+  if (!providerHasKey(provider)) return null;
   const maxTokens = input.maxTokens ?? 1024;
-  const model = resolveModel(input.tier ?? "fast");
 
-  if (env.AI_PROVIDER === "deepseek") {
+  if (provider === "deepseek") {
     return deepseekChat({
       model,
       messages: [
@@ -100,20 +118,22 @@ export const generateText = async (input: {
   return extractAnthropicText(message);
 };
 
-/** Structured JSON generation via the configured provider + tier. */
+/** Structured JSON generation. Provider/model optionally overridable per call. */
 export const generateJson = async <T>(input: {
   system: string;
   prompt: string;
   schema: Record<string, unknown>;
   maxTokens?: number;
   tier?: AiTier;
+  provider?: AiProvider;
+  model?: string;
 }): Promise<T | null> => {
-  if (!env.hasAI) return null;
+  const { provider, model } = resolveTarget(input);
+  if (!providerHasKey(provider)) return null;
   const maxTokens = input.maxTokens ?? 1024;
-  const model = resolveModel(input.tier ?? "fast");
 
   let text: string | null;
-  if (env.AI_PROVIDER === "deepseek") {
+  if (provider === "deepseek") {
     // DeepSeek json_object mode doesn't enforce a schema, so describe it inline.
     text = await deepseekChat({
       model,

@@ -169,6 +169,10 @@ export async function registerAiRoutes(app: FastifyInstance) {
         prompt: parsed.data.text,
         maxTokens: 800,
         tier: "fast", // high-volume per-message translation
+        // Translation can run on its own cheapest provider (e.g. DeepSeek),
+        // independent of the global AI provider. Falls back to it if unset.
+        provider: env.TRANSLATE_PROVIDER,
+        model: env.TRANSLATE_MODEL || undefined,
       });
       if (translated == null) return sendAuthError(reply, 502, "AI_FAILED", "Could not translate.");
       if (isOffTopic(translated)) return sendAuthError(reply, 422, "AI_OFF_TOPIC", OFF_TOPIC_MESSAGE);

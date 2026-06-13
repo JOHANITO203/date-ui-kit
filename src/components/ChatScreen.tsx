@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ICONS } from '../types';
@@ -76,6 +76,8 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const [aiAvailable, setAiAvailable] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
+  const [liveTranslations, setLiveTranslations] = useState<Record<string, string>>({});
+  const translatedIdsRef = useRef<Set<string>>(new Set());
   const [translationTargetLocale, setTranslationTargetLocale] = useState<'en' | 'ru'>(
     locale === 'ru' ? 'ru' : 'en',
   );
@@ -307,6 +309,42 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       ),
     [messages],
   );
+
+  // Changing the target language invalidates previously fetched translations.
+  useEffect(() => {
+    translatedIdsRef.current = new Set();
+    setLiveTranslations({});
+  }, [translationTargetLocale]);
+
+  // Real-time auto-translation: when the toggle is on, translate incoming
+  // messages (any source language) into the user's target language via the AI
+  // (cheap provider, e.g. DeepSeek). Translate-once per message; new live
+  // messages get translated as they arrive. Best-effort, never blocks the chat.
+  useEffect(() => {
+    if (!showTranslation || !aiAvailable) return;
+    const pending = orderedMessages.filter(
+      (m) =>
+        m.direction === 'incoming' &&
+        !m.translatedText &&
+        !translatedIdsRef.current.has(m.id) &&
+        m.originalText.trim().length > 0,
+    );
+    if (pending.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const m of pending.slice(0, 12)) {
+        translatedIdsRef.current.add(m.id);
+        const res = await aiClient.translate(m.originalText, translationTargetLocale);
+        if (cancelled) return;
+        if (res?.translated) {
+          setLiveTranslations((prev) => ({ ...prev, [m.id]: res.translated }));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showTranslation, aiAvailable, translationTargetLocale, orderedMessages]);
 
   const handleToggleTranslation = () => {
     if (!canUseChatTranslation) {
@@ -690,13 +728,14 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                   <div className="p-4 rounded-[24px] rounded-bl-none text-sm leading-relaxed bg-[#111319] border border-white/10">
                     {message.originalText}
                   </div>
-                  {showTranslation && message.translatedText && (
+                  {showTranslation && (message.translatedText || liveTranslations[message.id]) && (
                     <motion.div
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="text-[10px] text-pink-400 font-bold px-3 flex items-center gap-1.5"
                     >
-                      <ICONS.Languages size={10} /> {t('chat.translationLabel')}: {message.translatedText}
+                      <ICONS.Languages size={10} /> {t('chat.translationLabel')}:{' '}
+                      {message.translatedText || liveTranslations[message.id]}
                     </motion.div>
                   )}
                 </div>

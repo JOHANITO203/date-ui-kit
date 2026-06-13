@@ -69,6 +69,10 @@ const envSchema = z.object({
   DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
   DEEPSEEK_MODEL: z.string().default("deepseek-reasoner"), // DeepSeek — smart tier
   DEEPSEEK_MODEL_FAST: z.string().default("deepseek-chat"), // DeepSeek — fast tier
+  // Real-time message translation can use its own (cheapest) provider/model,
+  // independent of AI_PROVIDER. Unset → falls back to the global fast tier.
+  TRANSLATE_PROVIDER: z.enum(["anthropic", "deepseek"]).optional(),
+  TRANSLATE_MODEL: z.string().optional().or(z.literal("")),
 });
 
 const parsed = envSchema.safeParse(process.env);
