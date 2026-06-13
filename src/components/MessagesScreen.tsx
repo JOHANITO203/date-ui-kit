@@ -4,6 +4,8 @@ import { ICONS } from '../types';
 import { useDevice } from '../hooks/useDevice';
 import ChatScreen from './ChatScreen';
 import NameWithBadge from './ui/NameWithBadge';
+import Skeleton from './ui/Skeleton';
+import PullToRefresh from './ui/PullToRefresh';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, subscribeConversationRelationChange } from '../services';
 import { useRuntimeSelector } from '../state';
@@ -358,6 +360,145 @@ const MessagesScreen = () => {
     }
   };
 
+  // Pull-to-refresh re-fetch: updates the list without flipping the full-screen
+  // loading state (PullToRefresh shows its own indicator), preserving the
+  // existing error/recovery path.
+  const refreshConversations = async () => {
+    try {
+      const [items, likesResponse] = await Promise.all([
+        appApi.getConversations(),
+        appApi.getLikes(),
+      ]);
+      setConversationItems(items);
+      setLikesCount(likesResponse.inventory.visibleLikes.length);
+      setHasError(false);
+    } catch {
+      setHasError(true);
+    }
+  };
+
+  // Shared conversation rows — rendered inside the desktop scroller (rail-tracked)
+  // and inside PullToRefresh on touch/mobile (single scroll owner).
+  const conversationRows = conversationListItems.map((conversation) => {
+    const isGhost = isShadowGhostConversation(conversation);
+    return (
+      <div
+        key={conversation.id}
+        onClick={() => handleUserSelect(conversation.peer.id)}
+        className={`flex items-center ${isLarge ? (isTablet ? 'gap-2.5 p-3.5 rounded-[20px] min-h-[88px]' : 'gap-4 p-4 rounded-[24px]') : 'gap-[var(--messages-conv-card-gap)] p-[var(--messages-conv-card-pad)] rounded-[var(--messages-conv-card-radius)]'} transition-all cursor-pointer ${
+          isLarge && selectedUserId === conversation.peer.id
+            ? 'bg-[var(--messages-selected-bg)] border border-[var(--messages-selected-border)] shadow-[0_0_18px_rgba(236,72,153,0.18)]'
+            : 'glass border border-transparent hover:bg-white/7'
+        }`}
+        style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
+      >
+        <div className="relative shrink-0">
+          <AvatarImage
+            src={
+              isGhost
+                ? '/placeholder.svg'
+                : resolvePhotoUrl(conversation.peer.photos)
+            }
+            name={
+              isGhost
+                ? t('likes.shadowGhostMaskedName')
+                : conversation.peer.name
+            }
+            ghost={isGhost}
+            className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'}`}
+            imgClassName="w-full h-full object-cover object-[center_20%]"
+          />
+          {canSeeOnlinePresence && conversation.online && (
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="mb-1 flex items-start justify-between gap-[var(--messages-conv-header-gap)]">
+            {isGhost ? (
+              <span className="inline-flex items-center gap-1.5 text-fuchsia-200">
+                <ICONS.Ghost size={12} className="shrink-0" />
+                <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
+              </span>
+            ) : (
+              <NameWithBadge
+                name={conversation.peer.name}
+                age={conversation.peer.age}
+                ageMasked={conversation.peer.flags.hideAge}
+                verified={conversation.peer.flags.verifiedIdentity}
+                premiumTier={resolveDisplayPremiumTier(
+                  conversation.peer.flags.premiumTier,
+                  conversation.peer.flags.shortPassTier,
+                )}
+                size={isTablet ? 'md' : 'lg'}
+                textClassName="truncate max-w-[var(--messages-conv-name-max)]"
+                className="min-w-0 flex-1"
+                premiumBadgeMode="dense"
+                badgeClassName={isTablet ? 'scale-90' : ''}
+              />
+            )}
+            <span className="min-w-[var(--messages-conv-time-min-w)] pt-0.5 text-right text-[10px] leading-none text-secondary font-bold shrink-0">
+              {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+          <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
+            {conversation.lastMessagePreview}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.12em] font-black ${
+                conversation.relationState === 'active'
+                  ? 'border border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
+                  : conversation.relationState === 'blocked_by_me'
+                    ? 'border border-orange-300/35 bg-orange-500/12 text-orange-100'
+                    : conversation.relationState === 'blocked_me'
+                      ? 'border border-red-300/35 bg-red-500/12 text-red-100'
+                      : 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
+              }`}
+            >
+              {t(`messages.conversationStates.${conversation.relationState}`)}
+            </span>
+            {conversation.receivedSuperLikeTraceAtIso && (
+              <span className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-fuchsia-300/35 bg-fuchsia-500/12 text-fuchsia-100">
+                {t('messages.receivedSuperLike')}
+              </span>
+            )}
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleQuickBlockToggle(conversation);
+              }}
+              disabled={
+                actionConversationId === conversation.id ||
+                !(conversation.relationState === 'active' || conversation.relationState === 'blocked_by_me')
+              }
+              className="min-h-6 px-2 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-orange-300/35 bg-orange-500/12 text-orange-100 disabled:opacity-50 whitespace-nowrap"
+            >
+              {conversation.relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
+            </button>
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleQuickReport(conversation);
+              }}
+              disabled={actionConversationId === conversation.id}
+              className="min-h-6 px-2 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-red-300/35 bg-red-500/12 text-red-100 disabled:opacity-50 whitespace-nowrap"
+            >
+              {t('chat.report')}
+            </button>
+          </div>
+        </div>
+        {conversation.unreadCount > 0 && (
+          <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>
+            {conversation.unreadCount}
+          </div>
+        )}
+      </div>
+    );
+  });
+
   return (
     <div className="h-full flex overflow-hidden">
       {/* List Area (Master) */}
@@ -484,18 +625,18 @@ const MessagesScreen = () => {
 
         {/* Conversations */}
         <div className={`${isLarge ? 'space-y-3' : 'space-y-[var(--messages-conv-gap)]'} flex-1 min-h-0 relative`}>
-          <div className={`${isLarge ? 'rounded-[26px] border border-[var(--messages-zone-border)] bg-[var(--messages-zone-bg)] p-3 h-full min-h-0 flex flex-col' : ''}`}>
+          <div className={`${isLarge ? 'rounded-[26px] border border-[var(--messages-zone-border)] bg-[var(--messages-zone-bg)] p-3 h-full min-h-0 flex flex-col' : 'h-full min-h-0 flex flex-col'}`}>
           <h3 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-4 shrink-0">{t('messages.conversations')}</h3>
           {showContent && !isLarge && (
-            <p className="text-[10px] uppercase tracking-[0.15em] text-white/45 mb-3">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-white/45 mb-3 shrink-0">
               {t('messages.mobileHint')}
             </p>
           )}
           {isLoading ? (
-            <div className="glass rounded-2xl border border-white/10 p-5 text-center">
-              <div className="w-6 h-6 mx-auto rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
-              <p className="text-white font-black mt-3">{t('messages.loadingTitle')}</p>
-              <p className="text-xs text-white/50 mt-1">{t('messages.loadingSubtitle')}</p>
+            <div className="space-y-[var(--messages-conv-gap)]">
+              {[0, 1, 2, 3, 4, 5].map((index) => (
+                <Skeleton key={`conv-skeleton-${index}`} className="h-16 w-full rounded-[var(--messages-conv-card-radius)]" />
+              ))}
             </div>
           ) : hasError ? (
             <div className="glass rounded-2xl border border-red-400/35 bg-red-500/5 p-5 text-center">
@@ -513,131 +654,21 @@ const MessagesScreen = () => {
               <p className="text-white font-black">{t('messages.emptyConversationsTitle')}</p>
               <p className="text-xs text-white/50 mt-1">{t('messages.emptyConversationsSubtitle')}</p>
             </div>
-          ) : (
+          ) : isLarge ? (
           <div
             ref={conversationsRef}
-            className={`${isLarge ? (isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4') + ' flex-1 min-h-0' : 'space-y-[var(--messages-conv-gap)] pr-0 pb-[var(--messages-conv-bottom-pad)] h-full'} overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
+            className={`${isTablet ? 'space-y-2 pr-10 pb-4' : 'space-y-2.5 pr-14 pb-4'} flex-1 min-h-0 overflow-y-auto no-scrollbar touch-pan-y overscroll-contain`}
             style={{ touchAction: 'pan-y' }}
           >
-            {conversationListItems.map((conversation) => {
-                const isGhost = isShadowGhostConversation(conversation);
-                return (
-                  <div
-                    key={conversation.id}
-                    onClick={() => handleUserSelect(conversation.peer.id)}
-                    className={`flex items-center ${isLarge ? (isTablet ? 'gap-2.5 p-3.5 rounded-[20px] min-h-[88px]' : 'gap-4 p-4 rounded-[24px]') : 'gap-[var(--messages-conv-card-gap)] p-[var(--messages-conv-card-pad)] rounded-[var(--messages-conv-card-radius)]'} transition-all cursor-pointer ${
-                      isLarge && selectedUserId === conversation.peer.id
-                        ? 'bg-[var(--messages-selected-bg)] border border-[var(--messages-selected-border)] shadow-[0_0_18px_rgba(236,72,153,0.18)]'
-                        : 'glass border border-transparent hover:bg-white/7'
-                    }`}
-                    style={conversation.relationState === 'active' ? undefined : { opacity: 0.84 }}
-                  >
-                    <div className="relative shrink-0">
-                      <AvatarImage
-                        src={
-                          isGhost
-                            ? '/placeholder.svg'
-                            : resolvePhotoUrl(conversation.peer.photos)
-                        }
-                        name={
-                          isGhost
-                            ? t('likes.shadowGhostMaskedName')
-                            : conversation.peer.name
-                        }
-                        ghost={isGhost}
-                        className={`${isLarge ? (isTablet ? 'w-14 h-14 rounded-[18px]' : 'w-16 h-16 rounded-[22px]') : 'w-[var(--messages-conv-avatar)] h-[var(--messages-conv-avatar)] rounded-[var(--messages-conv-avatar-radius)]'}`}
-                        imgClassName="w-full h-full object-cover object-[center_20%]"
-                      />
-                      {canSeeOnlinePresence && conversation.online && (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-4 border-black" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-1 flex items-start justify-between gap-[var(--messages-conv-header-gap)]">
-                        {isGhost ? (
-                          <span className="inline-flex items-center gap-1.5 text-fuchsia-200">
-                            <ICONS.Ghost size={12} className="shrink-0" />
-                            <span className="sr-only">{t('likes.shadowGhostMaskedName')}</span>
-                          </span>
-                        ) : (
-                          <NameWithBadge
-                            name={conversation.peer.name}
-                            age={conversation.peer.age}
-                            ageMasked={conversation.peer.flags.hideAge}
-                            verified={conversation.peer.flags.verifiedIdentity}
-                            premiumTier={resolveDisplayPremiumTier(
-                              conversation.peer.flags.premiumTier,
-                              conversation.peer.flags.shortPassTier,
-                            )}
-                            size={isTablet ? 'md' : 'lg'}
-                            textClassName="truncate max-w-[var(--messages-conv-name-max)]"
-                            className="min-w-0 flex-1"
-                            premiumBadgeMode="dense"
-                            badgeClassName={isTablet ? 'scale-90' : ''}
-                          />
-                        )}
-                        <span className="min-w-[var(--messages-conv-time-min-w)] pt-0.5 text-right text-[10px] leading-none text-secondary font-bold shrink-0">
-                          {new Date(conversation.lastMessageAtIso).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <p className={`${isLarge ? (isTablet ? 'text-[11px]' : 'text-xs') : 'text-[length:var(--messages-conv-preview-size)]'} text-secondary/90 line-clamp-1`}>
-                        {conversation.lastMessagePreview}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={`px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.12em] font-black ${
-                            conversation.relationState === 'active'
-                              ? 'border border-emerald-300/35 bg-emerald-500/12 text-emerald-100'
-                              : conversation.relationState === 'blocked_by_me'
-                                ? 'border border-orange-300/35 bg-orange-500/12 text-orange-100'
-                                : conversation.relationState === 'blocked_me'
-                                  ? 'border border-red-300/35 bg-red-500/12 text-red-100'
-                                  : 'border border-slate-300/35 bg-slate-500/12 text-slate-100'
-                          }`}
-                        >
-                          {t(`messages.conversationStates.${conversation.relationState}`)}
-                        </span>
-                        {conversation.receivedSuperLikeTraceAtIso && (
-                          <span className="px-1.5 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-fuchsia-300/35 bg-fuchsia-500/12 text-fuchsia-100">
-                            {t('messages.receivedSuperLike')}
-                          </span>
-                        )}
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleQuickBlockToggle(conversation);
-                          }}
-                          disabled={
-                            actionConversationId === conversation.id ||
-                            !(conversation.relationState === 'active' || conversation.relationState === 'blocked_by_me')
-                          }
-                          className="min-h-6 px-2 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-orange-300/35 bg-orange-500/12 text-orange-100 disabled:opacity-50 whitespace-nowrap"
-                        >
-                          {conversation.relationState === 'blocked_by_me' ? t('chat.unblock') : t('chat.block')}
-                        </button>
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleQuickReport(conversation);
-                          }}
-                          disabled={actionConversationId === conversation.id}
-                          className="min-h-6 px-2 py-0.5 rounded-full text-[8px] uppercase tracking-[0.1em] font-black border border-red-300/35 bg-red-500/12 text-red-100 disabled:opacity-50 whitespace-nowrap"
-                        >
-                          {t('chat.report')}
-                        </button>
-                      </div>
-                    </div>
-                    {conversation.unreadCount > 0 && (
-                      <div className={`${isTablet ? 'w-5 h-5' : 'w-5 h-5'} shrink-0 bg-pink-500 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg shadow-pink-500/30`}>
-                        {conversation.unreadCount}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {conversationRows}
+          </div>
+          ) : (
+          <div className="flex-1 min-h-0">
+            <PullToRefresh onRefresh={refreshConversations}>
+              <div className="space-y-[var(--messages-conv-gap)] pb-[var(--messages-conv-bottom-pad)]">
+                {conversationRows}
+              </div>
+            </PullToRefresh>
           </div>
           )}
           </div>

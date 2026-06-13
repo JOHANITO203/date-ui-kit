@@ -1,5 +1,5 @@
 // src/components/ui/Skeleton.tsx
-export default function Skeleton({ className = '' }: { className?: string }) {
+export default function Skeleton({ className = '' }: { className?: string; key?: string | number }) {
   return (
     <div
       className={`animate-pulse rounded-2xl ${className}`}
