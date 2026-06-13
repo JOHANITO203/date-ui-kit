@@ -302,6 +302,10 @@ services:
         VITE_PAYMENTS_API_URL:          ${VITE_PAYMENTS_API_URL:-${APP_URL:-http://localhost}}
         VITE_MONITORING_LOG_ENDPOINT:   ${VITE_MONITORING_LOG_ENDPOINT:-}
         VITE_ANALYTICS_ENDPOINT:        ${VITE_ANALYTICS_ENDPOINT:-}
+        # WebRTC TURN (optional — STUN-only works on permissive networks).
+        VITE_TURN_URL:                  ${VITE_TURN_URL:-}
+        VITE_TURN_USERNAME:             ${VITE_TURN_USERNAME:-}
+        VITE_TURN_CREDENTIAL:           ${VITE_TURN_CREDENTIAL:-}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

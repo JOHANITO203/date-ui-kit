@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import Sidebar from '../components/Sidebar';
 import { useDevice } from '../hooks/useDevice';
+import { realtime } from '../services/realtimeClient';
 
 const AppShell: React.FC = () => {
   const { isDesktop } = useDevice();
+
+  // One realtime connection for the whole authenticated session (presence +
+  // live delivery work app-wide, not only inside an open chat).
+  useEffect(() => {
+    void realtime.connect();
+    return () => realtime.disconnect();
+  }, []);
 
   return (
     <div className="screen-safe h-full w-full bg-black text-white flex overflow-hidden">

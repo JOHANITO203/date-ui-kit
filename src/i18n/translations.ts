@@ -193,6 +193,7 @@ export const translations: Record<Locale, Dictionary> = {
     },
     chat: {
       online: 'Online',
+      typing: 'Typing…',
       today: 'Today',
       block: 'Block',
       unblock: 'Unblock',
@@ -942,6 +943,7 @@ export const translations: Record<Locale, Dictionary> = {
     },
     chat: {
       online: 'В сети',
+      typing: 'Печатает…',
       today: 'Сегодня',
       block: 'Блок',
       unblock: 'Разблокировать',

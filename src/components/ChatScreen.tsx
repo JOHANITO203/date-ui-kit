@@ -7,6 +7,7 @@ import NameWithBadge from './ui/NameWithBadge';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, subscribeConversationRelationChange } from '../services';
+import { realtime } from '../services/realtimeClient';
 import { useRuntimeSelector } from '../state';
 import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
@@ -69,6 +70,8 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const [isApplyingSafetyAction, setIsApplyingSafetyAction] = useState(false);
   const [safetyFeedback, setSafetyFeedback] = useState('');
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const [peerOnline, setPeerOnline] = useState(false);
   const [translationTargetLocale, setTranslationTargetLocale] = useState<'en' | 'ru'>(
     locale === 'ru' ? 'ru' : 'en',
   );
@@ -243,6 +246,49 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
     });
     return unsubscribe;
   }, []);
+
+  // Realtime: live incoming messages, typing indicator, peer presence.
+  useEffect(() => {
+    const peerId = conversation?.peer?.id;
+    if (!conversationId || !peerId) return;
+
+    void realtime.connect();
+    let typingTimer: number | null = null;
+
+    const unsubscribe = realtime.on((event) => {
+      if (event.type === 'message' && event.conversationId === conversationId) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === (event.message as { id?: string }).id)) return prev;
+          return [...prev, event.message as unknown as ChatMessage];
+        });
+      } else if (event.type === 'typing' && event.fromUserId === peerId) {
+        setPeerTyping(event.isTyping);
+        if (typingTimer) window.clearTimeout(typingTimer);
+        if (event.isTyping) {
+          typingTimer = window.setTimeout(() => setPeerTyping(false), 5000);
+        }
+      } else if (event.type === 'presence' && event.userId === peerId) {
+        setPeerOnline(event.online);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      if (typingTimer) window.clearTimeout(typingTimer);
+      setPeerTyping(false);
+    };
+  }, [conversationId, conversation?.peer?.id]);
+
+  // Send a debounced "typing" signal to the peer as the user writes.
+  useEffect(() => {
+    const peerId = conversation?.peer?.id;
+    if (!conversationId || !peerId) return;
+    realtime.sendTyping(conversationId, peerId, draft.trim().length > 0);
+    const stopTimer = window.setTimeout(() => {
+      realtime.sendTyping(conversationId, peerId, false);
+    }, 2500);
+    return () => window.clearTimeout(stopTimer);
+  }, [draft, conversationId, conversation?.peer?.id]);
 
   const activePeer = conversation?.peer;
   const shadowGhostMasked = isShadowGhostConversation(conversation);
@@ -423,7 +469,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                 referrerPolicy="no-referrer"
               />
             )}
-            {conversation?.online && (
+            {(peerOnline || conversation?.online) && (
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
             )}
           </div>
@@ -465,7 +511,7 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
                       : 'text-slate-300'
               }`}
             >
-              {t(`chat.conversationStates.${relationState}`)}
+              {peerTyping ? t('chat.typing') : t(`chat.conversationStates.${relationState}`)}
             </span>
           </div>
         </div>

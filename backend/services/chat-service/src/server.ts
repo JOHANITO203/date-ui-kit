@@ -1,5 +1,7 @@
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
+import websocket from "@fastify/websocket";
+import { registerRealtime, sendToUser, isUserOnline } from "./realtime";
 import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config";
@@ -391,6 +393,10 @@ export const buildServer = () => {
     methods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
+
+  // Realtime: WebSocket hub (presence, typing, live delivery, WebRTC signaling).
+  app.register(websocket);
+  registerRealtime(app);
 
   const scheduleIncomingReply = (_input: {
     userId: string;
@@ -861,7 +867,15 @@ export const buildServer = () => {
         userText: trimmed,
       });
 
-      return { status: "sent" as const, message };
+      // Realtime: deliver the message live to the peer's open chat (best-effort).
+      const peerUserId = conversationRow.peerProfileId;
+      sendToUser(peerUserId, {
+        type: "message",
+        conversationId: resolveConversationId(peerUserId, userId),
+        message: { ...message, direction: "incoming", senderUserId: userId },
+      });
+
+      return { status: "sent" as const, message, peerOnline: isUserOnline(peerUserId) };
     } catch (error) {
       // SECURITY: fail closed. Writing/sending via the user-agnostic memory
       // store on DB error would let a caller post into another user's
