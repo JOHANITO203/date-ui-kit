@@ -7,7 +7,7 @@ import { useDevice } from '../hooks/useDevice';
 import NameWithBadge from './ui/NameWithBadge';
 import { useI18n } from '../i18n/I18nProvider';
 import Logo from './ui/Logo';
-import { appApi, authApi } from '../services';
+import { appApi } from '../services';
 import { useRuntimeSelector } from '../state';
 import type { FeedCandidate, FeedQuickFilter, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
@@ -108,7 +108,6 @@ const SwipeScreen = () => {
   const boostActiveUntilIso = useRuntimeSelector((payload) => payload.boost.activeUntilIso);
   const likedCount = useRuntimeSelector((payload) => payload.likedProfileIds.length);
   const matchCount = useRuntimeSelector((payload) => payload.conversations.length);
-  const [selfPrimaryPhotoUrl, setSelfPrimaryPhotoUrl] = useState('');
   const [boostTick, setBoostTick] = useState(() => Date.now());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -176,24 +175,6 @@ const SwipeScreen = () => {
     image.referrerPolicy = 'no-referrer';
     image.src = normalized;
   };
-
-  useEffect(() => {
-    let cancelled = false;
-    authApi
-      .getProfilePhotos()
-      .then((response) => {
-        if (cancelled || response.ok !== true) return;
-        const photos = response.data?.photos ?? [];
-        const primary =
-          photos.find((photo) => photo.is_primary && typeof photo.url === 'string' && photo.url.trim().length > 0) ??
-          photos.find((photo) => typeof photo.url === 'string' && photo.url.trim().length > 0);
-        if (primary?.url) setSelfPrimaryPhotoUrl(primary.url);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     return () => {
