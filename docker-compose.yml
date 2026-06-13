@@ -117,12 +117,15 @@ services:
       VAPID_PRIVATE_KEY:    ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT:        ${VAPID_SUBJECT:-mailto:support@exotic.app}
       # AI assistance. Provider: "anthropic" (default) or "deepseek".
+      # Two tiers: smart (risk/feed-rank) vs fast (translate/suggest/bio/search).
       AI_PROVIDER:          ${AI_PROVIDER:-anthropic}
       ANTHROPIC_API_KEY:    ${ANTHROPIC_API_KEY:-}
       AI_MODEL:             ${AI_MODEL:-claude-opus-4-8}
+      AI_MODEL_FAST:        ${AI_MODEL_FAST:-claude-haiku-4-5}
       DEEPSEEK_API_KEY:     ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_BASE_URL:    ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-      DEEPSEEK_MODEL:       ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_MODEL:       ${DEEPSEEK_MODEL:-deepseek-reasoner}
+      DEEPSEEK_MODEL_FAST:  ${DEEPSEEK_MODEL_FAST:-deepseek-chat}
     depends_on:
       db-migrate:
         condition: service_completed_successfully

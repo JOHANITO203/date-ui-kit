@@ -56,13 +56,19 @@ const envSchema = z.object({
   // AI assistance. Provider-pluggable: "anthropic" (default) or "deepseek".
   // Each provider is disabled unless its API key is present.
   AI_PROVIDER: z.enum(["anthropic", "deepseek"]).default("anthropic"),
-  // Anthropic (default Opus; set claude-haiku-4-5 for cheap high-volume tasks).
   ANTHROPIC_API_KEY: z.string().optional().or(z.literal("")),
-  AI_MODEL: z.string().default("claude-opus-4-8"),
+  // Two tiers per provider so each AI ACTION engages the right-cost model:
+  //   - "smart": stronger model, reserved for low-volume / sensitive actions
+  //     (moderation risk scoring, premium feed re-ranking).
+  //   - "fast": cheaper model for high-volume user-facing micro-tasks
+  //     (translate, reply suggestions, bio, conversational search).
+  AI_MODEL: z.string().default("claude-opus-4-8"),       // Anthropic — smart tier
+  AI_MODEL_FAST: z.string().default("claude-haiku-4-5"), // Anthropic — fast tier
   // DeepSeek (OpenAI-compatible Chat Completions API).
   DEEPSEEK_API_KEY: z.string().optional().or(z.literal("")),
   DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
-  DEEPSEEK_MODEL: z.string().default("deepseek-chat"),
+  DEEPSEEK_MODEL: z.string().default("deepseek-reasoner"), // DeepSeek — smart tier
+  DEEPSEEK_MODEL_FAST: z.string().default("deepseek-chat"), // DeepSeek — fast tier
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,8 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../config/env";
 
-// Provider-pluggable AI helpers. The selected provider (env.AI_PROVIDER) is used
-// for every call; both are fully wired so flipping the env var is all it takes.
+// Provider-pluggable AI helpers with a two-tier model surface.
+//
+//   tier "fast"  → cheap, high-volume user-facing micro-tasks
+//   tier "smart" → stronger model, reserved for low-volume / sensitive actions
+//
+// Every call MUST declare its tier so the expensive model is only engaged where
+// it's actually warranted. Default is "fast" (the cost-safe default).
+
+export type AiTier = "fast" | "smart";
 
 let anthropicClient: Anthropic | null = null;
 const getAnthropic = (): Anthropic | null => {
@@ -12,6 +19,14 @@ const getAnthropic = (): Anthropic | null => {
 };
 
 export const isAiEnabled = (): boolean => env.hasAI;
+
+/** Resolve the concrete model id for the active provider + requested tier. */
+const resolveModel = (tier: AiTier): string => {
+  if (env.AI_PROVIDER === "deepseek") {
+    return tier === "smart" ? env.DEEPSEEK_MODEL : env.DEEPSEEK_MODEL_FAST;
+  }
+  return tier === "smart" ? env.AI_MODEL : env.AI_MODEL_FAST;
+};
 
 const extractAnthropicText = (message: Anthropic.Message): string =>
   message.content
@@ -24,6 +39,7 @@ const extractAnthropicText = (message: Anthropic.Message): string =>
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 const deepseekChat = async (input: {
+  model: string;
   messages: ChatMessage[];
   maxTokens: number;
   jsonMode?: boolean;
@@ -37,7 +53,7 @@ const deepseekChat = async (input: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: env.DEEPSEEK_MODEL,
+        model: input.model,
         messages: input.messages,
         max_tokens: input.maxTokens,
         ...(input.jsonMode ? { response_format: { type: "json_object" } } : {}),
@@ -51,17 +67,20 @@ const deepseekChat = async (input: {
   }
 };
 
-/** Single-shot text generation via the configured provider. */
+/** Single-shot text generation via the configured provider + tier. */
 export const generateText = async (input: {
   system: string;
   prompt: string;
   maxTokens?: number;
+  tier?: AiTier;
 }): Promise<string | null> => {
   if (!env.hasAI) return null;
   const maxTokens = input.maxTokens ?? 1024;
+  const model = resolveModel(input.tier ?? "fast");
 
   if (env.AI_PROVIDER === "deepseek") {
     return deepseekChat({
+      model,
       messages: [
         { role: "system", content: input.system },
         { role: "user", content: input.prompt },
@@ -73,7 +92,7 @@ export const generateText = async (input: {
   const c = getAnthropic();
   if (!c) return null;
   const message = await c.messages.create({
-    model: env.AI_MODEL,
+    model,
     max_tokens: maxTokens,
     system: input.system,
     messages: [{ role: "user", content: input.prompt }],
@@ -81,20 +100,23 @@ export const generateText = async (input: {
   return extractAnthropicText(message);
 };
 
-/** Structured JSON generation via the configured provider. */
+/** Structured JSON generation via the configured provider + tier. */
 export const generateJson = async <T>(input: {
   system: string;
   prompt: string;
   schema: Record<string, unknown>;
   maxTokens?: number;
+  tier?: AiTier;
 }): Promise<T | null> => {
   if (!env.hasAI) return null;
   const maxTokens = input.maxTokens ?? 1024;
+  const model = resolveModel(input.tier ?? "fast");
 
   let text: string | null;
   if (env.AI_PROVIDER === "deepseek") {
     // DeepSeek json_object mode doesn't enforce a schema, so describe it inline.
     text = await deepseekChat({
+      model,
       messages: [
         {
           role: "system",
@@ -111,7 +133,7 @@ export const generateJson = async <T>(input: {
     const c = getAnthropic();
     if (!c) return null;
     const message = await c.messages.create({
-      model: env.AI_MODEL,
+      model,
       max_tokens: maxTokens,
       system: input.system,
       messages: [{ role: "user", content: input.prompt }],

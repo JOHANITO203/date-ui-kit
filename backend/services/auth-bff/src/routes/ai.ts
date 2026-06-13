@@ -59,6 +59,7 @@ export async function registerAiRoutes(app: FastifyInstance) {
           "No clichés, no emojis unless present, 1-3 short sentences, first person. Return ONLY the improved bio text.",
         prompt: `Tone: ${tone}\n\nDraft bio:\n${parsed.data.draft}`,
         maxTokens: 400,
+        tier: "fast", // low-volume but cheap model writes good bios
       });
       if (!suggestion) return sendAuthError(reply, 502, "AI_FAILED", "Could not generate a suggestion.");
       return sendAuthSuccess(reply, { ok: true, data: { suggestion } } satisfies AuthResponse<{ suggestion: string }>);
@@ -88,6 +89,7 @@ export async function registerAiRoutes(app: FastifyInstance) {
           required: ["suggestions"],
         },
         maxTokens: 500,
+        tier: "fast", // high-volume conversational helper
       });
       if (!result?.suggestions?.length) return sendAuthError(reply, 502, "AI_FAILED", "Could not generate suggestions.");
       return sendAuthSuccess(reply, {
@@ -132,6 +134,7 @@ export async function registerAiRoutes(app: FastifyInstance) {
           required: ["interests", "keywords"],
         },
         maxTokens: 400,
+        tier: "fast", // frequent, lightweight parse
       });
       if (!filters) return sendAuthError(reply, 502, "AI_FAILED", "Could not parse the search.");
       return sendAuthSuccess(reply, {
@@ -152,6 +155,7 @@ export async function registerAiRoutes(app: FastifyInstance) {
         system: `Translate the user's message into ${langName}. Preserve tone and meaning. Return ONLY the translation, no notes.`,
         prompt: parsed.data.text,
         maxTokens: 800,
+        tier: "fast", // high-volume per-message translation
       });
       if (translated == null) return sendAuthError(reply, 502, "AI_FAILED", "Could not translate.");
       return sendAuthSuccess(reply, {
@@ -213,6 +217,7 @@ export async function registerAiRoutes(app: FastifyInstance) {
         required: ["order"],
       },
       maxTokens: 700,
+      tier: "smart", // premium feature, paid users only — quality matters
     });
     if (!result?.order?.length) {
       reply.status(502);
@@ -255,6 +260,7 @@ export async function registerAiRoutes(app: FastifyInstance) {
         required: ["score", "verdict", "reasons"],
       },
       maxTokens: 500,
+      tier: "smart", // trust & safety — accuracy over cost (low volume)
     });
     if (!result) {
       reply.status(502);
