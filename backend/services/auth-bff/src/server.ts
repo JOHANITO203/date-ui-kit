@@ -10,6 +10,7 @@ import { registerProfileRoutes } from "./routes/profile";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerLocationRoutes } from "./routes/location";
 import { registerPushRoutes } from "./routes/push";
+import { registerAiRoutes } from "./routes/ai";
 
 const resolveAllowedOrigins = (appUrl: string): Set<string> => {
   const allowed = new Set<string>();
@@ -112,6 +113,7 @@ export function buildServer() {
     await registerOnboardingRoutes(instance);
     await registerLocationRoutes(instance);
     await registerPushRoutes(instance);
+    await registerAiRoutes(instance);
   });
 
   server.get("/health", async () => ({

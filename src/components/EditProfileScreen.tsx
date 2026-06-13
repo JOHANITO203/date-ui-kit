@@ -7,6 +7,7 @@ import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import GlassButton from './ui/GlassButton';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi } from '../services';
+import { aiClient } from '../services/aiClient';
 import { useAuth } from '../auth/AuthProvider';
 import {
   clearOnboardingDraft,
@@ -48,9 +49,33 @@ const EditProfileScreen = () => {
   const [firstName, setFirstName] = useState('');
   const [city, setCity] = useState('');
   const [about, setAbout] = useState('');
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [isOptimizingBio, setIsOptimizingBio] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
   const [interestDraft, setInterestDraft] = useState('');
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void aiClient.isEnabled().then((enabled) => {
+      if (active) setAiAvailable(enabled);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleOptimizeBio = async () => {
+    const draft = about.trim();
+    if (!draft || isOptimizingBio) return;
+    setIsOptimizingBio(true);
+    try {
+      const result = await aiClient.optimizeBio(draft);
+      if (result?.suggestion) setAbout(result.suggestion);
+    } finally {
+      setIsOptimizingBio(false);
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -281,6 +306,16 @@ const EditProfileScreen = () => {
                 onChange={(event) => setAbout(event.target.value)}
               />
             </div>
+            {aiAvailable && (
+              <button
+                type="button"
+                onClick={handleOptimizeBio}
+                disabled={isOptimizingBio || about.trim().length === 0}
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-pink-500/30 bg-pink-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-pink-200 transition-colors disabled:opacity-40"
+              >
+                {isOptimizingBio ? t('editProfile.bioOptimizing') : t('editProfile.bioOptimize')}
+              </button>
+            )}
           </section>
 
           <section className="space-y-4">

@@ -8,6 +8,7 @@ import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useI18n } from '../i18n/I18nProvider';
 import { appApi, authApi, subscribeConversationRelationChange } from '../services';
 import { realtime } from '../services/realtimeClient';
+import { aiClient } from '../services/aiClient';
 import { useRuntimeSelector } from '../state';
 import type { ChatMessage, ConversationSummary, PlanTier } from '../contracts';
 import { hasSubscriptionBenefit } from '../domain/subscriptionBenefits';
@@ -72,6 +73,9 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [peerTyping, setPeerTyping] = useState(false);
   const [peerOnline, setPeerOnline] = useState(false);
+  const [aiAvailable, setAiAvailable] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [replySuggestions, setReplySuggestions] = useState<string[]>([]);
   const [translationTargetLocale, setTranslationTargetLocale] = useState<'en' | 'ru'>(
     locale === 'ru' ? 'ru' : 'en',
   );
@@ -317,6 +321,31 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
       enabled: next,
       targetLocale: translationTargetLocale,
     });
+  };
+
+  useEffect(() => {
+    let active = true;
+    void aiClient.isEnabled().then((enabled) => {
+      if (active) setAiAvailable(enabled);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSuggestReplies = async () => {
+    if (isSuggesting || orderedMessages.length === 0) return;
+    setIsSuggesting(true);
+    try {
+      const recent = orderedMessages.slice(-10).map((m) => ({
+        from: m.direction === 'outgoing' ? ('me' as const) : ('them' as const),
+        text: m.originalText,
+      }));
+      const result = await aiClient.suggestReplies(recent);
+      if (result?.suggestions?.length) setReplySuggestions(result.suggestions);
+    } finally {
+      setIsSuggesting(false);
+    }
   };
 
   const handleSend = () => {
@@ -719,11 +748,40 @@ const ChatScreen = ({ embedded, userId: propUserId }: ChatScreenProps) => {
             {safetyFeedback}
           </div>
         )}
+        {aiAvailable && replySuggestions.length > 0 && !isConversationRestricted && (
+          <div className={`${embedded ? '' : 'container-chat'} mb-2 flex flex-wrap gap-2`}>
+            {replySuggestions.map((suggestion, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => {
+                  setDraft(suggestion);
+                  setReplySuggestions([]);
+                }}
+                className="rounded-2xl border border-pink-500/25 bg-pink-500/10 px-3 py-2 text-left text-xs text-pink-100 transition-colors hover:bg-pink-500/20"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
         <div
           className={`${
             embedded ? '' : 'container-chat'
           } rounded-[28px] p-1.5 flex items-center gap-2 border border-white/10 bg-[#0f1118]/92 backdrop-blur-xl focus-within:border-white/25 transition-all`}
         >
+          {aiAvailable && !isConversationRestricted && (
+            <button
+              type="button"
+              onClick={handleSuggestReplies}
+              disabled={isSuggesting}
+              title={t('chat.suggestReplies')}
+              aria-label={t('chat.suggestReplies')}
+              className="w-11 h-11 rounded-full flex items-center justify-center text-pink-200 border border-pink-500/25 bg-pink-500/5 active:scale-90 transition-transform disabled:opacity-40"
+            >
+              <ICONS.Star size={18} />
+            </button>
+          )}
           <input
             type="text"
             value={draft}

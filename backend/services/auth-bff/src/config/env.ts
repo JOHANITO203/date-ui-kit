@@ -52,6 +52,12 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional().or(z.literal("")),
   VAPID_PRIVATE_KEY: z.string().optional().or(z.literal("")),
   VAPID_SUBJECT: z.string().default("mailto:support@exotic.app"),
+
+  // AI assistance (Anthropic). Disabled if the key is absent.
+  // Default Opus; for high-volume micro-tasks (translate, suggestions) the
+  // operator can set AI_MODEL=claude-haiku-4-5 to cut cost.
+  ANTHROPIC_API_KEY: z.string().optional().or(z.literal("")),
+  AI_MODEL: z.string().default("claude-opus-4-8"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -68,6 +74,7 @@ export const env = {
   hasS3: Boolean(data.S3_ACCESS_KEY_ID && data.S3_SECRET_ACCESS_KEY && data.S3_PUBLIC_URL),
   hasSmtp: Boolean(data.SMTP_HOST && data.SMTP_USER),
   hasPush: Boolean(data.VAPID_PUBLIC_KEY && data.VAPID_PRIVATE_KEY),
+  hasAI: Boolean(data.ANTHROPIC_API_KEY),
   cookie: {
     name: {
       accessToken: data.COOKIE_NAME_AT,

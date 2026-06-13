@@ -194,6 +194,7 @@ export const translations: Record<Locale, Dictionary> = {
     chat: {
       online: 'Online',
       typing: 'Typing…',
+      suggestReplies: 'Suggest a reply',
       today: 'Today',
       block: 'Block',
       unblock: 'Unblock',
@@ -731,6 +732,8 @@ export const translations: Record<Locale, Dictionary> = {
       city: 'Город',
       about: 'О себе',
       aboutPlaceholder: 'Расскажите немного о себе...',
+      bioOptimize: '✨ Улучшить с ИИ',
+      bioOptimizing: 'Улучшаю…',
       aboutValue:
         'Люблю дизайн и путешествия. Нравится открывать новые места и делиться живыми моментами. Всегда открыт(а) к новым приключениям!',
       interests: 'Интересы',
@@ -944,6 +947,7 @@ export const translations: Record<Locale, Dictionary> = {
     chat: {
       online: 'В сети',
       typing: 'Печатает…',
+      suggestReplies: 'Предложить ответ',
       today: 'Сегодня',
       block: 'Блок',
       unblock: 'Разблокировать',
@@ -1479,6 +1483,8 @@ export const translations: Record<Locale, Dictionary> = {
       city: 'City',
       about: 'About me',
       aboutPlaceholder: 'Tell us a bit more about yourself...',
+      bioOptimize: '✨ Improve with AI',
+      bioOptimizing: 'Improving…',
       aboutValue:
         'Passionate about design and travel. I love discovering new places and sharing authentic moments. Always ready for a new adventure!',
       interests: 'Interests',

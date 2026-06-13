@@ -116,6 +116,9 @@ services:
       VAPID_PUBLIC_KEY:     ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY:    ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT:        ${VAPID_SUBJECT:-mailto:support@exotic.app}
+      # AI assistance (Anthropic). Leave key empty to disable AI features.
+      ANTHROPIC_API_KEY:    ${ANTHROPIC_API_KEY:-}
+      AI_MODEL:             ${AI_MODEL:-claude-opus-4-8}
     depends_on:
       db-migrate:
         condition: service_completed_successfully
