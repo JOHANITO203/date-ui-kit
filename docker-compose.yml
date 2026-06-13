@@ -282,15 +282,18 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # All calls go through nginx (same origin) — use empty string so
-        # the frontend builds relative URLs: "" + "/auth/login" = "/auth/login"
-        # For multi-subdomain deployments, override these with absolute URLs.
-        VITE_AUTH_BFF_URL:              ${VITE_AUTH_BFF_URL:-}
-        VITE_DISCOVER_API_URL:          ${VITE_DISCOVER_API_URL:-}
-        VITE_CHAT_API_URL:              ${VITE_CHAT_API_URL:-}
-        VITE_PROFILE_API_URL:           ${VITE_PROFILE_API_URL:-/profile-api}
-        VITE_SAFETY_API_URL:            ${VITE_SAFETY_API_URL:-}
-        VITE_PAYMENTS_API_URL:          ${VITE_PAYMENTS_API_URL:-}
+        # All services are reached through nginx on the SAME origin as the app.
+        # The frontend API client treats an EMPTY base URL as "service not
+        # configured" (falls back to mock data), so we MUST pass the absolute
+        # app origin — not an empty string. Paths already include the service
+        # prefix (/discover, /chat, /payments, /safety, /auth, /profiles), which
+        # nginx routes to the right container.
+        VITE_AUTH_BFF_URL:              ${VITE_AUTH_BFF_URL:-${APP_URL:-http://localhost}}
+        VITE_DISCOVER_API_URL:          ${VITE_DISCOVER_API_URL:-${APP_URL:-http://localhost}}
+        VITE_CHAT_API_URL:              ${VITE_CHAT_API_URL:-${APP_URL:-http://localhost}}
+        VITE_PROFILE_API_URL:           ${VITE_PROFILE_API_URL:-${APP_URL:-http://localhost}}
+        VITE_SAFETY_API_URL:            ${VITE_SAFETY_API_URL:-${APP_URL:-http://localhost}}
+        VITE_PAYMENTS_API_URL:          ${VITE_PAYMENTS_API_URL:-${APP_URL:-http://localhost}}
         VITE_MONITORING_LOG_ENDPOINT:   ${VITE_MONITORING_LOG_ENDPOINT:-}
         VITE_ANALYTICS_ENDPOINT:        ${VITE_ANALYTICS_ENDPOINT:-}
     restart: unless-stopped

@@ -6,7 +6,9 @@ COPY package*.json ./
 RUN npm ci
 
 # VITE vars are baked into the JS bundle at build time.
-# Pass them via docker-compose build args → set in your root .env.
+# Pass them via docker-compose build args (defaulted to APP_URL there).
+# NOTE: an empty base URL makes the frontend fall back to mock data, so these
+# must be the absolute app origin, not "".
 ARG VITE_AUTH_BFF_URL=""
 ARG VITE_DISCOVER_API_URL=""
 ARG VITE_CHAT_API_URL=""
