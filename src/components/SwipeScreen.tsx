@@ -210,7 +210,7 @@ const SwipeScreen = () => {
     let isCancelled = false;
     setFeedStatus('loading');
     appApi
-      .getFeed(activeFilterIds)
+      .getFeed(activeFilterIds, { aiRank: planTier !== 'free' })
       .then((response) => {
         if (isCancelled) return;
         setFeedCandidates(
@@ -469,7 +469,7 @@ const SwipeScreen = () => {
         if (!restoredCandidate) {
           // Local dismissed cache can be stale after refresh/navigation while backend rewind history persists.
           void appApi
-            .getFeed(activeFilterIds)
+            .getFeed(activeFilterIds, { aiRank: planTier !== 'free' })
             .then((nextFeed) => {
               const candidates = nextFeed.window.candidates.filter(
                 (candidate) => !matchedProfileIds.includes(candidate.id),

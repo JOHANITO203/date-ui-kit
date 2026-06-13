@@ -116,9 +116,13 @@ services:
       VAPID_PUBLIC_KEY:     ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY:    ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT:        ${VAPID_SUBJECT:-mailto:support@exotic.app}
-      # AI assistance (Anthropic). Leave key empty to disable AI features.
+      # AI assistance. Provider: "anthropic" (default) or "deepseek".
+      AI_PROVIDER:          ${AI_PROVIDER:-anthropic}
       ANTHROPIC_API_KEY:    ${ANTHROPIC_API_KEY:-}
       AI_MODEL:             ${AI_MODEL:-claude-opus-4-8}
+      DEEPSEEK_API_KEY:     ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL:    ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL:       ${DEEPSEEK_MODEL:-deepseek-chat}
     depends_on:
       db-migrate:
         condition: service_completed_successfully

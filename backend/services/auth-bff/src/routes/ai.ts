@@ -161,6 +161,66 @@ export async function registerAiRoutes(app: FastifyInstance) {
     });
   });
 
+  // Internal: AI compatibility re-ranking for the PREMIUM discover feed. Called
+  // by discover-service (which enforces the premium entitlement). Internal-network
+  // only, shared-secret gated. Returns candidate ids ordered best-first.
+  app.post("/internal/ai/rank", async (request, reply) => {
+    const provided = request.headers["x-internal-secret"];
+    if (typeof provided !== "string" || !constantTimeEqual(provided, env.INTERNAL_JWT_SECRET)) {
+      reply.status(401);
+      return { ok: false, code: "UNAUTHORIZED" };
+    }
+    if (!isAiEnabled()) {
+      reply.status(503);
+      return { ok: false, code: "AI_DISABLED" };
+    }
+    const rankSchema = z.object({
+      user: z.object({
+        bio: z.string().max(1000).optional(),
+        interests: z.array(z.string().max(60)).max(30).optional(),
+        intent: z.string().max(40).optional(),
+        age: z.number().int().optional(),
+      }),
+      candidates: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            bio: z.string().max(600).optional(),
+            interests: z.array(z.string().max(60)).max(30).optional(),
+            age: z.number().int().optional(),
+            distanceKm: z.number().optional(),
+          }),
+        )
+        .min(1)
+        .max(30),
+    });
+    const parsed = rankSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { ok: false, code: "AI_INVALID" };
+    }
+
+    const result = await generateJson<{ order: string[] }>({
+      system:
+        "You are a compatibility ranker for a dating app. Given a user and a list of candidates, " +
+        "order the candidate ids from most to least compatible (shared interests, intent fit, proximity, substance). " +
+        "Return every provided id exactly once, no new ids.",
+      prompt: JSON.stringify(parsed.data),
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: { order: { type: "array", items: { type: "string" } } },
+        required: ["order"],
+      },
+      maxTokens: 700,
+    });
+    if (!result?.order?.length) {
+      reply.status(502);
+      return { ok: false, code: "AI_FAILED" };
+    }
+    return { ok: true, order: result.order };
+  });
+
   // Internal moderation: fake-profile risk scoring. Internal-network only,
   // shared-secret gated (same pattern as push). Not exposed via nginx.
   app.post("/internal/ai/profile-risk", async (request, reply) => {

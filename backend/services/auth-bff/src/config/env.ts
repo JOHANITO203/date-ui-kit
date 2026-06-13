@@ -53,11 +53,16 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional().or(z.literal("")),
   VAPID_SUBJECT: z.string().default("mailto:support@exotic.app"),
 
-  // AI assistance (Anthropic). Disabled if the key is absent.
-  // Default Opus; for high-volume micro-tasks (translate, suggestions) the
-  // operator can set AI_MODEL=claude-haiku-4-5 to cut cost.
+  // AI assistance. Provider-pluggable: "anthropic" (default) or "deepseek".
+  // Each provider is disabled unless its API key is present.
+  AI_PROVIDER: z.enum(["anthropic", "deepseek"]).default("anthropic"),
+  // Anthropic (default Opus; set claude-haiku-4-5 for cheap high-volume tasks).
   ANTHROPIC_API_KEY: z.string().optional().or(z.literal("")),
   AI_MODEL: z.string().default("claude-opus-4-8"),
+  // DeepSeek (OpenAI-compatible Chat Completions API).
+  DEEPSEEK_API_KEY: z.string().optional().or(z.literal("")),
+  DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
+  DEEPSEEK_MODEL: z.string().default("deepseek-chat"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -74,7 +79,10 @@ export const env = {
   hasS3: Boolean(data.S3_ACCESS_KEY_ID && data.S3_SECRET_ACCESS_KEY && data.S3_PUBLIC_URL),
   hasSmtp: Boolean(data.SMTP_HOST && data.SMTP_USER),
   hasPush: Boolean(data.VAPID_PUBLIC_KEY && data.VAPID_PRIVATE_KEY),
-  hasAI: Boolean(data.ANTHROPIC_API_KEY),
+  hasAI:
+    data.AI_PROVIDER === "deepseek"
+      ? Boolean(data.DEEPSEEK_API_KEY)
+      : Boolean(data.ANTHROPIC_API_KEY),
   cookie: {
     name: {
       accessToken: data.COOKIE_NAME_AT,

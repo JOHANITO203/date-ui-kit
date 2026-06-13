@@ -518,7 +518,10 @@ export const subscribeConversationRelationChange = (
 };
 
 export const appApi = {
-  async getFeed(quickFilters: FeedQuickFilter[]): Promise<GetFeedResponse> {
+  async getFeed(
+    quickFilters: FeedQuickFilter[],
+    options?: { aiRank?: boolean },
+  ): Promise<GetFeedResponse> {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('bench') === '1') {
@@ -528,6 +531,8 @@ export const appApi = {
     if (DISCOVER_API_URL) {
       try {
         const query = await buildDiscoverFeedQuery(quickFilters);
+        // PREMIUM: opt into AI compatibility re-ranking (backend enforces the plan).
+        if (options?.aiRank) query.set('aiRank', '1');
         return await discoverRequest<GetFeedResponse>(`/discover/feed?${query.toString()}`);
       } catch (error) {
         if (!shouldFallbackToRuntime(error)) throw error;

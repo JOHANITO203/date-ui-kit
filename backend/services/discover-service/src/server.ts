@@ -185,6 +185,53 @@ const notifyPush = (
   });
 };
 
+// PREMIUM: AI compatibility re-ranking of the top of the feed. Best-effort —
+// any failure falls back to the original ranking so the feed never breaks. Only
+// the head is sent to the model (bounds cost/latency); the tail is appended.
+const AI_RERANK_LIMIT = 24;
+const aiRerankCandidates = async (
+  candidates: FeedCandidate[],
+  user: { interests?: string[]; intent?: string | null },
+  logger: ReturnType<typeof Fastify>["log"],
+): Promise<FeedCandidate[]> => {
+  if (candidates.length < 2) return candidates;
+  const head = candidates.slice(0, AI_RERANK_LIMIT);
+  const tail = candidates.slice(AI_RERANK_LIMIT);
+  try {
+    const res = await fetch(`${env.AUTH_BFF_INTERNAL_URL}/internal/ai/rank`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-secret": env.INTERNAL_JWT_SECRET },
+      body: JSON.stringify({
+        user: { interests: user.interests ?? [], intent: user.intent ?? undefined },
+        candidates: head.map((c) => ({
+          id: c.id,
+          bio: typeof c.bio === "string" ? c.bio.slice(0, 600) : undefined,
+          interests: c.interests,
+          age: c.age,
+          distanceKm: c.distanceKm,
+        })),
+      }),
+    });
+    if (!res.ok) return candidates;
+    const data = (await res.json()) as { ok?: boolean; order?: string[] };
+    if (!data.ok || !Array.isArray(data.order)) return candidates;
+    const byId = new Map(head.map((c) => [c.id, c]));
+    const ordered: FeedCandidate[] = [];
+    for (const id of data.order) {
+      const candidate = byId.get(id);
+      if (candidate) {
+        ordered.push(candidate);
+        byId.delete(id);
+      }
+    }
+    for (const remaining of byId.values()) ordered.push(remaining); // any omitted by the model
+    return [...ordered, ...tail];
+  } catch (err) {
+    logger.warn({ err }, "discover.ai_rerank_failed");
+    return candidates;
+  }
+};
+
 const idempotencyKeyFromRequest = (request: FastifyRequest) => {
   const header = request.headers["x-idempotency-key"];
   if (typeof header === "string" && header.trim().length > 0) return header.trim();
@@ -1512,7 +1559,7 @@ export const buildServer = () => {
       userGeoPoint,
       logger: app.log,
     });
-    const candidates = applyFiltersAndRank(
+    let candidates = applyFiltersAndRank(
       filters,
       preferences,
       userGeoPoint,
@@ -1520,12 +1567,32 @@ export const buildServer = () => {
       candidatesSource,
     );
 
+    // PREMIUM feature: AI compatibility re-ranking. Client opts in via aiRank=1;
+    // we authoritatively require a paid plan before spending any AI budget.
+    let aiRanked = false;
+    if (query.aiRank === "1") {
+      try {
+        const snapshot = await getUserEntitlementSnapshot(userId);
+        if (resolveEntitlementPlanTier(snapshot) !== "free") {
+          candidates = await aiRerankCandidates(
+            candidates,
+            { interests: preferences.interests, intent: preferences.intent },
+            app.log,
+          );
+          aiRanked = true;
+        }
+      } catch (error) {
+        app.log.warn({ err: error, userId }, "discover.ai_rerank_gate_failed");
+      }
+    }
+
     return {
       window: {
         cursor: `cursor_${userId}_${Date.now()}`,
         candidates,
         quickFiltersApplied: filters,
         preferencesApplied: preferences,
+        aiRanked,
       },
     };
   });

@@ -398,13 +398,6 @@ export const buildServer = () => {
   app.register(websocket);
   registerRealtime(app);
 
-  const scheduleIncomingReply = (_input: {
-    userId: string;
-    conversationId: string;
-    peerProfileId: string;
-    userText: string;
-  }) => {};
-
   app.get("/health", async () => ({
     status: "ok",
     service: "chat-service",
@@ -833,6 +826,13 @@ export const buildServer = () => {
         createdAtIso: now.toISOString(),
       };
 
+      // Prod-ready delivery: persist the message in BOTH partitions atomically —
+      // the sender's (outgoing) AND the recipient's (incoming) — so the peer sees
+      // it on reload/offline, not only via the live WS echo. The recipient's
+      // conversation is created on first contact and its unread count bumped.
+      const peerUserId = conversationRow.peerProfileId;
+      const recipientConversationId = resolveConversationId(peerUserId, userId);
+
       await prismaClient.$transaction([
         prismaClient.chatMessage.upsert({
           where: { userId_messageId: { userId, messageId } },
@@ -858,20 +858,46 @@ export const buildServer = () => {
             lastMessageAt: now,
           },
         }),
+        // Recipient-side mirror (incoming).
+        prismaClient.chatMessage.upsert({
+          where: { userId_messageId: { userId: peerUserId, messageId } },
+          update: {},
+          create: {
+            userId: peerUserId,
+            messageId,
+            conversationId: recipientConversationId,
+            senderUserId: userId,
+            direction: "incoming",
+            originalText: trimmed,
+            translated: false,
+            createdAt: now,
+          },
+        }),
+        // Recipient conversation: create on first message, else bump unread.
+        prismaClient.chatConversation.upsert({
+          where: { userId_conversationId: { userId: peerUserId, conversationId: recipientConversationId } },
+          update: {
+            unreadCount: { increment: 1 },
+            lastMessagePreview: trimmed,
+            lastMessageAt: now,
+          },
+          create: {
+            userId: peerUserId,
+            conversationId: recipientConversationId,
+            peerProfileId: userId,
+            relationState: "active",
+            relationStateUpdatedAt: now,
+            unreadCount: 1,
+            lastMessagePreview: trimmed,
+            lastMessageAt: now,
+          },
+        }),
       ]);
 
-      scheduleIncomingReply({
-        userId,
-        conversationId,
-        peerProfileId: conversationRow.peerProfileId,
-        userText: trimmed,
-      });
-
       // Realtime: deliver the message live to the peer's open chat (best-effort).
-      const peerUserId = conversationRow.peerProfileId;
       sendToUser(peerUserId, {
         type: "message",
-        conversationId: resolveConversationId(peerUserId, userId),
+        conversationId: recipientConversationId,
         message: { ...message, direction: "incoming", senderUserId: userId },
       });
 
