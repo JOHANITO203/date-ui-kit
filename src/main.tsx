@@ -26,6 +26,7 @@ import '@fontsource/jetbrains-mono/700.css';
 import './index.css';
 import { I18nProvider } from './i18n/I18nProvider';
 import { AuthProvider } from './auth/AuthProvider';
+import { ToastProvider } from './components/ui/Toast';
 import { initMonitoring } from './services/monitoring';
 import { runtimeApi } from './state/appRuntimeStore';
 import { registerSW } from 'virtual:pwa-register';
@@ -51,7 +52,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
       <AuthProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </AuthProvider>
     </I18nProvider>
   </StrictMode>,
