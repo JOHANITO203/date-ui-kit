@@ -9,6 +9,7 @@ import { registerGoogleAuthRoutes } from "./routes/auth/google";
 import { registerProfileRoutes } from "./routes/profile";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerLocationRoutes } from "./routes/location";
+import { registerPushRoutes } from "./routes/push";
 
 const resolveAllowedOrigins = (appUrl: string): Set<string> => {
   const allowed = new Set<string>();
@@ -110,6 +111,7 @@ export function buildServer() {
     await registerProfileRoutes(instance);
     await registerOnboardingRoutes(instance);
     await registerLocationRoutes(instance);
+    await registerPushRoutes(instance);
   });
 
   server.get("/health", async () => ({

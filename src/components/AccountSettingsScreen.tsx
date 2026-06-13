@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/I18nProvider';
 import { translations } from '../i18n/translations';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { appApi } from '../services';
+import { enablePush, disablePush } from '../services/pushClient';
 import type { SettingsEnvelope, BlockEntry } from '../contracts';
 import { resolveShadowGhostAccess } from '../domain/shadowGhost';
 import { TRAVEL_PASS_ENABLED, TRAVEL_PASS_LOCKED_CITY } from '../domain/travelPass';
@@ -441,6 +442,13 @@ const AccountSettingsScreen = () => {
         patchSettings({
           notifications: nextNotifications,
         });
+        // Wire Web Push to the master notifications toggle. Runs in this user-
+        // gesture context (required for the permission prompt). Best-effort.
+        if (nextValue) {
+          void enablePush();
+        } else {
+          void disablePush();
+        }
         break;
       }
       default:

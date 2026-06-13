@@ -112,6 +112,10 @@ services:
       RATE_LIMIT_MAX:       ${RATE_LIMIT_MAX:-200}
       RATE_LIMIT_TIME_WINDOW: ${RATE_LIMIT_TIME_WINDOW:-60000}
       GEO_SCOPE:            ${GEO_SCOPE:-russia}
+      # Web Push (VAPID) — generate with: npx web-push generate-vapid-keys
+      VAPID_PUBLIC_KEY:     ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY:    ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT:        ${VAPID_SUBJECT:-mailto:support@exotic.app}
     depends_on:
       db-migrate:
         condition: service_completed_successfully
@@ -152,6 +156,8 @@ services:
       ONLINE_ACTIVE_WINDOW_SEC:         ${ONLINE_ACTIVE_WINDOW_SEC:-600}
       ACTOR_ENGINE_ACTOR_EMAIL_REGEX:   ${ACTOR_ENGINE_ACTOR_EMAIL_REGEX:-^seed\..+@exotic\.local$}
       ACTOR_DISCOVER_MATCH_CACHE_TTL_SEC: ${ACTOR_DISCOVER_MATCH_CACHE_TTL_SEC:-300}
+      # auth-bff owns Web Push; discover triggers it on match/superlike
+      AUTH_BFF_INTERNAL_URL:            ${AUTH_BFF_INTERNAL_URL:-http://auth-bff:8787}
     depends_on:
       db-migrate:
         condition: service_completed_successfully

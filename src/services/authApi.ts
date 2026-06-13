@@ -1,4 +1,6 @@
 import type { AuthResponse, SessionPayload } from '../contracts';
+import { clearAppCaches } from '../utils/connectivity';
+import { disablePush } from './pushClient';
 
 const AUTH_BFF_URL = (import.meta.env.VITE_AUTH_BFF_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787';
 const UPLOAD_IMAGE_MAX_EDGE = 1440;
@@ -441,7 +443,11 @@ export const authApi = {
     });
   },
 
-  logout() {
-    return request('/auth/logout', { method: 'POST' });
+  async logout() {
+    const result = await request('/auth/logout', { method: 'POST' });
+    // Privacy: drop cached authenticated data and the push subscription so the
+    // next user on this device starts clean.
+    await Promise.all([clearAppCaches(), disablePush().catch(() => {})]);
+    return result;
   },
 };

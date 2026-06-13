@@ -13,6 +13,19 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
+CREATE TABLE "push_subscriptions" (
+    "id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    "endpoint" TEXT NOT NULL,
+    "p256dh" TEXT NOT NULL,
+    "auth" TEXT NOT NULL,
+    "user_agent" VARCHAR(255),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "refresh_tokens" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
@@ -296,6 +309,12 @@ CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 CREATE UNIQUE INDEX "users_google_sub_key" ON "users"("google_sub");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "push_subscriptions_endpoint_key" ON "push_subscriptions"("endpoint");
+
+-- CreateIndex
+CREATE INDEX "push_subscriptions_user_id_idx" ON "push_subscriptions"("user_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "refresh_tokens_token_hash_key" ON "refresh_tokens"("token_hash");
 
 -- CreateIndex
@@ -360,6 +379,9 @@ CREATE INDEX "safety_blocks_user_id_idx" ON "safety_blocks"("user_id");
 
 -- CreateIndex
 CREATE INDEX "safety_reports_user_id_idx" ON "safety_reports"("user_id");
+
+-- AddForeignKey
+ALTER TABLE "push_subscriptions" ADD CONSTRAINT "push_subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

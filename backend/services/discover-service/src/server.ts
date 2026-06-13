@@ -167,6 +167,24 @@ const resolveAuthenticatedUserId = (request: FastifyRequest, reply: FastifyReply
 
 const BOOST_DURATION_SECONDS = 30 * 60;
 
+type PushKind = "match" | "message" | "boost" | "visitor" | "generic";
+
+// Fire-and-forget Web Push via auth-bff's internal endpoint. Never blocks or
+// fails the request flow — push is best-effort.
+const notifyPush = (
+  userId: string,
+  payload: { title: string; body: string; url?: string; tag?: string; kind?: PushKind },
+  logger: ReturnType<typeof Fastify>["log"],
+) => {
+  void fetch(`${env.AUTH_BFF_INTERNAL_URL}/internal/notifications/push`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-secret": env.INTERNAL_JWT_SECRET },
+    body: JSON.stringify({ userId, payload }),
+  }).catch((err) => {
+    logger.warn({ err, userId }, "discover.push_notify_failed");
+  });
+};
+
 const idempotencyKeyFromRequest = (request: FastifyRequest) => {
   const header = request.headers["x-idempotency-key"];
   if (typeof header === "string" && header.trim().length > 0) return header.trim();
@@ -1438,6 +1456,12 @@ export const buildServer = () => {
         nowIso,
       });
 
+      notifyPush(
+        incoming.likerUserId,
+        { title: "It's a match 💞", body: "Someone you liked liked you back!", url: "/likes", tag: `match-${userId}`, kind: "match" },
+        app.log,
+      );
+
       const senderCards = await loadCandidatesByProfileIds({
         profileIds: [incoming.likerUserId],
         userGeoPoint: null,
@@ -1873,6 +1897,11 @@ export const buildServer = () => {
         });
         matched = true;
         conversationId = toMatchConversationId(userId, profileId);
+        notifyPush(
+          profileId,
+          { title: "New match 💞", body: "You have a new match. Say hello!", url: "/likes", tag: `match-${userId}`, kind: "match" },
+          app.log,
+        );
       }
     } catch (error) {
       app.log.warn({ err: error, userId, profileId }, "discover.persist_like_or_match_failed");
@@ -2036,6 +2065,11 @@ export const buildServer = () => {
           messageId: recipientMessageId,
         }),
       ]);
+      notifyPush(
+        profileId,
+        { title: "New SuperLike ⭐", body: messageText.slice(0, 120), url: "/messages", tag: `superlike-${userId}`, kind: "message" },
+        app.log,
+      );
     } catch (error) {
       app.log.warn({ err: error, userId, profileId }, "discover.superlike_send_failed");
       if (!consumptionDuplicate) {

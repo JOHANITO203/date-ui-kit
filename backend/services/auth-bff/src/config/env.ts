@@ -47,6 +47,11 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(25),
   RATE_LIMIT_TIME_WINDOW: z.coerce.number().int().positive().default(60000),
   GEO_SCOPE: z.enum(["russia", "global"]).default("russia"),
+
+  // Web Push (VAPID). Push is disabled if either key is absent.
+  VAPID_PUBLIC_KEY: z.string().optional().or(z.literal("")),
+  VAPID_PRIVATE_KEY: z.string().optional().or(z.literal("")),
+  VAPID_SUBJECT: z.string().default("mailto:support@exotic.app"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -62,6 +67,7 @@ export const env = {
   ...data,
   hasS3: Boolean(data.S3_ACCESS_KEY_ID && data.S3_SECRET_ACCESS_KEY && data.S3_PUBLIC_URL),
   hasSmtp: Boolean(data.SMTP_HOST && data.SMTP_USER),
+  hasPush: Boolean(data.VAPID_PUBLIC_KEY && data.VAPID_PRIVATE_KEY),
   cookie: {
     name: {
       accessToken: data.COOKIE_NAME_AT,

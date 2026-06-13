@@ -36,6 +36,8 @@ const envSchema = z.object({
     .optional()
     .default("^seed\\..+@exotic\\.local$"),
   ACTOR_DISCOVER_MATCH_CACHE_TTL_SEC: z.coerce.number().int().min(15).max(3600).default(300),
+  // Internal URL of auth-bff (owns Web Push). Reachable on the Docker network.
+  AUTH_BFF_INTERNAL_URL: z.string().url().default("http://auth-bff:8787"),
 });
 
 const parsed = envSchema.safeParse(process.env);

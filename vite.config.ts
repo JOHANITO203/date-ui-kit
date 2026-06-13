@@ -37,6 +37,8 @@ export default defineConfig(({ mode }) => {
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
+          // Custom Web Push + notificationclick handlers (plain static file).
+          importScripts: ['push-sw.js'],
           navigateFallback: '/index.html',
           // Never let the SPA shell answer API/asset navigations.
           navigateFallbackDenylist: [
@@ -52,6 +54,23 @@ export default defineConfig(({ mode }) => {
               options: {
                 cacheName: 'exotic-images',
                 expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 14 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+            {
+              // OFFLINE-FIRST: read APIs. NetworkFirst → fresh when online, last
+              // known data when offline (conversations, messages, profile, feed,
+              // catalog). Only GET; mutations always hit the network.
+              urlPattern: ({ url, request, sameOrigin }) =>
+                Boolean(sameOrigin) &&
+                request.method === 'GET' &&
+                /^\/(chat|discover|profiles|payments|entitlements|safety)\//.test(url.pathname),
+              handler: 'NetworkFirst',
+              method: 'GET',
+              options: {
+                cacheName: 'exotic-api',
+                networkTimeoutSeconds: 4,
+                expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
