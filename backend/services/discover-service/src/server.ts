@@ -2,10 +2,11 @@ import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import { createVerifier } from "fast-jwt";
 import { z } from "zod";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "./config";
+import { Prisma } from "@prisma/client";
+import { prismaClient } from "./lib/prismaClient";
 import { applyFiltersAndRank, buildRankingMetrics, parseFeedPreferences, parseUserGeoPoint } from "./ranking";
-import { loadCandidatesByProfileIds, loadCandidatesFromSupabase } from "./candidates";
+import { loadCandidatesByProfileIds, loadCandidatesFromDb } from "./candidates";
 import type { FeedCandidate } from "./data";
 import { resolveImageAccessPolicy, type ImageAccessPolicy } from "./imageAccessPolicy";
 
@@ -71,18 +72,16 @@ type BoostStatus = {
 };
 type DiscoverLikeRow = {
   id: string;
-  liker_user_id: string;
-  liked_user_id: string;
+  likerUserId: string;
+  likedUserId: string;
   status: DiscoverLikeStatus;
-  was_superlike: boolean | null;
-  hidden_by_shadowghost: boolean | null;
-  created_at: string;
-  matched_at: string | null;
-  passed_at: string | null;
+  wasSuperlike: boolean;
+  hiddenByShadowghost: boolean;
+  createdAt: Date;
 };
 
 type UserSettingsRow = {
-  shadow_ghost: boolean | null;
+  shadowGhost: boolean;
 };
 
 type EntitlementSnapshot = {
@@ -102,16 +101,16 @@ type EntitlementSnapshot = {
 };
 
 type UserEntitlementRow = {
-  entitlement_snapshot: EntitlementSnapshot | null;
+  entitlementSnapshot: EntitlementSnapshot | null;
 };
 
 type DiscoverFeedEventDecision = "like" | "dislike" | "superlike";
 
 type DiscoverFeedEventRow = {
-  user_id: string;
-  profile_id: string;
-  last_decision: DiscoverFeedEventDecision | null;
-  seen_count: number | null;
+  userId: string;
+  profileId: string;
+  lastDecision: DiscoverFeedEventDecision | null;
+  seenCount: number;
 };
 
 type InternalJwtPayload = {
@@ -120,12 +119,6 @@ type InternalJwtPayload = {
   role?: string;
 };
 
-type AuthUserLike = {
-  id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown> | null;
-  app_metadata?: Record<string, unknown> | null;
-};
 
 const verifyInternalToken = createVerifier({
   key: env.INTERNAL_JWT_SECRET,
@@ -134,7 +127,7 @@ const verifyInternalToken = createVerifier({
 
 const dismissedByUser = new Map<string, string[]>();
 const swipeHistoryByUser = new Map<string, string[]>();
-const consumptionIdempotencyCache = new Map<string, number>();
+const consumptionIdempotencyCache = new Map<string, number>(); // fallback si Prisma indisponible
 const discoverCandidatesCache = new Map<
   string,
   { expiresAtMs: number; candidates: FeedCandidate[]; userGeoPointKey: string }
@@ -142,12 +135,6 @@ const discoverCandidatesCache = new Map<
 let actorIdsCache = new Set<string>();
 let actorIdsCacheLoadedAtMs = 0;
 
-const supabaseAdminClient: SupabaseClient | null =
-  env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE
-    ? createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      })
-    : null;
 
 const extractBearerToken = (request: FastifyRequest) => {
   const header = request.headers.authorization;
@@ -186,13 +173,6 @@ const idempotencyKeyFromRequest = (request: FastifyRequest) => {
   return undefined;
 };
 
-const isDuplicateKeyError = (error: unknown) => {
-  if (!error || typeof error !== "object") return false;
-  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
-  const message =
-    "message" in error ? String((error as { message?: unknown }).message ?? "").toLowerCase() : "";
-  return code === "23505" || message.includes("duplicate key");
-};
 
 const registerConsumptionIdempotency = async (input: {
   userId: string;
@@ -200,10 +180,17 @@ const registerConsumptionIdempotency = async (input: {
   action: "superlike" | "rewind" | "boost";
 }): Promise<{ duplicate: boolean }> => {
   const cacheKey = `${input.userId}:${input.idempotencyKey}`;
-  if (!supabaseAdminClient) {
-    if (consumptionIdempotencyCache.has(cacheKey)) {
+  try {
+    await prismaClient.entitlementConsumption.create({
+      data: { id: cacheKey, userId: input.userId, itemType: input.action },
+    });
+    return { duplicate: false };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return { duplicate: true };
     }
+    // DB indisponible → fallback mémoire
+    if (consumptionIdempotencyCache.has(cacheKey)) return { duplicate: true };
     consumptionIdempotencyCache.set(cacheKey, Date.now());
     if (consumptionIdempotencyCache.size > 2000) {
       const cutoff = Date.now() - 1000 * 60 * 60;
@@ -213,19 +200,6 @@ const registerConsumptionIdempotency = async (input: {
     }
     return { duplicate: false };
   }
-
-  const result = await supabaseAdminClient.from("entitlement_consumptions").insert({
-    user_id: input.userId,
-    idempotency_key: input.idempotencyKey,
-    action: input.action,
-  });
-  if (result.error) {
-    if (isDuplicateKeyError(result.error)) {
-      return { duplicate: true };
-    }
-    throw result.error;
-  }
-  return { duplicate: false };
 };
 
 const consumeBalance = async (input: {
@@ -306,26 +280,18 @@ const resolveBoostStatus = (input: {
 };
 
 const getUserBoostRow = async (userId: string) => {
-  if (!supabaseAdminClient) return null;
-  const result = await supabaseAdminClient
-    .from("user_boosts")
-    .select("active_until")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (result.error) throw result.error;
-  return result.data as { active_until: string | null } | null;
+  const row = await prismaClient.discoverBoost.findUnique({ where: { userId } });
+  if (!row) return null;
+  return { active_until: row.activeUntil ? row.activeUntil.toISOString() : null };
 };
 
 const setUserBoostActiveUntil = async (userId: string, activeUntilIso: string | null) => {
-  if (!supabaseAdminClient) return;
-  const { error } = await supabaseAdminClient.from("user_boosts").upsert(
-    {
-      user_id: userId,
-      active_until: activeUntilIso,
-    },
-    { onConflict: "user_id" },
-  );
-  if (error) throw error;
+  const activeUntil = activeUntilIso ? new Date(activeUntilIso) : new Date(0);
+  await prismaClient.discoverBoost.upsert({
+    where: { userId },
+    update: { activeUntil },
+    create: { userId, activeUntil },
+  });
 };
 
 const isIsoActive = (value?: string | null) => {
@@ -342,8 +308,8 @@ const resolveEntitlementPlanTier = (
 };
 
 const canUseShadowGhost = (settings: UserSettingsRow | null, entitlement: UserEntitlementRow | null) => {
-  if (!settings?.shadow_ghost) return false;
-  const snapshot = entitlement?.entitlement_snapshot;
+  if (!settings?.shadowGhost) return false;
+  const snapshot = entitlement?.entitlementSnapshot;
   const planTier = resolveEntitlementPlanTier(snapshot);
   if (planTier === "platinum" || planTier === "elite") return true;
   if (
@@ -356,47 +322,28 @@ const canUseShadowGhost = (settings: UserSettingsRow | null, entitlement: UserEn
 };
 
 const getUserShadowGhostState = async (userId: string): Promise<boolean> => {
-  if (!supabaseAdminClient) return false;
-  const [settingsResult, entitlementResult] = await Promise.all([
-    supabaseAdminClient
-      .from("settings")
-      .select("shadow_ghost")
-      .eq("user_id", userId)
-      .maybeSingle(),
-    supabaseAdminClient
-      .from("user_entitlements")
-      .select("entitlement_snapshot")
-      .eq("user_id", userId)
-      .maybeSingle(),
+  const [settingsRaw, entitlementRaw] = await Promise.all([
+    prismaClient.userSettings.findUnique({ where: { userId }, select: { shadowGhost: true } }),
+    prismaClient.userEntitlement.findUnique({ where: { userId }, select: { entitlementSnapshot: true } }),
   ]);
-  const settings = (settingsResult.data ?? null) as UserSettingsRow | null;
-  const entitlement = (entitlementResult.data ?? null) as UserEntitlementRow | null;
+  const settings: UserSettingsRow | null = settingsRaw ? { shadowGhost: settingsRaw.shadowGhost } : null;
+  const entitlement: UserEntitlementRow | null = entitlementRaw
+    ? { entitlementSnapshot: entitlementRaw.entitlementSnapshot as EntitlementSnapshot | null }
+    : null;
   return canUseShadowGhost(settings, entitlement);
 };
 
 const getUserEntitlementSnapshot = async (userId: string): Promise<EntitlementSnapshot | null> => {
-  if (!supabaseAdminClient) return null;
-  const result = await supabaseAdminClient
-    .from("user_entitlements")
-    .select("entitlement_snapshot")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (result.error) throw result.error;
-  const row = (result.data ?? null) as UserEntitlementRow | null;
-  return row?.entitlement_snapshot ?? null;
+  const row = await prismaClient.userEntitlement.findUnique({ where: { userId }, select: { entitlementSnapshot: true } });
+  return (row?.entitlementSnapshot as EntitlementSnapshot | null) ?? null;
 };
 
 const saveUserEntitlementSnapshot = async (userId: string, snapshot: EntitlementSnapshot) => {
-  if (!supabaseAdminClient) return;
-  const { error } = await supabaseAdminClient.from("user_entitlements").upsert(
-    {
-      user_id: userId,
-      entitlement_snapshot: snapshot,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
-  if (error) throw error;
+  await prismaClient.userEntitlement.upsert({
+    where: { userId },
+    update: { entitlementSnapshot: snapshot },
+    create: { userId, entitlementSnapshot: snapshot },
+  });
 };
 
 const getIceBreakersLeft = (snapshot: EntitlementSnapshot | null | undefined) =>
@@ -405,71 +352,11 @@ const getIceBreakersLeft = (snapshot: EntitlementSnapshot | null | undefined) =>
 const stableScore = (seed: string) =>
   [...seed].reduce((acc, char, index) => (acc + char.charCodeAt(0) * (index + 1)) % 1000, 0) % 100;
 
-const toBool = (value: unknown) => {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") return value.toLowerCase() === "true" || value === "1";
-  return false;
-};
 
-const isActorUser = (user: AuthUserLike, actorRegex: RegExp) => {
-  const email = typeof user.email === "string" ? user.email : "";
-  if (actorRegex.test(email)) return true;
-
-  const metadata = user.user_metadata ?? {};
-  const appMetadata = user.app_metadata ?? {};
-
-  const source = typeof metadata.source === "string" ? metadata.source.toLowerCase() : "";
-  if (source.startsWith("seed_")) return true;
-
-  if (toBool(metadata.actor) || toBool(metadata.is_actor)) return true;
-  if (toBool(appMetadata.actor) || toBool(appMetadata.is_actor)) return true;
-
-  return false;
-};
 
 const refreshActorIdsCache = async (logger: ReturnType<typeof Fastify>["log"]) => {
-  if (!supabaseAdminClient) return;
-
-  const nowMs = Date.now();
-  if (nowMs - actorIdsCacheLoadedAtMs < env.ACTOR_DISCOVER_MATCH_CACHE_TTL_SEC * 1000) return;
-
-  const actorRegex = new RegExp(env.ACTOR_ENGINE_ACTOR_EMAIL_REGEX, "i");
-  const actorIds = new Set<string>();
-  let page = 1;
-  const perPage = 200;
-
-  while (true) {
-    const result = await supabaseAdminClient.auth.admin.listUsers({ page, perPage });
-    if (result.error) throw result.error;
-    const users = result.data.users ?? [];
-    for (const user of users) {
-      if (
-        isActorUser(
-          {
-            id: user.id,
-            email: user.email ?? undefined,
-            user_metadata:
-              user.user_metadata && typeof user.user_metadata === "object"
-                ? (user.user_metadata as Record<string, unknown>)
-                : null,
-            app_metadata:
-              user.app_metadata && typeof user.app_metadata === "object"
-                ? (user.app_metadata as Record<string, unknown>)
-                : null,
-          },
-          actorRegex,
-        )
-      ) {
-        actorIds.add(user.id);
-      }
-    }
-    if (users.length < perPage) break;
-    page += 1;
-  }
-
-  actorIdsCache = actorIds;
-  actorIdsCacheLoadedAtMs = nowMs;
-  logger.debug({ actorCount: actorIds.size }, "discover.actor_cache_refreshed");
+  // Actor auto-match not yet wired — actorIdsCache remains empty until implemented.
+  logger.debug("discover.actor_cache_refresh_skipped");
 };
 
 const isActorProfileId = async (profileId: string, logger: ReturnType<typeof Fastify>["log"]) => {
@@ -482,70 +369,53 @@ const isActorProfileId = async (profileId: string, logger: ReturnType<typeof Fas
 };
 
 const loadMatchedProfileIds = async (userId: string): Promise<Set<string>> => {
-  if (!supabaseAdminClient) return new Set<string>();
-  const result = await supabaseAdminClient
-    .from("chat_conversations")
-    .select("peer_profile_id")
-    .eq("user_id", userId)
-    .like("conversation_id", "match-%")
-    .limit(2000);
-  if (result.error) throw result.error;
+  const rows = await prismaClient.chatConversation.findMany({
+    where: { userId, conversationId: { startsWith: "match-" } },
+    select: { peerProfileId: true },
+    take: 2000,
+  });
   const ids = new Set<string>();
-  for (const row of result.data ?? []) {
-    const peer = (row as { peer_profile_id?: unknown }).peer_profile_id;
-    if (typeof peer === "string" && peer.length > 0) ids.add(peer);
+  for (const row of rows) {
+    if (typeof row.peerProfileId === "string" && row.peerProfileId.length > 0) ids.add(row.peerProfileId);
   }
   return ids;
 };
 
 const loadConversationProfileIds = async (userId: string): Promise<Set<string>> => {
-  if (!supabaseAdminClient) return new Set<string>();
   // Only exclude real open direct conversations:
   // - relation is active
   // - non-match thread
   // - has at least one persisted message
-  const directConversations = await supabaseAdminClient
-    .from("chat_conversations")
-    .select("conversation_id,peer_profile_id")
-    .eq("user_id", userId)
-    .eq("relation_state", "active")
-    .not("conversation_id", "like", "match-%")
-    .limit(5000);
-  if (directConversations.error) throw directConversations.error;
-
-  const conversationRows = (directConversations.data ?? []) as Array<{
-    conversation_id?: unknown;
-    peer_profile_id?: unknown;
-  }>;
+  const conversationRows = await prismaClient.chatConversation.findMany({
+    where: {
+      userId,
+      relationState: "active",
+      NOT: { conversationId: { startsWith: "match-" } },
+    },
+    select: { conversationId: true, peerProfileId: true },
+    take: 5000,
+  });
   if (conversationRows.length === 0) return new Set<string>();
 
-  const conversationIds = conversationRows
-    .map((row) => (typeof row.conversation_id === "string" ? row.conversation_id : null))
-    .filter((value): value is string => Boolean(value));
-  if (conversationIds.length === 0) return new Set<string>();
+  const conversationIds = conversationRows.map((row) => row.conversationId);
 
-  const messageRows = await supabaseAdminClient
-    .from("chat_messages")
-    .select("conversation_id")
-    .eq("user_id", userId)
-    .in("conversation_id", conversationIds)
-    .limit(10000);
-  if (messageRows.error) throw messageRows.error;
+  const messageRows = await prismaClient.chatMessage.findMany({
+    where: { userId, conversationId: { in: conversationIds } },
+    select: { conversationId: true },
+    take: 10000,
+  });
 
   const conversationIdsWithMessages = new Set<string>();
-  for (const row of messageRows.data ?? []) {
-    const conversationId = (row as { conversation_id?: unknown }).conversation_id;
-    if (typeof conversationId === "string" && conversationId.length > 0) {
-      conversationIdsWithMessages.add(conversationId);
+  for (const row of messageRows) {
+    if (typeof row.conversationId === "string" && row.conversationId.length > 0) {
+      conversationIdsWithMessages.add(row.conversationId);
     }
   }
 
   const ids = new Set<string>();
   for (const row of conversationRows) {
-    const conversationId = typeof row.conversation_id === "string" ? row.conversation_id : null;
-    if (!conversationId || !conversationIdsWithMessages.has(conversationId)) continue;
-    const peer = row.peer_profile_id;
-    if (typeof peer === "string" && peer.length > 0) ids.add(peer);
+    if (!conversationIdsWithMessages.has(row.conversationId)) continue;
+    if (typeof row.peerProfileId === "string" && row.peerProfileId.length > 0) ids.add(row.peerProfileId);
   }
   return ids;
 };
@@ -553,36 +423,19 @@ const loadConversationProfileIds = async (userId: string): Promise<Set<string>> 
 const loadSafetyExcludedProfileIds = async (
   userId: string,
 ): Promise<{ blockedByMe: Set<string>; reportedByMe: Set<string> }> => {
-  if (!supabaseAdminClient) {
-    return { blockedByMe: new Set<string>(), reportedByMe: new Set<string>() };
-  }
-
-  const [blocksResult, reportsResult] = await Promise.all([
-    supabaseAdminClient
-      .from("safety_blocks")
-      .select("blocked_user_id")
-      .eq("user_id", userId)
-      .limit(5000),
-    supabaseAdminClient
-      .from("safety_reports")
-      .select("reported_user_id")
-      .eq("user_id", userId)
-      .limit(5000),
+  const [blocksRows, reportsRows] = await Promise.all([
+    prismaClient.safetyBlock.findMany({ where: { userId }, select: { blockedUserId: true }, take: 5000 }),
+    prismaClient.safetyReport.findMany({ where: { userId }, select: { reportedUserId: true }, take: 5000 }),
   ]);
 
-  if (blocksResult.error) throw blocksResult.error;
-  if (reportsResult.error) throw reportsResult.error;
-
   const blockedByMe = new Set<string>();
-  for (const row of blocksResult.data ?? []) {
-    const blocked = (row as { blocked_user_id?: unknown }).blocked_user_id;
-    if (typeof blocked === "string" && blocked.length > 0) blockedByMe.add(blocked);
+  for (const row of blocksRows) {
+    if (typeof row.blockedUserId === "string" && row.blockedUserId.length > 0) blockedByMe.add(row.blockedUserId);
   }
 
   const reportedByMe = new Set<string>();
-  for (const row of reportsResult.data ?? []) {
-    const reported = (row as { reported_user_id?: unknown }).reported_user_id;
-    if (typeof reported === "string" && reported.length > 0) reportedByMe.add(reported);
+  for (const row of reportsRows) {
+    if (typeof row.reportedUserId === "string" && row.reportedUserId.length > 0) reportedByMe.add(row.reportedUserId);
   }
 
   return { blockedByMe, reportedByMe };
@@ -715,7 +568,7 @@ const loadDiscoverCandidatesCached = async (input: {
     return cached.candidates;
   }
 
-  const loaded = await loadCandidatesFromSupabase({
+  const loaded = await loadCandidatesFromDb({
     currentUserId: input.userId,
     userGeoPoint: input.userGeoPoint,
     logger: input.logger,
@@ -736,14 +589,8 @@ const toMatchConversationId = (userId: string, peerId: string) =>
 const toDirectConversationId = (userId: string, peerId: string) => `conv-${userId}-${peerId}`;
 
 const ensureProfileExists = async (profileId: string): Promise<boolean> => {
-  if (!supabaseAdminClient) return false;
-  const result = await supabaseAdminClient
-    .from("profiles")
-    .select("user_id")
-    .eq("user_id", profileId)
-    .maybeSingle();
-  if (result.error) throw result.error;
-  return Boolean(result.data);
+  const row = await prismaClient.profile.findUnique({ where: { userId: profileId }, select: { userId: true } });
+  return Boolean(row);
 };
 
 const upsertDirectConversationForUser = async (input: {
@@ -755,22 +602,30 @@ const upsertDirectConversationForUser = async (input: {
   unreadCount: number;
   receivedSuperLikeTraceAtIso?: string;
 }) => {
-  if (!supabaseAdminClient) return;
-  const upsertConversation = await supabaseAdminClient.from("chat_conversations").upsert(
-    {
-      user_id: input.userId,
-      conversation_id: input.conversationId,
-      peer_profile_id: input.peerProfileId,
-      unread_count: input.unreadCount,
-      last_message_preview: input.previewText,
-      last_message_at: input.nowIso,
-      relation_state: "active",
-      relation_state_updated_at: input.nowIso,
-      received_superlike_trace_at: input.receivedSuperLikeTraceAtIso ?? null,
+  const nowDate = new Date(input.nowIso);
+  const receivedAt = input.receivedSuperLikeTraceAtIso ? new Date(input.receivedSuperLikeTraceAtIso) : null;
+  await prismaClient.chatConversation.upsert({
+    where: { userId_conversationId: { userId: input.userId, conversationId: input.conversationId } },
+    update: {
+      unreadCount: input.unreadCount,
+      lastMessagePreview: input.previewText,
+      lastMessageAt: nowDate,
+      relationState: "active",
+      relationStateUpdatedAt: nowDate,
+      receivedSuperlikeTraceAt: receivedAt,
     },
-    { onConflict: "user_id,conversation_id" },
-  );
-  if (upsertConversation.error) throw upsertConversation.error;
+    create: {
+      userId: input.userId,
+      conversationId: input.conversationId,
+      peerProfileId: input.peerProfileId,
+      unreadCount: input.unreadCount,
+      lastMessagePreview: input.previewText,
+      lastMessageAt: nowDate,
+      relationState: "active",
+      relationStateUpdatedAt: nowDate,
+      receivedSuperlikeTraceAt: receivedAt,
+    },
+  });
 };
 
 const insertDirectMessageForUser = async (input: {
@@ -782,21 +637,28 @@ const insertDirectMessageForUser = async (input: {
   nowIso: string;
   messageId: string;
 }) => {
-  if (!supabaseAdminClient) return;
-  const insertResult = await supabaseAdminClient.from("chat_messages").upsert(
-    {
-      user_id: input.userId,
-      message_id: input.messageId,
-      conversation_id: input.conversationId,
-      sender_user_id: input.senderUserId,
+  const nowDate = new Date(input.nowIso);
+  await prismaClient.chatMessage.upsert({
+    where: { userId_messageId: { userId: input.userId, messageId: input.messageId } },
+    update: {
+      conversationId: input.conversationId,
+      senderUserId: input.senderUserId,
       direction: input.direction,
-      original_text: input.text,
+      originalText: input.text,
       translated: false,
-      created_at: input.nowIso,
+      createdAt: nowDate,
     },
-    { onConflict: "user_id,message_id" },
-  );
-  if (insertResult.error) throw insertResult.error;
+    create: {
+      userId: input.userId,
+      messageId: input.messageId,
+      conversationId: input.conversationId,
+      senderUserId: input.senderUserId,
+      direction: input.direction,
+      originalText: input.text,
+      translated: false,
+      createdAt: nowDate,
+    },
+  });
 };
 
 const rollbackConsumedSuperLike = async (userId: string) => {
@@ -819,73 +681,69 @@ const upsertDiscoverFeedEvent = async (input: {
   decision: DiscoverFeedEventDecision;
   feedCursor: string;
 }) => {
-  if (!supabaseAdminClient) return;
-  const nowIso = new Date().toISOString();
-  const existing = await supabaseAdminClient
-    .from("discover_feed_events")
-    .select("seen_count")
-    .eq("user_id", input.userId)
-    .eq("profile_id", input.profileId)
-    .maybeSingle();
-  if (existing.error) throw existing.error;
-
-  const currentSeen = Math.max(0, Number((existing.data as { seen_count?: unknown } | null)?.seen_count ?? 0));
-  const upsert = await supabaseAdminClient
-    .from("discover_feed_events")
-    .upsert(
-      {
-        user_id: input.userId,
-        profile_id: input.profileId,
-        first_seen_at: nowIso,
-        last_seen_at: nowIso,
-        last_swiped_at: nowIso,
-        last_decision: input.decision,
-        seen_count: Math.max(1, currentSeen + 1),
-        last_feed_cursor: input.feedCursor,
-        updated_at: nowIso,
-      },
-      { onConflict: "user_id,profile_id" },
-    );
-  if (upsert.error) throw upsert.error;
+  const now = new Date();
+  const existing = await prismaClient.discoverFeedEvent.findUnique({
+    where: { userId_profileId: { userId: input.userId, profileId: input.profileId } },
+    select: { seenCount: true },
+  });
+  const currentSeen = Math.max(0, existing?.seenCount ?? 0);
+  await prismaClient.discoverFeedEvent.upsert({
+    where: { userId_profileId: { userId: input.userId, profileId: input.profileId } },
+    update: {
+      lastSeenAt: now,
+      lastSwipedAt: now,
+      lastDecision: input.decision,
+      seenCount: Math.max(1, currentSeen + 1),
+      lastFeedCursor: input.feedCursor,
+    },
+    create: {
+      userId: input.userId,
+      profileId: input.profileId,
+      firstSeenAt: now,
+      lastSeenAt: now,
+      lastSwipedAt: now,
+      lastDecision: input.decision,
+      seenCount: 1,
+      lastFeedCursor: input.feedCursor,
+    },
+  });
 };
 
 const loadDiscoverFeedEventsByProfileIds = async (input: {
   userId: string;
   profileIds: string[];
 }): Promise<DiscoverFeedEventRow[]> => {
-  if (!supabaseAdminClient || input.profileIds.length === 0) return [];
-  const result = await supabaseAdminClient
-    .from("discover_feed_events")
-    .select("user_id,profile_id,last_decision,seen_count")
-    .eq("user_id", input.userId)
-    .in("profile_id", input.profileIds)
-    .limit(8000);
-  if (result.error) throw result.error;
-  return (result.data ?? []) as DiscoverFeedEventRow[];
+  if (input.profileIds.length === 0) return [];
+  const rows = await prismaClient.discoverFeedEvent.findMany({
+    where: { userId: input.userId, profileId: { in: input.profileIds } },
+    select: { userId: true, profileId: true, lastDecision: true, seenCount: true },
+    take: 8000,
+  });
+  return rows.map((r) => ({
+    userId: r.userId,
+    profileId: r.profileId,
+    lastDecision: (r.lastDecision as DiscoverFeedEventDecision | null),
+    seenCount: r.seenCount,
+  }));
 };
 
 const loadPendingLikedWithoutMatchProfileIds = async (input: {
   userId: string;
   profileIds: string[];
 }): Promise<string[]> => {
-  if (!supabaseAdminClient || input.profileIds.length === 0) return [];
-  const result = await supabaseAdminClient
-    .from("discover_likes")
-    .select("liked_user_id,status,updated_at")
-    .eq("liker_user_id", input.userId)
-    .eq("status", "pending")
-    .in("liked_user_id", input.profileIds)
-    .order("updated_at", { ascending: false })
-    .limit(5000);
-  if (result.error) throw result.error;
+  if (input.profileIds.length === 0) return [];
+  const rows = await prismaClient.discoverLike.findMany({
+    where: { likerUserId: input.userId, status: "pending", likedUserId: { in: input.profileIds } },
+    orderBy: { createdAt: "desc" },
+    take: 5000,
+  });
   const ids: string[] = [];
   const dedupe = new Set<string>();
-  for (const row of result.data ?? []) {
-    const likedUserId = (row as { liked_user_id?: unknown }).liked_user_id;
-    if (typeof likedUserId !== "string" || likedUserId.length === 0) continue;
-    if (dedupe.has(likedUserId)) continue;
-    dedupe.add(likedUserId);
-    ids.push(likedUserId);
+  for (const row of rows) {
+    if (typeof row.likedUserId !== "string" || row.likedUserId.length === 0) continue;
+    if (dedupe.has(row.likedUserId)) continue;
+    dedupe.add(row.likedUserId);
+    ids.push(row.likedUserId);
   }
   return ids;
 };
@@ -894,25 +752,19 @@ const loadPassedProfileIdsFromLikes = async (input: {
   userId: string;
   profileIds: string[];
 }): Promise<string[]> => {
-  if (!supabaseAdminClient || input.profileIds.length === 0) return [];
-  const result = await supabaseAdminClient
-    .from("discover_likes")
-    .select("liked_user_id,status,passed_at,updated_at")
-    .eq("liker_user_id", input.userId)
-    .eq("status", "passed")
-    .in("liked_user_id", input.profileIds)
-    .order("passed_at", { ascending: false, nullsFirst: false })
-    .order("updated_at", { ascending: false })
-    .limit(5000);
-  if (result.error) throw result.error;
+  if (input.profileIds.length === 0) return [];
+  const rows = await prismaClient.discoverLike.findMany({
+    where: { likerUserId: input.userId, status: "passed", likedUserId: { in: input.profileIds } },
+    orderBy: { createdAt: "desc" },
+    take: 5000,
+  });
   const ids: string[] = [];
   const dedupe = new Set<string>();
-  for (const row of result.data ?? []) {
-    const likedUserId = (row as { liked_user_id?: unknown }).liked_user_id;
-    if (typeof likedUserId !== "string" || likedUserId.length === 0) continue;
-    if (dedupe.has(likedUserId)) continue;
-    dedupe.add(likedUserId);
-    ids.push(likedUserId);
+  for (const row of rows) {
+    if (typeof row.likedUserId !== "string" || row.likedUserId.length === 0) continue;
+    if (dedupe.has(row.likedUserId)) continue;
+    dedupe.add(row.likedUserId);
+    ids.push(row.likedUserId);
   }
   return ids;
 };
@@ -921,23 +773,22 @@ const loadOutgoingLikes = async (input: {
   userId: string;
   status: "pending" | "matched" | "passed" | "all";
 }): Promise<DiscoverLikeRow[]> => {
-  if (!supabaseAdminClient) return [];
-
-  const query = supabaseAdminClient
-    .from("discover_likes")
-    .select("*")
-    .eq("liker_user_id", input.userId)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(500);
-
-  const result =
-    input.status === "all"
-      ? await query
-      : await query.eq("status", input.status);
-
-  if (result.error) throw result.error;
-  return (result.data ?? []) as DiscoverLikeRow[];
+  const rows = await prismaClient.discoverLike.findMany({
+    where: input.status === "all"
+      ? { likerUserId: input.userId }
+      : { likerUserId: input.userId, status: input.status },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 500,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    likerUserId: r.likerUserId,
+    likedUserId: r.likedUserId,
+    status: r.status as DiscoverLikeStatus,
+    wasSuperlike: r.wasSuperlike,
+    hiddenByShadowghost: r.hiddenByShadowghost,
+    createdAt: r.createdAt,
+  }));
 };
 
 const upsertLikeRow = async (input: {
@@ -947,33 +798,42 @@ const upsertLikeRow = async (input: {
   hiddenByShadowGhost: boolean;
   nowIso: string;
 }): Promise<DiscoverLikeRow | null> => {
-  if (!supabaseAdminClient) return null;
-  const existing = await readLikeRow({
-    likerUserId: input.likerUserId,
-    likedUserId: input.likedUserId,
+  const existing = await readLikeRow({ likerUserId: input.likerUserId, likedUserId: input.likedUserId });
+  const wasSuperlike = Boolean(existing?.wasSuperlike) || input.wasSuperLike;
+  const hiddenByShadowghost = Boolean(existing?.hiddenByShadowghost) || input.hiddenByShadowGhost;
+  if (existing) {
+    const updated = await prismaClient.discoverLike.update({
+      where: { id: existing.id },
+      data: { status: "pending", wasSuperlike, hiddenByShadowghost },
+    });
+    return {
+      id: updated.id,
+      likerUserId: updated.likerUserId,
+      likedUserId: updated.likedUserId,
+      status: updated.status as DiscoverLikeStatus,
+      wasSuperlike: updated.wasSuperlike,
+      hiddenByShadowghost: updated.hiddenByShadowghost,
+      createdAt: updated.createdAt,
+    };
+  }
+  const created = await prismaClient.discoverLike.create({
+    data: {
+      likerUserId: input.likerUserId,
+      likedUserId: input.likedUserId,
+      status: "pending",
+      wasSuperlike,
+      hiddenByShadowghost,
+    },
   });
-  const wasSuperLike = Boolean(existing?.was_superlike) || input.wasSuperLike;
-  const hiddenByShadowGhost = Boolean(existing?.hidden_by_shadowghost) || input.hiddenByShadowGhost;
-  const result = await supabaseAdminClient
-    .from("discover_likes")
-    .upsert(
-      {
-        liker_user_id: input.likerUserId,
-        liked_user_id: input.likedUserId,
-        status: "pending",
-        was_superlike: wasSuperLike,
-        hidden_by_shadowghost: hiddenByShadowGhost,
-        created_at: existing?.created_at ?? input.nowIso,
-        updated_at: input.nowIso,
-        passed_at: null,
-        matched_at: null,
-      },
-      { onConflict: "liker_user_id,liked_user_id" },
-    )
-    .select("*")
-    .maybeSingle();
-  if (result.error) throw result.error;
-  return (result.data ?? null) as DiscoverLikeRow | null;
+  return {
+    id: created.id,
+    likerUserId: created.likerUserId,
+    likedUserId: created.likedUserId,
+    status: created.status as DiscoverLikeStatus,
+    wasSuperlike: created.wasSuperlike,
+    hiddenByShadowghost: created.hiddenByShadowghost,
+    createdAt: created.createdAt,
+  };
 };
 
 const upsertMatchConversationForUser = async (input: {
@@ -982,42 +842,38 @@ const upsertMatchConversationForUser = async (input: {
   fromSuperLike: boolean;
   nowIso: string;
 }) => {
-  if (!supabaseAdminClient) return;
   const conversationId = toMatchConversationId(input.userId, input.profileId);
-  const upsertConversation = await supabaseAdminClient.from("chat_conversations").upsert(
-    {
-      user_id: input.userId,
-      conversation_id: conversationId,
-      peer_profile_id: input.profileId,
-      unread_count: 1,
-      last_message_preview: input.fromSuperLike
-        ? "This chat started from a SuperLike."
-        : "New match. Say hello.",
-      last_message_at: input.nowIso,
-      relation_state: "active",
-      relation_state_updated_at: input.nowIso,
-      received_superlike_trace_at: input.fromSuperLike ? input.nowIso : null,
+  const nowDate = new Date(input.nowIso);
+  await prismaClient.chatConversation.upsert({
+    where: { userId_conversationId: { userId: input.userId, conversationId } },
+    update: {
+      unreadCount: 1,
+      lastMessagePreview: input.fromSuperLike ? "This chat started from a SuperLike." : "New match. Say hello.",
+      lastMessageAt: nowDate,
+      relationState: "active",
+      relationStateUpdatedAt: nowDate,
+      receivedSuperlikeTraceAt: input.fromSuperLike ? nowDate : null,
     },
-    { onConflict: "user_id,conversation_id" },
-  );
-  if (upsertConversation.error) throw upsertConversation.error;
+    create: {
+      userId: input.userId,
+      conversationId,
+      peerProfileId: input.profileId,
+      unreadCount: 1,
+      lastMessagePreview: input.fromSuperLike ? "This chat started from a SuperLike." : "New match. Say hello.",
+      lastMessageAt: nowDate,
+      relationState: "active",
+      relationStateUpdatedAt: nowDate,
+      receivedSuperlikeTraceAt: input.fromSuperLike ? nowDate : null,
+    },
+  });
 
-  const upsertWelcome = await supabaseAdminClient.from("chat_messages").upsert(
-    {
-      user_id: input.userId,
-      message_id: `match-welcome-${input.profileId.slice(0, 8)}`,
-      conversation_id: conversationId,
-      sender_user_id: input.profileId,
-      direction: "incoming",
-      original_text: input.fromSuperLike
-        ? "SuperLike landed. Want to chat tonight?"
-        : "We matched. Nice to meet you!",
-      translated: false,
-      created_at: input.nowIso,
-    },
-    { onConflict: "user_id,message_id" },
-  );
-  if (upsertWelcome.error) throw upsertWelcome.error;
+  const messageId = `match-welcome-${input.profileId.slice(0, 8)}`;
+  const welcomeText = input.fromSuperLike ? "SuperLike landed. Want to chat tonight?" : "We matched. Nice to meet you!";
+  await prismaClient.chatMessage.upsert({
+    where: { userId_messageId: { userId: input.userId, messageId } },
+    update: { conversationId, senderUserId: input.profileId, direction: "incoming", originalText: welcomeText, translated: false, createdAt: nowDate },
+    create: { userId: input.userId, messageId, conversationId, senderUserId: input.profileId, direction: "incoming", originalText: welcomeText, translated: false, createdAt: nowDate },
+  });
 };
 
 const createBidirectionalMatch = async (input: {
@@ -1027,7 +883,6 @@ const createBidirectionalMatch = async (input: {
   fromSuperLikeByB: boolean;
   nowIso: string;
 }) => {
-  if (!supabaseAdminClient) return;
   await Promise.all([
     upsertMatchConversationForUser({
       userId: input.userA,
@@ -1051,78 +906,68 @@ const markLikePairMatched = async (input: {
   reciprocalLikedUserId: string;
   nowIso: string;
 }) => {
-  if (!supabaseAdminClient) return;
-  const updateDirect = supabaseAdminClient
-    .from("discover_likes")
-    .update({
-      status: "matched",
-      matched_at: input.nowIso,
-      updated_at: input.nowIso,
-    })
-    .eq("liker_user_id", input.likerUserId)
-    .eq("liked_user_id", input.likedUserId);
-  const updateReciprocal = supabaseAdminClient
-    .from("discover_likes")
-    .update({
-      status: "matched",
-      matched_at: input.nowIso,
-      updated_at: input.nowIso,
-    })
-    .eq("liker_user_id", input.reciprocalLikerUserId)
-    .eq("liked_user_id", input.reciprocalLikedUserId);
-  const [direct, reciprocal] = await Promise.all([updateDirect, updateReciprocal]);
-  if (direct.error) throw direct.error;
-  if (reciprocal.error) throw reciprocal.error;
+  const matchedAt = new Date(input.nowIso);
+  await Promise.all([
+    prismaClient.discoverLike
+      .update({
+        where: { likerUserId_likedUserId: { likerUserId: input.likerUserId, likedUserId: input.likedUserId } },
+        data: { status: "matched", matchedAt },
+      })
+      .catch(() => {}),
+    prismaClient.discoverLike
+      .update({
+        where: { likerUserId_likedUserId: { likerUserId: input.reciprocalLikerUserId, likedUserId: input.reciprocalLikedUserId } },
+        data: { status: "matched", matchedAt },
+      })
+      .catch(() => {}),
+  ]);
 };
 
 const readLikeRow = async (input: {
   likerUserId: string;
   likedUserId: string;
 }): Promise<DiscoverLikeRow | null> => {
-  if (!supabaseAdminClient) return null;
-  const result = await supabaseAdminClient
-    .from("discover_likes")
-    .select("*")
-    .eq("liker_user_id", input.likerUserId)
-    .eq("liked_user_id", input.likedUserId)
-    .maybeSingle();
-  if (result.error) throw result.error;
-  return (result.data ?? null) as DiscoverLikeRow | null;
+  const row = await prismaClient.discoverLike.findUnique({
+    where: { likerUserId_likedUserId: { likerUserId: input.likerUserId, likedUserId: input.likedUserId } },
+  });
+  if (!row) return null;
+  return {
+    id: row.id,
+    likerUserId: row.likerUserId,
+    likedUserId: row.likedUserId,
+    status: row.status as DiscoverLikeStatus,
+    wasSuperlike: row.wasSuperlike,
+    hiddenByShadowghost: row.hiddenByShadowghost,
+    createdAt: row.createdAt,
+  };
 };
 
-const isMissingDiscoverLikeUnlocksTableError = (error: unknown) => {
-  if (!error || typeof error !== "object") return false;
-  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
-  const message =
-    "message" in error ? String((error as { message?: unknown }).message ?? "").toLowerCase() : "";
-  return code === "PGRST205" || code === "42P01" || message.includes("discover_like_unlocks");
-};
 
 const loadIceBreakerUnlockedLikeIds = async (userId: string): Promise<Set<string>> => {
-  if (!supabaseAdminClient) return new Set<string>();
-  const result = await supabaseAdminClient
-    .from("discover_like_unlocks")
-    .select("like_id")
-    .eq("user_id", userId)
-    .limit(1000);
-  if (result.error) {
-    if (isMissingDiscoverLikeUnlocksTableError(result.error)) {
-      return new Set<string>();
-    }
-    throw result.error;
+  try {
+    const rows = await prismaClient.discoverLikeUnlock.findMany({
+      where: { userId },
+      select: { likeId: true },
+      take: 1000,
+    });
+    return new Set(rows.map((r) => r.likeId).filter((v): v is string => typeof v === "string" && v.length > 0));
+  } catch {
+    return new Set<string>();
   }
-  return new Set(
-    (result.data ?? [])
-      .map((row) => (row as { like_id?: unknown }).like_id)
-      .filter((value): value is string => typeof value === "string" && value.length > 0),
-  );
 };
 
 export const buildServer = () => {
-  const app = Fastify({ logger: true });
+  // trustProxy: request.ip resolves the real client behind nginx.
+  const app = Fastify({ logger: true, trustProxy: true });
+
+  // SECURITY: only allow localhost dev origins outside production.
+  const allowedOrigins = [env.APP_URL];
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://127.0.0.1:3000", "http://localhost:3000");
+  }
 
   app.register(cors, {
-    origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     // Discover client sends this header for swipe/rewind/boost idempotency.
@@ -1145,35 +990,16 @@ export const buildServer = () => {
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
     }
-    if (!supabaseAdminClient) {
-      return {
-        state: "empty",
-        inventory: {
-          unlocked: false,
-          hiddenCount: 0,
-          visibleLikes: [],
-          iceBreaker: {
-            eligibleLikesHiddenCount: 0,
-            ownedCount: 0,
-            canUse: false,
-            unlockedCount: 0,
-          },
-        },
-      };
-    }
 
     try {
       const entAndLikesStartMs = performance.now();
-      const [entitlementSnapshot, likesResult] = await Promise.all([
+      const [entitlementSnapshot, likesRaw] = await Promise.all([
         getUserEntitlementSnapshot(userId),
-        supabaseAdminClient
-          .from("discover_likes")
-          .select("*")
-          .eq("liked_user_id", userId)
-          .in("status", ["pending", "matched"])
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .limit(2000),
+        prismaClient.discoverLike.findMany({
+          where: { likedUserId: userId, status: { in: ["pending", "matched"] } },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 2000,
+        }),
       ]);
       mark("entitlement_plus_likes_query_ms", entAndLikesStartMs);
 
@@ -1181,8 +1007,15 @@ export const buildServer = () => {
       const planTier = resolveEntitlementPlanTier(entitlementSnapshot);
       const ownedIceBreakers = getIceBreakersLeft(entitlementSnapshot);
       mark("entitlement_compute_ms", planAndStockStartMs);
-      if (likesResult.error) throw likesResult.error;
-      const likesRows = (likesResult.data ?? []) as DiscoverLikeRow[];
+      const likesRows: DiscoverLikeRow[] = likesRaw.map((r) => ({
+        id: r.id,
+        likerUserId: r.likerUserId,
+        likedUserId: r.likedUserId,
+        status: r.status as DiscoverLikeStatus,
+        wasSuperlike: r.wasSuperlike,
+        hiddenByShadowghost: r.hiddenByShadowghost,
+        createdAt: r.createdAt,
+      }));
       if (likesRows.length === 0) {
         return {
           state: "empty",
@@ -1210,13 +1043,13 @@ export const buildServer = () => {
       } else {
         timing.icebreaker_unlocks_query_ms = 0;
       }
-      const senderIds = [...new Set(likesRows.map((row) => row.liker_user_id))];
+      const senderIds = [...new Set(likesRows.map((row) => row.likerUserId))];
       const photoPolicyByProfile = new Map<string, ImageAccessPolicy>();
       const mergePolicy = (current: ImageAccessPolicy | undefined, next: ImageAccessPolicy) =>
         current === "signed_private" || next === "signed_private" ? "signed_private" : "public_stable";
       for (const row of likesRows) {
         let state: "locked_free" | "shadowghost_active" | "visible_by_entitlement" | "unlocked_icebreaker" | "unlockable_icebreaker" = "locked_free";
-        if (row.hidden_by_shadowghost) {
+        if (row.hiddenByShadowghost) {
           state = "shadowghost_active";
         } else if (unlockedByPlan) {
           state = "visible_by_entitlement";
@@ -1231,8 +1064,8 @@ export const buildServer = () => {
           state === "locked_free" || state === "unlockable_icebreaker" || state === "shadowghost_active"
             ? ("public_stable" as ImageAccessPolicy)
             : resolveImageAccessPolicy("likes", state);
-        const existing = photoPolicyByProfile.get(row.liker_user_id);
-        photoPolicyByProfile.set(row.liker_user_id, mergePolicy(existing, policy));
+        const existing = photoPolicyByProfile.get(row.likerUserId);
+        photoPolicyByProfile.set(row.likerUserId, mergePolicy(existing, policy));
       }
       mark("policy_build_ms", policyBuildStartMs);
 
@@ -1253,9 +1086,9 @@ export const buildServer = () => {
 
       const payloadComposeStartMs = performance.now();
       const visibleLikes = visibleSlice.map((row) => {
-        const sender = senderMap.get(row.liker_user_id);
+        const sender = senderMap.get(row.likerUserId);
         const hiddenByShadowGhost =
-          Boolean(row.hidden_by_shadowghost) &&
+          Boolean(row.hiddenByShadowghost) &&
           (sender ? Boolean(sender.flags.shadowGhost) : true);
         const unlockedByItem = unlockedByIceBreaker.has(row.id);
         const blurredLocked = !(unlockedByPlan || unlockedByItem);
@@ -1275,7 +1108,7 @@ export const buildServer = () => {
               flags: sender.flags,
             }
           : {
-              id: row.liker_user_id,
+              id: row.likerUserId,
               name: "Profile",
               age: 24,
               city: "Moscow",
@@ -1298,8 +1131,8 @@ export const buildServer = () => {
         return {
           id: row.id,
           profile,
-          receivedAtIso: row.created_at,
-          wasSuperLike: Boolean(row.was_superlike),
+          receivedAtIso: row.createdAt.toISOString(),
+          wasSuperLike: Boolean(row.wasSuperlike),
           state: row.status === "matched" ? "matched" : "pending_incoming_like",
           hiddenByShadowGhost,
           blurredLocked,
@@ -1350,9 +1183,6 @@ export const buildServer = () => {
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
     }
-    if (!supabaseAdminClient) {
-      return { state: "empty", likes: [] };
-    }
 
     const parsed = outgoingLikesQuerySchema.safeParse(request.query ?? {});
     if (!parsed.success) {
@@ -1373,7 +1203,7 @@ export const buildServer = () => {
         };
       }
 
-      const profileIds = [...new Set(likesRows.map((row) => row.liked_user_id))];
+      const profileIds = [...new Set(likesRows.map((row) => row.likedUserId))];
       const profileCards = await loadCandidatesByProfileIds({
         profileIds,
         userGeoPoint: null,
@@ -1387,15 +1217,15 @@ export const buildServer = () => {
 
       const likes = likesRows
         .map((row) => {
-          const profile = profileById.get(row.liked_user_id);
+          const profile = profileById.get(row.likedUserId);
           if (!profile) return null;
           return {
             id: row.id,
             profile,
-            sentAtIso: row.created_at,
+            sentAtIso: row.createdAt.toISOString(),
             status: row.status,
-            wasSuperLike: Boolean(row.was_superlike),
-            hiddenByShadowGhost: Boolean(row.hidden_by_shadowghost),
+            wasSuperLike: Boolean(row.wasSuperlike),
+            hiddenByShadowGhost: Boolean(row.hiddenByShadowghost),
           };
         })
         .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
@@ -1416,10 +1246,6 @@ export const buildServer = () => {
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
     }
-    if (!supabaseAdminClient) {
-      reply.status(503);
-      return { code: "DISCOVER_LIKES_UNAVAILABLE" };
-    }
 
     const likeId = (request.params as { likeId?: string }).likeId?.trim();
     if (!likeId) {
@@ -1432,17 +1258,10 @@ export const buildServer = () => {
       const currentLeft = getIceBreakersLeft(entitlementSnapshot);
       const planTier = resolveEntitlementPlanTier(entitlementSnapshot);
 
-      const targetLikeResult = await supabaseAdminClient
-        .from("discover_likes")
-        .select("id,hidden_by_shadowghost,status")
-        .eq("id", likeId)
-        .eq("liked_user_id", userId)
-        .in("status", ["pending", "matched"])
-        .maybeSingle();
-      if (targetLikeResult.error) throw targetLikeResult.error;
-      const targetLike = targetLikeResult.data as
-        | { id: string; hidden_by_shadowghost: boolean | null; status: DiscoverLikeStatus }
-        | null;
+      const targetLike = await prismaClient.discoverLike.findFirst({
+        where: { id: likeId, likedUserId: userId, status: { in: ["pending", "matched"] } },
+        select: { id: true, hiddenByShadowghost: true, status: true },
+      });
       if (!targetLike) {
         reply.status(404);
         return { code: "LIKE_NOT_FOUND" };
@@ -1453,20 +1272,11 @@ export const buildServer = () => {
         return { code: "ICEBREAKER_NOT_REQUIRED_PLAN_UNLOCKED" };
       }
 
-      const existingUnlockResult = await supabaseAdminClient
-        .from("discover_like_unlocks")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("like_id", likeId)
-        .maybeSingle();
-      if (existingUnlockResult.error) {
-        if (isMissingDiscoverLikeUnlocksTableError(existingUnlockResult.error)) {
-          reply.status(503);
-          return { code: "ICEBREAKER_UNLOCKS_TABLE_MISSING" };
-        }
-        throw existingUnlockResult.error;
-      }
-      if (existingUnlockResult.data?.id) {
+      const existingUnlock = await prismaClient.discoverLikeUnlock.findFirst({
+        where: { userId, likeId },
+        select: { id: true },
+      });
+      if (existingUnlock?.id) {
         reply.status(409);
         return { code: "ICEBREAKER_ALREADY_UNLOCKED" };
       }
@@ -1476,19 +1286,9 @@ export const buildServer = () => {
         return { code: "ICEBREAKER_EMPTY" };
       }
 
-      const unlockInsert = await supabaseAdminClient.from("discover_like_unlocks").insert({
-        user_id: userId,
-        like_id: likeId,
-        unlock_method: "icebreaker",
-        consumed_item_id: "instant-icebreaker",
+      await prismaClient.discoverLikeUnlock.create({
+        data: { userId, likeId, unlockMethod: "icebreaker", consumedItemId: "instant-icebreaker" },
       });
-      if (unlockInsert.error) {
-        if (isMissingDiscoverLikeUnlocksTableError(unlockInsert.error)) {
-          reply.status(503);
-          return { code: "ICEBREAKER_UNLOCKS_TABLE_MISSING" };
-        }
-        throw unlockInsert.error;
-      }
 
       const nextSnapshot: EntitlementSnapshot = {
         ...entitlementSnapshot,
@@ -1544,10 +1344,6 @@ export const buildServer = () => {
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
     }
-    if (!supabaseAdminClient) {
-      reply.status(503);
-      return { code: "DISCOVER_LIKES_UNAVAILABLE" };
-    }
     const likeId = (request.params as { likeId?: string }).likeId?.trim();
     if (!likeId) {
       reply.status(400);
@@ -1560,14 +1356,18 @@ export const buildServer = () => {
     }
 
     try {
-      const incomingLikeResult = await supabaseAdminClient
-        .from("discover_likes")
-        .select("*")
-        .eq("id", likeId)
-        .eq("liked_user_id", userId)
-        .maybeSingle();
-      if (incomingLikeResult.error) throw incomingLikeResult.error;
-      const incoming = (incomingLikeResult.data ?? null) as DiscoverLikeRow | null;
+      const incomingRaw = await prismaClient.discoverLike.findFirst({
+        where: { id: likeId, likedUserId: userId },
+      });
+      const incoming: DiscoverLikeRow | null = incomingRaw ? {
+        id: incomingRaw.id,
+        likerUserId: incomingRaw.likerUserId,
+        likedUserId: incomingRaw.likedUserId,
+        status: incomingRaw.status as DiscoverLikeStatus,
+        wasSuperlike: incomingRaw.wasSuperlike,
+        hiddenByShadowghost: incomingRaw.hiddenByShadowghost,
+        createdAt: incomingRaw.createdAt,
+      } : null;
       if (!incoming) {
         reply.status(404);
         return { code: "LIKE_NOT_FOUND" };
@@ -1575,27 +1375,16 @@ export const buildServer = () => {
 
       const nowIso = new Date().toISOString();
       if (parsed.data.action === "pass") {
-        const updateIncoming = await supabaseAdminClient
-          .from("discover_likes")
-          .update({
-            status: "passed",
-            passed_at: nowIso,
-            updated_at: nowIso,
-          })
-          .eq("id", likeId);
-        if (updateIncoming.error) throw updateIncoming.error;
-
-        const updateOutgoing = await supabaseAdminClient
-          .from("discover_likes")
-          .update({
-            status: "passed",
-            passed_at: nowIso,
-            updated_at: nowIso,
-          })
-          .eq("liker_user_id", userId)
-          .eq("liked_user_id", incoming.liker_user_id)
-          .in("status", ["pending", "matched"]);
-        if (updateOutgoing.error) throw updateOutgoing.error;
+        // Update the incoming like to passed
+        await prismaClient.discoverLike.update({ where: { id: likeId }, data: { status: "passed" } });
+        // Update the outgoing like (userId → incoming.likerUserId) if it exists and is pending/matched
+        const outgoingPassRow = await prismaClient.discoverLike.findFirst({
+          where: { likerUserId: userId, likedUserId: incoming.likerUserId, status: { in: ["pending", "matched"] } },
+          select: { id: true },
+        });
+        if (outgoingPassRow) {
+          await prismaClient.discoverLike.update({ where: { id: outgoingPassRow.id }, data: { status: "passed" } });
+        }
 
         return {
           ok: true,
@@ -1605,16 +1394,22 @@ export const buildServer = () => {
         };
       }
 
+      // SECURITY: never reciprocate a like onto yourself (self-match guard).
+      if (incoming.likerUserId === userId) {
+        reply.status(400);
+        return { code: "SELF_LIKE_NOT_ALLOWED" };
+      }
+
       const hiddenByShadowGhost = await getUserShadowGhostState(userId);
       const outgoing = await upsertLikeRow({
         likerUserId: userId,
-        likedUserId: incoming.liker_user_id,
+        likedUserId: incoming.likerUserId,
         wasSuperLike: false,
         hiddenByShadowGhost,
         nowIso,
       });
       const reciprocal = await readLikeRow({
-        likerUserId: incoming.liker_user_id,
+        likerUserId: incoming.likerUserId,
         likedUserId: userId,
       });
 
@@ -1628,23 +1423,23 @@ export const buildServer = () => {
       }
 
       await markLikePairMatched({
-        likerUserId: outgoing.liker_user_id,
-        likedUserId: outgoing.liked_user_id,
-        reciprocalLikerUserId: reciprocal.liker_user_id,
-        reciprocalLikedUserId: reciprocal.liked_user_id,
+        likerUserId: outgoing.likerUserId,
+        likedUserId: outgoing.likedUserId,
+        reciprocalLikerUserId: reciprocal.likerUserId,
+        reciprocalLikedUserId: reciprocal.likedUserId,
         nowIso,
       });
 
       await createBidirectionalMatch({
         userA: userId,
-        userB: incoming.liker_user_id,
-        fromSuperLikeByA: Boolean(outgoing.was_superlike),
-        fromSuperLikeByB: Boolean(reciprocal.was_superlike),
+        userB: incoming.likerUserId,
+        fromSuperLikeByA: Boolean(outgoing.wasSuperlike),
+        fromSuperLikeByB: Boolean(reciprocal.wasSuperlike),
         nowIso,
       });
 
       const senderCards = await loadCandidatesByProfileIds({
-        profileIds: [incoming.liker_user_id],
+        profileIds: [incoming.likerUserId],
         userGeoPoint: null,
         logger: app.log,
         resolvePhotoAccess: () => resolveImageAccessPolicy("messages", "pending"),
@@ -1656,7 +1451,7 @@ export const buildServer = () => {
         likeId,
         status: "matched",
         matched: true,
-        conversationId: toMatchConversationId(userId, incoming.liker_user_id),
+        conversationId: toMatchConversationId(userId, incoming.likerUserId),
         peerOnline,
       };
     } catch (error) {
@@ -1814,8 +1609,8 @@ export const buildServer = () => {
     try {
       const events = await loadDiscoverFeedEventsByProfileIds({ userId, profileIds: candidateIds });
       passedFromEvents = events
-        .filter((row) => row.last_decision === "dislike")
-        .map((row) => row.profile_id)
+        .filter((row) => row.lastDecision === "dislike")
+        .map((row) => row.profileId)
         .filter((value): value is string => typeof value === "string" && value.length > 0);
     } catch (error) {
       app.log.warn({ err: error, userId }, "discover.feed_reset_events_load_failed");
@@ -1958,6 +1753,25 @@ export const buildServer = () => {
     }
 
     const { profileId, decision } = parsed.data;
+
+    // SECURITY: a user must not be able to like/match themselves, nor pollute
+    // discoverLike with non-existent profile ids via a forged request.
+    if (profileId === userId) {
+      reply.status(400);
+      return { code: "SELF_SWIPE_NOT_ALLOWED", message: "You cannot swipe on yourself." };
+    }
+    try {
+      const exists = await ensureProfileExists(profileId);
+      if (!exists) {
+        reply.status(404);
+        return { code: "PROFILE_NOT_FOUND", message: "Profile not found." };
+      }
+    } catch (error) {
+      app.log.warn({ err: error, userId, profileId }, "discover.swipe_profile_lookup_failed");
+      reply.status(503);
+      return { code: "PROFILE_LOOKUP_UNAVAILABLE" };
+    }
+
     try {
       await upsertDiscoverFeedEvent({
         userId,
@@ -1989,29 +1803,18 @@ export const buildServer = () => {
     );
 
     if (decision === "dislike") {
-      if (supabaseAdminClient) {
-        const nowIso = new Date().toISOString();
-        try {
-          const persisted = await supabaseAdminClient
-            .from("discover_likes")
-            .upsert(
-              {
-                liker_user_id: userId,
-                liked_user_id: profileId,
-                status: "passed",
-                was_superlike: false,
-                hidden_by_shadowghost: false,
-                passed_at: nowIso,
-                matched_at: null,
-                updated_at: nowIso,
-                created_at: nowIso,
-              },
-              { onConflict: "liker_user_id,liked_user_id" },
-            );
-          if (persisted.error) throw persisted.error;
-        } catch (error) {
-          app.log.warn({ err: error, userId, profileId }, "discover.persist_passed_like_failed");
+      const nowIso = new Date().toISOString();
+      try {
+        const existing = await readLikeRow({ likerUserId: userId, likedUserId: profileId });
+        if (existing) {
+          await prismaClient.discoverLike.update({ where: { id: existing.id }, data: { status: "passed" } });
+        } else {
+          await prismaClient.discoverLike.create({
+            data: { likerUserId: userId, likedUserId: profileId, status: "passed", wasSuperlike: false, hiddenByShadowghost: false },
+          });
         }
+      } catch (error) {
+        app.log.warn({ err: error, userId, profileId }, "discover.persist_passed_like_failed");
       }
       return {
         matched: false,
@@ -2022,59 +1825,57 @@ export const buildServer = () => {
     let matched = false;
     let conversationId: string | undefined;
 
-    if (supabaseAdminClient) {
-      try {
-        const hiddenByShadowGhost = await getUserShadowGhostState(userId);
-        const outgoing = await upsertLikeRow({
-          likerUserId: userId,
-          likedUserId: profileId,
-          wasSuperLike: false,
-          hiddenByShadowGhost,
-          nowIso,
-        });
+    try {
+      const hiddenByShadowGhost = await getUserShadowGhostState(userId);
+      const outgoing = await upsertLikeRow({
+        likerUserId: userId,
+        likedUserId: profileId,
+        wasSuperLike: false,
+        hiddenByShadowGhost,
+        nowIso,
+      });
 
-        const seed = `${userId}:${profileId}`;
-        const deterministic = stableScore(seed);
-        const matchedByScoring = deterministic >= 62;
-        const matchedByActorAutoLike = await isActorProfileId(profileId, app.log);
+      const seed = `${userId}:${profileId}`;
+      const deterministic = stableScore(seed);
+      const matchedByScoring = deterministic >= 62;
+      const matchedByActorAutoLike = await isActorProfileId(profileId, app.log);
 
-        if (matchedByScoring || matchedByActorAutoLike) {
-          const reciprocalShadowGhost = await getUserShadowGhostState(profileId);
-          await upsertLikeRow({
-            likerUserId: profileId,
-            likedUserId: userId,
-            wasSuperLike: false,
-            hiddenByShadowGhost: reciprocalShadowGhost,
-            nowIso,
-          });
-        }
-
-        const reciprocal = await readLikeRow({
+      if (matchedByScoring || matchedByActorAutoLike) {
+        const reciprocalShadowGhost = await getUserShadowGhostState(profileId);
+        await upsertLikeRow({
           likerUserId: profileId,
           likedUserId: userId,
+          wasSuperLike: false,
+          hiddenByShadowGhost: reciprocalShadowGhost,
+          nowIso,
         });
-
-        if (outgoing && reciprocal && outgoing.status !== "passed" && reciprocal.status !== "passed") {
-          await markLikePairMatched({
-            likerUserId: outgoing.liker_user_id,
-            likedUserId: outgoing.liked_user_id,
-            reciprocalLikerUserId: reciprocal.liker_user_id,
-            reciprocalLikedUserId: reciprocal.liked_user_id,
-            nowIso,
-          });
-          await createBidirectionalMatch({
-            userA: userId,
-            userB: profileId,
-            fromSuperLikeByA: Boolean(outgoing.was_superlike),
-            fromSuperLikeByB: Boolean(reciprocal.was_superlike),
-            nowIso,
-          });
-          matched = true;
-          conversationId = toMatchConversationId(userId, profileId);
-        }
-      } catch (error) {
-        app.log.warn({ err: error, userId, profileId }, "discover.persist_like_or_match_failed");
       }
+
+      const reciprocal = await readLikeRow({
+        likerUserId: profileId,
+        likedUserId: userId,
+      });
+
+      if (outgoing && reciprocal && outgoing.status !== "passed" && reciprocal.status !== "passed") {
+        await markLikePairMatched({
+          likerUserId: outgoing.likerUserId,
+          likedUserId: outgoing.likedUserId,
+          reciprocalLikerUserId: reciprocal.likerUserId,
+          reciprocalLikedUserId: reciprocal.likedUserId,
+          nowIso,
+        });
+        await createBidirectionalMatch({
+          userA: userId,
+          userB: profileId,
+          fromSuperLikeByA: Boolean(outgoing.wasSuperlike),
+          fromSuperLikeByB: Boolean(reciprocal.wasSuperlike),
+          nowIso,
+        });
+        matched = true;
+        conversationId = toMatchConversationId(userId, profileId);
+      }
+    } catch (error) {
+      app.log.warn({ err: error, userId, profileId }, "discover.persist_like_or_match_failed");
     }
 
     return {
@@ -2087,10 +1888,6 @@ export const buildServer = () => {
     const userId = resolveAuthenticatedUserId(request, reply);
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
-    }
-    if (!supabaseAdminClient) {
-      reply.status(503);
-      return { code: "DISCOVER_SUPERLIKE_UNAVAILABLE" };
     }
 
     const parsed = superLikeSendSchema.safeParse(request.body ?? {});
@@ -2192,14 +1989,11 @@ export const buildServer = () => {
       });
 
       let recipientUnreadCount = 1;
-      const recipientConversationResult = await supabaseAdminClient
-        .from("chat_conversations")
-        .select("unread_count")
-        .eq("user_id", profileId)
-        .eq("conversation_id", recipientConversationId)
-        .maybeSingle();
-      if (recipientConversationResult.error) throw recipientConversationResult.error;
-      const existingUnread = Math.max(0, recipientConversationResult.data?.unread_count ?? 0);
+      const recipientConversation = await prismaClient.chatConversation.findFirst({
+        where: { userId: profileId, conversationId: recipientConversationId },
+        select: { unreadCount: true },
+      });
+      const existingUnread = Math.max(0, recipientConversation?.unreadCount ?? 0);
       recipientUnreadCount = existingUnread + 1;
 
       await Promise.all([
@@ -2365,9 +2159,6 @@ export const buildServer = () => {
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
     }
-    if (!supabaseAdminClient) {
-      return resolveBoostStatus({ boostsLeft: 0 });
-    }
 
     try {
       const snapshot = await getUserEntitlementSnapshot(userId);
@@ -2388,10 +2179,6 @@ export const buildServer = () => {
     const userId = resolveAuthenticatedUserId(request, reply);
     if (!userId) {
       return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
-    }
-    if (!supabaseAdminClient) {
-      reply.status(503);
-      return { code: "DISCOVER_BOOST_UNAVAILABLE" };
     }
 
     const parsed = boostActivateSchema.safeParse(request.body ?? {});

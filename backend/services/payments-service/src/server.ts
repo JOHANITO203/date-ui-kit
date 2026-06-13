@@ -15,7 +15,9 @@ import {
   type EntitlementSnapshot,
 } from "./entitlements.js";
 import { YooKassaClient } from "./providers/yookassaClient.js";
-import { supabaseServiceClient } from "./lib/supabaseClient.js";
+import { timingSafeEqual } from "node:crypto";
+import { Prisma } from "@prisma/client";
+import { prismaClient } from "./lib/prismaClient.js";
 import { consumeRateLimit } from "./rateLimit.js";
 
 type CheckoutState = "pending" | "paid" | "failed";
@@ -54,9 +56,10 @@ type CatalogBuildResult = {
 
 const CATALOG_CACHE_TTL_MS = 60_000;
 
+// SECURITY: identity is always derived from the JWT `sub`, never from the body.
+// `userId` is intentionally NOT accepted here to avoid mass-assignment.
 const checkoutSchema = z.object({
   offerId: z.string().min(1),
-  userId: z.string().min(1).optional(),
   locale: z.string().optional(),
   successUrl: z.string().url().optional(),
   failUrl: z.string().url().optional(),
@@ -64,7 +67,6 @@ const checkoutSchema = z.object({
 
 const checkoutStatusSchema = z.object({
   checkoutId: z.string().min(1),
-  userId: z.string().min(1).optional(),
 });
 
 const yookassaOrderStatusSchema = z.object({
@@ -81,6 +83,20 @@ const formatOrderNumber = (offerId: string, userId: string) => {
 const toCurrencyCode = (currencyNumeric: number) => {
   if (currencyNumeric === 643) return "RUB";
   return "RUB";
+};
+
+// SECURITY: only allow the PSP return URL to point back to our own app origin.
+// A client-supplied successUrl on a foreign origin is an open-redirect / phishing
+// vector branded as our payment flow. Falls back to the configured default.
+const sanitizeReturnUrl = (candidate: string | undefined, fallback: string): string => {
+  if (!candidate) return fallback;
+  try {
+    const appOrigin = new URL(env.APP_URL).origin;
+    const candidateOrigin = new URL(candidate).origin;
+    return candidateOrigin === appOrigin ? candidate : fallback;
+  } catch {
+    return fallback;
+  }
 };
 
 const formatAmountValue = (amountMinor: number) => (amountMinor / 100).toFixed(2);
@@ -138,13 +154,10 @@ const pickYooKassaPaymentPayload = (body: Record<string, unknown>) => {
   };
 };
 
-const getRequestIp = (headers: Record<string, unknown>, fallback: string) => {
-  const forwardedFor = headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  return fallback;
-};
+// SECURITY: with Fastify trustProxy enabled, `fallback` (request.ip) is the real
+// client IP resolved from the trusted proxy hop. We must NOT trust the raw
+// x-forwarded-for header directly — a client can spoof it to bypass rate limits.
+const getRequestIp = (_headers: Record<string, unknown>, fallback: string) => fallback;
 
 const getWebhookSecret = (headers: Record<string, unknown>) => {
   const headerToken = headers["x-yookassa-webhook-secret"];
@@ -152,6 +165,14 @@ const getWebhookSecret = (headers: Record<string, unknown>) => {
   const altHeaderToken = headers["x-webhook-secret"];
   if (typeof altHeaderToken === "string" && altHeaderToken.trim()) return altHeaderToken.trim();
   return "";
+};
+
+// Constant-time string comparison to avoid leaking the secret via timing.
+const timingSafeEqualStr = (a: string, b: string): boolean => {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
 };
 
 const requiredOfferIds = offersCatalog.map((offer) => offer.id);
@@ -216,10 +237,16 @@ const resolveAuthenticatedUserId = (request: FastifyRequest, reply: FastifyReply
 };
 
 export const buildServer = () => {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: true });
+
+  // SECURITY: only allow localhost dev origins outside production.
+  const allowedOrigins = [env.APP_URL];
+  if (env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://127.0.0.1:3000", "http://localhost:3000");
+  }
 
   app.register(cors, {
-    origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -239,37 +266,106 @@ export const buildServer = () => {
   ) => !consumeRateLimit(key, { max, windowMs }).allowed;
 
   const upsertCheckout = async (row: CheckoutRow) => {
-    if (!supabaseServiceClient) {
+    try {
+      await prismaClient.paymentCheckout.upsert({
+        where: { checkoutId: row.checkout_id },
+        update: {
+          yookassaPaymentId: row.yookassa_payment_id,
+          orderNumber: row.order_number,
+          userId: row.user_id,
+          offerId: row.offer_id,
+          mode: row.mode,
+          status: row.status,
+          attributed: row.attributed,
+          entitlementSnapshot: (row.entitlement_snapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+          providerRaw: (row.provider_raw ?? undefined) as Prisma.InputJsonValue | undefined,
+        },
+        create: {
+          checkoutId: row.checkout_id,
+          yookassaPaymentId: row.yookassa_payment_id,
+          orderNumber: row.order_number,
+          userId: row.user_id,
+          offerId: row.offer_id,
+          mode: row.mode,
+          status: row.status,
+          attributed: row.attributed,
+          entitlementSnapshot: (row.entitlement_snapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+          providerRaw: (row.provider_raw ?? undefined) as Prisma.InputJsonValue | undefined,
+        },
+      });
+    } catch {
       checkoutsMemory.set(row.checkout_id, row);
-      return;
     }
-    const { error } = await supabaseServiceClient.from("payments_checkouts").upsert(row, {
-      onConflict: "checkout_id",
-    });
-    if (error) throw error;
   };
 
   const getCheckout = async (checkoutId: string, userId: string): Promise<CheckoutRow | null> => {
-    if (!supabaseServiceClient) {
+    try {
+      const row = await prismaClient.paymentCheckout.findFirst({
+        where: { checkoutId, userId },
+      });
+      if (!row) return checkoutsMemory.get(checkoutId) ?? null;
+      return {
+        checkout_id: row.checkoutId,
+        yookassa_payment_id: row.yookassaPaymentId ?? null,
+        order_number: row.orderNumber,
+        user_id: row.userId,
+        offer_id: row.offerId,
+        mode: row.mode as CheckoutRow["mode"],
+        status: row.status as CheckoutState,
+        attributed: row.attributed,
+        entitlement_snapshot: (row.entitlementSnapshot as EntitlementSnapshot | null) ?? null,
+        provider_raw: (row.providerRaw as Record<string, unknown> | null) ?? null,
+      };
+    } catch {
       const checkout = checkoutsMemory.get(checkoutId);
       if (!checkout || checkout.user_id !== userId) return null;
       return checkout;
     }
-    const { data, error } = await supabaseServiceClient
-      .from("payments_checkouts")
-      .select("*")
-      .eq("checkout_id", checkoutId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error) throw error;
-    return (data as CheckoutRow | null) ?? null;
   };
 
   const getCheckoutByPaymentOrOrder = async (input: {
     yookassaPaymentId?: string;
     orderNumber?: string;
   }): Promise<CheckoutRow | null> => {
-    if (!supabaseServiceClient) {
+    const toRow = (row: {
+      checkoutId: string;
+      yookassaPaymentId: string | null;
+      orderNumber: string;
+      userId: string;
+      offerId: string;
+      mode: string;
+      status: string;
+      attributed: boolean;
+      entitlementSnapshot: unknown;
+      providerRaw: unknown;
+    }): CheckoutRow => ({
+      checkout_id: row.checkoutId,
+      yookassa_payment_id: row.yookassaPaymentId ?? null,
+      order_number: row.orderNumber,
+      user_id: row.userId,
+      offer_id: row.offerId,
+      mode: row.mode as CheckoutRow["mode"],
+      status: row.status as CheckoutState,
+      attributed: row.attributed,
+      entitlement_snapshot: (row.entitlementSnapshot as EntitlementSnapshot | null) ?? null,
+      provider_raw: (row.providerRaw as Record<string, unknown> | null) ?? null,
+    });
+
+    try {
+      if (input.yookassaPaymentId) {
+        const row = await prismaClient.paymentCheckout.findFirst({
+          where: { yookassaPaymentId: input.yookassaPaymentId },
+        });
+        if (row) return toRow(row);
+      }
+      if (input.orderNumber) {
+        const row = await prismaClient.paymentCheckout.findFirst({
+          where: { orderNumber: input.orderNumber },
+        });
+        if (row) return toRow(row);
+      }
+      return null;
+    } catch {
       const values = [...checkoutsMemory.values()];
       if (input.yookassaPaymentId) {
         const byPayment = values.find((entry) => entry.yookassa_payment_id === input.yookassaPaymentId);
@@ -281,116 +377,94 @@ export const buildServer = () => {
       }
       return null;
     }
-    if (input.yookassaPaymentId) {
-      const { data, error } = await supabaseServiceClient
-        .from("payments_checkouts")
-        .select("*")
-        .eq("yookassa_payment_id", input.yookassaPaymentId)
-        .maybeSingle();
-      if (error) throw error;
-      if (data) return data as CheckoutRow;
-    }
-
-    if (input.orderNumber) {
-      const { data, error } = await supabaseServiceClient
-        .from("payments_checkouts")
-        .select("*")
-        .eq("order_number", input.orderNumber)
-        .maybeSingle();
-      if (error) throw error;
-      if (data) return data as CheckoutRow;
-    }
-
-    return null;
   };
 
   const patchCheckout = async (
     checkoutId: string,
     patch: Partial<Pick<CheckoutRow, "status" | "attributed" | "entitlement_snapshot" | "provider_raw">>,
   ) => {
-    if (!supabaseServiceClient) {
+    try {
+      await prismaClient.paymentCheckout.update({
+        where: { checkoutId },
+        data: {
+          ...(patch.status !== undefined && { status: patch.status }),
+          ...(patch.attributed !== undefined && { attributed: patch.attributed }),
+          ...(patch.entitlement_snapshot !== undefined && {
+            entitlementSnapshot: (patch.entitlement_snapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+          }),
+          ...(patch.provider_raw !== undefined && {
+            providerRaw: (patch.provider_raw ?? undefined) as Prisma.InputJsonValue | undefined,
+          }),
+        },
+      });
+    } catch {
       const existing = checkoutsMemory.get(checkoutId);
       if (!existing) return;
-      checkoutsMemory.set(checkoutId, {
-        ...existing,
-        ...patch,
-      });
-      return;
+      checkoutsMemory.set(checkoutId, { ...existing, ...patch });
     }
-    const { error } = await supabaseServiceClient
-      .from("payments_checkouts")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("checkout_id", checkoutId);
-    if (error) throw error;
   };
 
   const listPendingAttributionCheckouts = async (userId: string): Promise<CheckoutRow[]> => {
-    if (!supabaseServiceClient) {
+    try {
+      const rows = await prismaClient.paymentCheckout.findMany({
+        where: { userId, status: "paid", attributed: false },
+        orderBy: { updatedAt: "desc" },
+        take: 20,
+      });
+      return rows.map((row) => ({
+        checkout_id: row.checkoutId,
+        yookassa_payment_id: row.yookassaPaymentId ?? null,
+        order_number: row.orderNumber,
+        user_id: row.userId,
+        offer_id: row.offerId,
+        mode: row.mode as CheckoutRow["mode"],
+        status: row.status as CheckoutState,
+        attributed: row.attributed,
+        entitlement_snapshot: (row.entitlementSnapshot as EntitlementSnapshot | null) ?? null,
+        provider_raw: (row.providerRaw as Record<string, unknown> | null) ?? null,
+      }));
+    } catch {
       return [...checkoutsMemory.values()].filter(
         (entry) => entry.user_id === userId && entry.status === "paid" && !entry.attributed,
       );
     }
-    const { data, error } = await supabaseServiceClient
-      .from("payments_checkouts")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("status", "paid")
-      .eq("attributed", false)
-      .order("updated_at", { ascending: false })
-      .limit(20);
-    if (error) throw error;
-    return (data as CheckoutRow[] | null) ?? [];
   };
 
   const saveEntitlement = async (userId: string, snapshot: EntitlementSnapshot) => {
     const sanitized = sanitizeEntitlementSnapshot(snapshot);
-    if (!supabaseServiceClient) {
+    try {
+      if (!sanitized) {
+        await prismaClient.userEntitlement.deleteMany({ where: { userId } });
+        entitlementsMemory.delete(userId);
+        return;
+      }
+      await prismaClient.userEntitlement.upsert({
+        where: { userId },
+        update: { entitlementSnapshot: sanitized as object },
+        create: { userId, entitlementSnapshot: sanitized as object },
+      });
+      entitlementsMemory.set(userId, sanitized);
+    } catch {
       if (sanitized) {
         entitlementsMemory.set(userId, sanitized);
       } else {
         entitlementsMemory.delete(userId);
       }
-      return;
     }
-
-    if (!sanitized) {
-      const { error } = await supabaseServiceClient
-        .from("user_entitlements")
-        .delete()
-        .eq("user_id", userId);
-      if (error) throw error;
-      return;
-    }
-
-    const { error } = await supabaseServiceClient
-      .from("user_entitlements")
-      .upsert(
-        {
-          user_id: userId,
-          entitlement_snapshot: sanitized,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
-    if (error) throw error;
   };
 
   const getEntitlement = async (userId: string): Promise<EntitlementSnapshot | null> => {
-    if (!supabaseServiceClient) {
+    try {
+      const row = await prismaClient.userEntitlement.findUnique({
+        where: { userId },
+        select: { entitlementSnapshot: true },
+      });
+      return sanitizeEntitlementSnapshot(
+        (row?.entitlementSnapshot as EntitlementSnapshot | null | undefined) ?? null,
+      );
+    } catch {
       return sanitizeEntitlementSnapshot(entitlementsMemory.get(userId) ?? null);
     }
-
-    const { data, error } = await supabaseServiceClient
-      .from("user_entitlements")
-      .select("entitlement_snapshot")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    return sanitizeEntitlementSnapshot(
-      (data?.entitlement_snapshot as EntitlementSnapshot | null | undefined) ?? null,
-    );
   };
 
   const getCatalog = async (): Promise<CatalogBuildResult> => {
@@ -416,36 +490,41 @@ export const buildServer = () => {
       return result;
     }
 
-    if (!supabaseServiceClient) {
+    let dbRows: {
+      id: string;
+      label: string;
+      description: string | null;
+      tag: string | null;
+      amountMinor: number;
+      currencyNumeric: number;
+      type: string;
+      durationHours: number | null;
+    }[];
+    try {
+      dbRows = await prismaClient.inAppOffer.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          label: true,
+          description: true,
+          tag: true,
+          amountMinor: true,
+          currencyNumeric: true,
+          type: true,
+          durationHours: true,
+        },
+      });
+    } catch (dbErr) {
       if (env.PAYMENTS_CATALOG_SOURCE === "db_strict") {
-        throw new Error("catalog_db_strict_requires_supabase");
-      }
-      const fallback = buildFromCode("supabase_client_unavailable");
-      app.log.error(
-        { reason: fallback.reason, sourceMode: env.PAYMENTS_CATALOG_SOURCE },
-        "payments.catalog.emergency_fallback_used",
-      );
-      const result = { ...fallback, source: "fallback" as const };
-      catalogCache = { fetchedAt: now, result };
-      return result;
-    }
-
-    const { data, error } = await supabaseServiceClient
-      .from("in_app_offers")
-      .select("id,label,description,tag,amount_minor,currency_numeric,type,duration_hours,is_active,sort_order")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true });
-
-    if (error || !data) {
-      if (env.PAYMENTS_CATALOG_SOURCE === "db_strict") {
-        throw new Error(`catalog_db_query_failed:${error?.message ?? "unknown"}`);
+        throw new Error(`catalog_db_query_failed:${dbErr instanceof Error ? dbErr.message : "unknown"}`);
       }
       const fallback = buildFromCode("catalog_db_query_failed");
       app.log.error(
         {
           reason: fallback.reason,
           sourceMode: env.PAYMENTS_CATALOG_SOURCE,
-          dbError: error?.message ?? null,
+          dbError: dbErr instanceof Error ? dbErr.message : null,
         },
         "payments.catalog.emergency_fallback_used",
       );
@@ -455,17 +534,17 @@ export const buildServer = () => {
     }
 
     const invalidDbRows: string[] = [];
-    const parsedOffers = (data as Record<string, unknown>[])
+    const parsedOffers = dbRows
       .map((row) => {
         const parsed = offerSchema.safeParse({
           id: row.id,
           label: row.label,
           description: row.description,
           tag: row.tag,
-          amountMinor: row.amount_minor,
-          currencyNumeric: row.currency_numeric,
+          amountMinor: row.amountMinor,
+          currencyNumeric: row.currencyNumeric,
           type: row.type,
-          durationHours: row.duration_hours ?? undefined,
+          durationHours: row.durationHours ?? undefined,
         });
         if (!parsed.success) {
           invalidDbRows.push(String(row.id ?? "unknown"));
@@ -604,12 +683,11 @@ export const buildServer = () => {
     }
   };
 
+  // Public health check — intentionally minimal. Internal config (PSP mode,
+  // dev-auto-grant) must NOT be disclosed to unauthenticated callers.
   app.get("/health", async () => ({
     status: "ok",
     service: "payments-service",
-    pspMode: yookassa ? "yookassa" : "mock",
-    devAutoGrant: devAutoGrantEnabled,
-    persistence: supabaseServiceClient ? "supabase" : "memory",
     timestamp: new Date().toISOString(),
   }));
 
@@ -685,7 +763,7 @@ export const buildServer = () => {
       const snapshot = await getEntitlement(userId);
       if (snapshot) {
         await saveEntitlement(userId, snapshot);
-      } else if (!supabaseServiceClient) {
+      } else {
         entitlementsMemory.delete(userId);
       }
 
@@ -796,7 +874,7 @@ export const buildServer = () => {
         orderNumber,
         userId,
         offerId: offer.id,
-        returnUrl: payload.successUrl ?? env.YOOKASSA_RETURN_URL,
+        returnUrl: sanitizeReturnUrl(payload.successUrl, env.YOOKASSA_RETURN_URL),
         capture: true,
       });
     } catch (error) {
@@ -915,10 +993,23 @@ export const buildServer = () => {
       return { code: "RATE_LIMITED", message: "Too many webhook requests." };
     }
 
+    // SECURITY: webhook authenticity.
+    // 1) The shared-secret header (when configured) gates the endpoint.
+    //    It is mandatory in production: a missing secret means we cannot
+    //    distinguish a genuine PSP callback from a forged one, so we fail closed.
+    // 2) Regardless of the secret, the payment status is NEVER taken from the
+    //    request body — it is re-fetched from YooKassa's API below. This makes
+    //    a forged webhook body harmless even if the secret ever leaks.
     const secretFromHeader = getWebhookSecret(request.headers as Record<string, unknown>);
-    if (env.hasWebhookSecret && secretFromHeader !== env.YOOKASSA_WEBHOOK_SECRET) {
-      reply.status(401);
-      return { accepted: false, matched: false, reason: "invalid_webhook_secret" };
+    if (env.hasWebhookSecret) {
+      if (!timingSafeEqualStr(secretFromHeader, env.YOOKASSA_WEBHOOK_SECRET ?? "")) {
+        reply.status(401);
+        return { accepted: false, matched: false, reason: "invalid_webhook_secret" };
+      }
+    } else if (env.NODE_ENV === "production") {
+      request.log.error("payments.webhook.secret_not_configured_in_production");
+      reply.status(503);
+      return { accepted: false, matched: false, reason: "webhook_secret_not_configured" };
     }
 
     const body = asRecord(request.body);
@@ -938,14 +1029,39 @@ export const buildServer = () => {
       };
     }
 
-    const statusFromEvent = normalizeYooKassaStatus(payload.paymentStatus);
+    // SECURITY: never trust payload.paymentStatus. Re-fetch the authoritative
+    // status from YooKassa using the stored payment id (same pattern as
+    // /payments/checkout/status). Only a real "yookassa" checkout with a known
+    // payment id can be attributed via the webhook.
+    if (checkout.mode !== "yookassa" || !checkout.yookassa_payment_id || !yookassa) {
+      reply.status(202);
+      return {
+        accepted: true,
+        matched: false,
+        reason: "checkout_not_verifiable",
+      };
+    }
+
+    let payment;
+    try {
+      payment = await yookassa.getPayment(checkout.yookassa_payment_id);
+    } catch (error) {
+      request.log.error(
+        { error, checkoutId: checkout.checkout_id },
+        "payments.webhook.psp_verify_failed",
+      );
+      reply.status(502);
+      return { accepted: false, matched: true, reason: "psp_verify_failed" };
+    }
+
+    const verifiedStatus = normalizeYooKassaStatus(payment.status);
     await patchCheckout(checkout.checkout_id, {
-      status: statusFromEvent,
-      provider_raw: body,
+      status: verifiedStatus,
+      provider_raw: payment as unknown as Record<string, unknown>,
     });
 
-    checkout.status = statusFromEvent;
-    checkout.provider_raw = body;
+    checkout.status = verifiedStatus;
+    checkout.provider_raw = payment as unknown as Record<string, unknown>;
 
     const attributedResult = await attributeCheckoutSafely(checkout, "yookassa_webhook");
     const attributed = attributedResult.checkout;
@@ -962,6 +1078,16 @@ export const buildServer = () => {
   });
 
   app.post("/payments/order-status", async (request, reply) => {
+    const userId = resolveAuthenticatedUserId(request, reply);
+    if (!userId) {
+      return { code: "UNAUTHORIZED", message: "Missing or invalid internal token." };
+    }
+    const requestKey = `${getRequestIp(request.headers as Record<string, unknown>, request.ip)}:order-status`;
+    if (isRateLimited(requestKey, env.RATE_LIMIT_MAX_STATUS)) {
+      reply.status(429);
+      return { code: "RATE_LIMITED", message: "Too many status checks. Retry later." };
+    }
+
     if (!yookassa) {
       reply.status(503);
       return { code: "PSP_NOT_CONFIGURED" };
@@ -973,10 +1099,28 @@ export const buildServer = () => {
       return { code: "INVALID_PAYLOAD", message: "Invalid YooKassa status payload." };
     }
 
-    const payment = await yookassa.getPayment(parsed.data.paymentId);
+    // SECURITY: the payment id must map to a checkout owned by the caller.
+    // Prevents anonymous/cross-user enumeration of arbitrary payments.
+    const checkout = await getCheckoutByPaymentOrOrder({ yookassaPaymentId: parsed.data.paymentId });
+    if (!checkout || checkout.user_id !== userId) {
+      reply.status(404);
+      return { code: "PAYMENT_NOT_FOUND" };
+    }
+
+    let payment;
+    try {
+      payment = await yookassa.getPayment(parsed.data.paymentId);
+    } catch (error) {
+      request.log.error({ error }, "payments.order_status.psp_failed");
+      reply.status(502);
+      return { code: "PSP_STATUS_FAILED", message: "Unable to fetch payment status." };
+    }
+
+    // Return only a minimal, non-sensitive status — never the raw PSP object.
     return {
       provider: "yookassa",
-      response: payment,
+      status: normalizeYooKassaStatus(payment.status),
+      paid: Boolean(payment.paid),
     };
   });
 

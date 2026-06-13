@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config";
-import { supabaseServiceClient } from "./lib/supabaseClient";
+import { prismaClient } from "./lib/prismaClient";
 import {
   createStore,
   ensureConversationForProfile,
@@ -48,11 +48,11 @@ type TranslationSetting = {
 };
 
 type ProfilePhotoRow = {
-  user_id: string;
-  storage_path: string;
-  sort_order: number | null;
-  is_primary: boolean | null;
-  updated_at: string | null;
+  userId: string;
+  storagePath: string;
+  sortOrder: number | null;
+  isPrimary: boolean | null;
+  updatedAt: Date | null;
 };
 
 type LoadPeerProfilesTiming = {
@@ -113,11 +113,6 @@ const resolveConversationId = (userId: string, profileId: string) =>
   `conv-${userId}-${profileId}`;
 const looksLikeConversationId = (value: string) =>
   value.startsWith("conv-") || value.startsWith("match-");
-const encodeStoragePath = (value: string) =>
-  value
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
 
 const chunkArray = <T,>(items: T[], size: number) => {
   if (items.length <= size) return [items];
@@ -133,31 +128,42 @@ const buildPublicPhotoUrl = (
   variant: "avatar",
   updatedAtIso: string | null,
 ) => {
-  if (!env.SUPABASE_URL) return "/placeholder.svg";
-  const bucket = env.STORAGE_PROFILE_PHOTOS_PUBLIC_BUCKET;
+  if (!env.S3_PUBLIC_URL) return "/placeholder.svg";
   const version = updatedAtIso ? new Date(updatedAtIso).getTime() : undefined;
   const clean = storagePath.replace(/^\/+/, "");
   const withoutExt = clean.replace(/\.[^/.]+$/, "");
   const variantPath = `variants/${variant}/${withoutExt}.jpg`;
-  const base = `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(variantPath)}`;
-  if (!version) return base;
-  return `${base}?v=${version}`;
+  const base = `${env.S3_PUBLIC_URL}/${variantPath}`;
+  return version ? `${base}?v=${version}` : base;
 };
 
 const buildSignedPhotoUrls = async (storagePaths: string[]): Promise<Map<string, string>> => {
   const out = new Map<string, string>();
-  if (!supabaseServiceClient || storagePaths.length === 0) return out;
-  for (const chunk of chunkArray(storagePaths, 100)) {
-    const result = await supabaseServiceClient.storage
-      .from(env.STORAGE_PROFILE_PHOTOS_BUCKET)
-      .createSignedUrls(chunk, 60 * 60 * 24 * 7, {
-        transform: { width: 256, quality: 72 },
-      } as any);
-    if (result.error || !Array.isArray(result.data)) continue;
-    for (let i = 0; i < chunk.length; i += 1) {
-      const entry = result.data[i];
-      if (entry?.signedUrl) out.set(chunk[i], entry.signedUrl);
-    }
+  if (storagePaths.length === 0 || (!env.S3_ENDPOINT && !env.S3_REGION)) return out;
+  try {
+    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const s3 = new S3Client({
+      region: env.S3_REGION || "us-east-1",
+      endpoint: env.S3_ENDPOINT || undefined,
+      credentials: {
+        accessKeyId: env.S3_ACCESS_KEY_ID!,
+        secretAccessKey: env.S3_SECRET_ACCESS_KEY!,
+      },
+      forcePathStyle: Boolean(env.S3_ENDPOINT),
+    });
+    await Promise.all(
+      storagePaths.map(async (key) => {
+        const url = await getSignedUrl(
+          s3,
+          new GetObjectCommand({ Bucket: env.S3_BUCKET_PRIVATE, Key: key }),
+          { expiresIn: 60 * 60 * 24 * 7 },
+        );
+        out.set(key, url);
+      }),
+    );
+  } catch {
+    /* S3 not configured */
   }
   return out;
 };
@@ -180,36 +186,40 @@ const computeAge = (birthDate: string | null): number => {
   return Math.max(18, Math.min(60, age));
 };
 
-const buildPeerCardFromSupabase = (row: {
-  user_id: string;
-  first_name: string | null;
-  birth_date: string | null;
+const buildPeerCard = (row: {
+  userId: string;
+  firstName: string | null;
+  birthDate: Date | string | null;
   city: string | null;
   languages: string[] | null;
   bio: string | null;
   interests: string[] | null;
-  verified_opt_in: boolean | null;
+  verifiedOptIn: boolean | null;
   photos: string[];
-}): ProfileCard => ({
-  id: row.user_id,
-  name: row.first_name?.trim() || "Profile",
-  age: computeAge(row.birth_date),
-  city: row.city?.trim() || "Unknown",
-  distanceKm: 0,
-  languages: row.languages && row.languages.length > 0 ? row.languages : ["English", "Russian"],
-  bio: row.bio?.trim() || "Looking for meaningful connections.",
-  photos: row.photos.length > 0 ? row.photos : ["/placeholder.svg"],
-  compatibility: 75,
-  interests: row.interests && row.interests.length > 0 ? row.interests : ["Travel", "Music"],
-  online: true,
-  flags: {
-    verifiedIdentity: Boolean(row.verified_opt_in),
-    premiumTier: "free",
-    hideAge: false,
-    hideDistance: false,
-    shadowGhost: false,
-  },
-});
+}): ProfileCard => {
+  const birthDateStr =
+    row.birthDate instanceof Date ? row.birthDate.toISOString() : row.birthDate ?? null;
+  return {
+    id: row.userId,
+    name: row.firstName?.trim() || "Profile",
+    age: computeAge(birthDateStr),
+    city: row.city?.trim() || "Unknown",
+    distanceKm: 0,
+    languages: row.languages && row.languages.length > 0 ? row.languages : ["English", "Russian"],
+    bio: row.bio?.trim() || "Looking for meaningful connections.",
+    photos: row.photos.length > 0 ? row.photos : ["/placeholder.svg"],
+    compatibility: 75,
+    interests: row.interests && row.interests.length > 0 ? row.interests : ["Travel", "Music"],
+    online: true,
+    flags: {
+      verifiedIdentity: Boolean(row.verifiedOptIn),
+      premiumTier: "free",
+      hideAge: false,
+      hideDistance: false,
+      shadowGhost: false,
+    },
+  };
+};
 
 const loadPeerProfiles = async (
   peerIds: string[],
@@ -232,11 +242,6 @@ const loadPeerProfiles = async (
     if (staticPeer) byId.set(peerId, staticPeer);
   }
 
-  if (!supabaseServiceClient) {
-    timing.totalMs = performance.now() - startedAt;
-    return { byId, timing };
-  }
-
   const missing = peerIds.filter((peerId) => !byId.has(peerId));
   timing.missingCount = missing.length;
   if (missing.length === 0) {
@@ -248,66 +253,74 @@ const loadPeerProfiles = async (
   const primaryUpdatedAtByUser = new Map<string, string | null>();
   const photoAccessResolver =
     resolvePhotoAccess ?? (() => resolveImageAccessPolicy("messages", "pending"));
-  const profileRows: {
-    user_id: string;
-    first_name: string | null;
-    birth_date: string | null;
+
+  type PrismaProfileRow = {
+    userId: string;
+    firstName: string | null;
+    birthDate: Date | null;
     city: string | null;
     languages: string[] | null;
     bio: string | null;
     interests: string[] | null;
-    verified_opt_in: boolean | null;
-  }[] = [];
+    verifiedOptIn: boolean | null;
+  };
+  const profileRows: PrismaProfileRow[] = [];
 
-  for (const chunk of chunkArray(missing, 100)) {
-    const queryStartedAt = performance.now();
-    const profileResult = await supabaseServiceClient
-      .from("profiles")
-      .select("user_id,first_name,birth_date,city,languages,bio,interests,verified_opt_in")
-      .in("user_id", chunk);
-    timing.profilesQueryMs += performance.now() - queryStartedAt;
-
-    if (!profileResult.error) {
-      profileRows.push(...((profileResult.data ?? []) as typeof profileRows));
+  try {
+    for (const chunk of chunkArray(missing, 100)) {
+      const queryStartedAt = performance.now();
+      const rows = await prismaClient.profile.findMany({
+        where: { userId: { in: chunk } },
+        select: {
+          userId: true,
+          firstName: true,
+          birthDate: true,
+          city: true,
+          languages: true,
+          bio: true,
+          interests: true,
+          verifiedOptIn: true,
+        },
+      });
+      timing.profilesQueryMs += performance.now() - queryStartedAt;
+      profileRows.push(...(rows as PrismaProfileRow[]));
     }
-  }
-  timing.profileRows = profileRows.length;
+    timing.profileRows = profileRows.length;
 
-  for (const chunk of chunkArray(missing, 100)) {
-    const queryStartedAt = performance.now();
-    const photoResult = await supabaseServiceClient
-      .from("profile_photos")
-      .select("user_id,storage_path,sort_order,is_primary,updated_at")
-      .in("user_id", chunk)
-      .or("is_primary.eq.true,sort_order.eq.0,sort_order.eq.1")
-      .order("is_primary", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .limit(Math.max(200, chunk.length * 3));
-    timing.photosQueryMs += performance.now() - queryStartedAt;
-
-    if (!photoResult.error) {
-      const rows = (photoResult.data ?? []) as ProfilePhotoRow[];
+    for (const chunk of chunkArray(missing, 100)) {
+      const queryStartedAt = performance.now();
+      const rows = (await prismaClient.profilePhoto.findMany({
+        where: { userId: { in: chunk } },
+        orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+        take: Math.max(200, chunk.length * 3),
+      })) as ProfilePhotoRow[];
+      timing.photosQueryMs += performance.now() - queryStartedAt;
       timing.photoRows += rows.length;
       for (const row of rows) {
-        if (!primaryPathByUser.has(row.user_id) && typeof row.storage_path === "string" && row.storage_path.length > 0) {
-          primaryPathByUser.set(row.user_id, row.storage_path);
-          primaryUpdatedAtByUser.set(row.user_id, row.updated_at ?? null);
-        }
-      }
-      for (const row of rows) {
-        if (!primaryPathByUser.has(row.user_id) && row.storage_path) {
-          primaryPathByUser.set(row.user_id, row.storage_path);
-          primaryUpdatedAtByUser.set(row.user_id, row.updated_at ?? null);
+        if (
+          !primaryPathByUser.has(row.userId) &&
+          typeof row.storagePath === "string" &&
+          row.storagePath.length > 0
+        ) {
+          primaryPathByUser.set(row.userId, row.storagePath);
+          primaryUpdatedAtByUser.set(
+            row.userId,
+            row.updatedAt ? row.updatedAt.toISOString() : null,
+          );
         }
       }
     }
+  } catch {
+    /* Prisma unavailable — fall back to static profiles only */
+    timing.totalMs = performance.now() - startedAt;
+    return { byId, timing };
   }
 
   const signedPathsSet = new Set<string>();
   for (const row of profileRows) {
-    const path = primaryPathByUser.get(row.user_id);
+    const path = primaryPathByUser.get(row.userId);
     if (!path) continue;
-    const policy = photoAccessResolver(row.user_id);
+    const policy = photoAccessResolver(row.userId);
     if (policy !== "public_stable") {
       signedPathsSet.add(path);
     }
@@ -319,19 +332,23 @@ const loadPeerProfiles = async (
   timing.signedUrlMs = performance.now() - signStartedAt;
 
   for (const row of profileRows) {
-    const path = primaryPathByUser.get(row.user_id);
+    const path = primaryPathByUser.get(row.userId);
     let primarySignedUrl: string | null = null;
     if (path) {
-      const policy = photoAccessResolver(row.user_id);
+      const policy = photoAccessResolver(row.userId);
       if (policy === "public_stable") {
-        primarySignedUrl = buildPublicPhotoUrl(path, "avatar", primaryUpdatedAtByUser.get(row.user_id) ?? null);
+        primarySignedUrl = buildPublicPhotoUrl(
+          path,
+          "avatar",
+          primaryUpdatedAtByUser.get(row.userId) ?? null,
+        );
       } else {
         primarySignedUrl = signedByPath.get(path) ?? null;
       }
     }
     byId.set(
-      row.user_id,
-      buildPeerCardFromSupabase({
+      row.userId,
+      buildPeerCard({
         ...row,
         photos: primarySignedUrl ? [primarySignedUrl] : [],
       }),
@@ -360,10 +377,16 @@ const setTranslationSetting = (
 const store = createStore();
 
 export const buildServer = () => {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: true });
+
+  // SECURITY: only allow localhost dev origins outside production.
+  const allowedOrigins = [env.APP_URL];
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://127.0.0.1:3000", "http://localhost:3000");
+  }
 
   app.register(cors, {
-    origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -379,7 +402,7 @@ export const buildServer = () => {
   app.get("/health", async () => ({
     status: "ok",
     service: "chat-service",
-    persistence: supabaseServiceClient ? "supabase" : "memory",
+    persistence: "prisma",
     timestamp: new Date().toISOString(),
   }));
 
@@ -401,114 +424,111 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED" };
     }
 
-    if (supabaseServiceClient) {
+    try {
       let cursor = performance.now();
-      const conversationsResult = await supabaseServiceClient
-        .from("chat_conversations")
-        .select(
-          "conversation_id,peer_profile_id,relation_state,relation_state_updated_at,received_superlike_trace_at,unread_count,last_message_preview,last_message_at",
-        )
-        .eq("user_id", userId);
+      const conversationRows = await prismaClient.chatConversation.findMany({
+        where: { userId },
+      });
       buckets.conversationsReadMs = performance.now() - cursor;
 
-      if (conversationsResult.error) {
-        reply.status(500);
-        return { code: "CHAT_CONVERSATIONS_READ_FAILED" };
-      }
-
       cursor = performance.now();
-      const peerIds = [...new Set((conversationsResult.data ?? []).map((row) => row.peer_profile_id))].filter(
-        (entry): entry is string => typeof entry === "string" && entry.length > 0,
-      );
+      const peerIds = [
+        ...new Set(conversationRows.map((row) => row.peerProfileId)),
+      ].filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
       const peerPolicyById = new Map<string, ImageAccessPolicy>();
-      for (const row of conversationsResult.data ?? []) {
-        const conversationId = row.conversation_id as string;
-        const relationState = normalizeRelationState(row.relation_state);
+      for (const row of conversationRows) {
+        const convId = row.conversationId;
+        const relationState = normalizeRelationState(row.relationState);
         const state =
-          conversationId.startsWith("match-")
+          convId.startsWith("match-")
             ? "match_confirmed"
             : relationState === "active"
               ? "conversation_authorized"
               : "pending";
         const policy = resolveImageAccessPolicy("messages", state);
-        const existing = peerPolicyById.get(row.peer_profile_id);
+        const existing = peerPolicyById.get(row.peerProfileId);
         peerPolicyById.set(
-          row.peer_profile_id,
-          existing === "signed_private" || policy === "signed_private" ? "signed_private" : "public_stable",
+          row.peerProfileId,
+          existing === "signed_private" || policy === "signed_private"
+            ? "signed_private"
+            : "public_stable",
         );
       }
       buckets.peerPreparationMs = performance.now() - cursor;
+
       cursor = performance.now();
-      const { byId: peerMap, timing: peerLoadTiming } = await loadPeerProfiles(peerIds, (profileId) =>
-        peerPolicyById.get(profileId) ?? resolveImageAccessPolicy("messages", "pending"),
+      const { byId: peerMap, timing: peerLoadTiming } = await loadPeerProfiles(
+        peerIds,
+        (profileId) =>
+          peerPolicyById.get(profileId) ?? resolveImageAccessPolicy("messages", "pending"),
       );
       buckets.loadPeerProfilesMs = performance.now() - cursor;
+
       let shadowGhostPeerSet = new Set<string>();
       let blockedByMeSet = new Set<string>();
       if (peerIds.length > 0) {
         cursor = performance.now();
-        const [shadowGhostResult, blockedResult] = await Promise.all([
-          supabaseServiceClient
-            .from("discover_likes")
-            .select("liker_user_id")
-            .eq("liked_user_id", userId)
-            .eq("hidden_by_shadowghost", true)
-            .in("status", ["pending", "matched"])
-            .in("liker_user_id", peerIds),
-          supabaseServiceClient
-            .from("safety_blocks")
-            .select("blocked_user_id")
-            .eq("user_id", userId)
-            .in("blocked_user_id", peerIds),
+        const [shadowGhostRows, blockedRows] = await Promise.all([
+          prismaClient.discoverLike.findMany({
+            where: {
+              likedUserId: userId,
+              hiddenByShadowghost: true,
+              status: { in: ["pending", "matched"] },
+              likerUserId: { in: peerIds },
+            },
+            select: { likerUserId: true },
+          }),
+          prismaClient.safetyBlock.findMany({
+            where: { userId, blockedUserId: { in: peerIds } },
+            select: { blockedUserId: true },
+          }),
         ]);
         const parallelDurationMs = performance.now() - cursor;
         buckets.shadowGhostMs = parallelDurationMs;
         buckets.safetyBlocksMs = parallelDurationMs;
-        if (!shadowGhostResult.error) {
-          shadowGhostPeerSet = new Set(
-            (shadowGhostResult.data ?? [])
-              .map((row) => (row as { liker_user_id?: unknown }).liker_user_id)
-              .filter((value): value is string => typeof value === "string" && value.length > 0),
-          );
-        }
-        if (!blockedResult.error) {
-          blockedByMeSet = new Set(
-            (blockedResult.data ?? [])
-              .map((row) => (row as { blocked_user_id?: unknown }).blocked_user_id)
-              .filter((value): value is string => typeof value === "string" && value.length > 0),
-          );
-        }
+        shadowGhostPeerSet = new Set(
+          shadowGhostRows
+            .map((row) => row.likerUserId)
+            .filter((value): value is string => typeof value === "string" && value.length > 0),
+        );
+        blockedByMeSet = new Set(
+          blockedRows
+            .map((row) => row.blockedUserId)
+            .filter((value): value is string => typeof value === "string" && value.length > 0),
+        );
       }
 
       cursor = performance.now();
-      const conversations = (conversationsResult.data ?? [])
+      const conversations = conversationRows
         .map((row) => {
-          const peer = peerMap.get(row.peer_profile_id) ?? null;
+          const peer = peerMap.get(row.peerProfileId) ?? null;
           if (!peer) return null;
           const shadowGhostMasked =
-            shadowGhostPeerSet.has(row.peer_profile_id) && Boolean(peer.flags.shadowGhost);
-          let relationState = normalizeRelationState(row.relation_state);
-          if (relationState === "blocked_by_me" && !blockedByMeSet.has(row.peer_profile_id)) {
+            shadowGhostPeerSet.has(row.peerProfileId) && Boolean(peer.flags.shadowGhost);
+          let relationState = normalizeRelationState(row.relationState);
+          if (relationState === "blocked_by_me" && !blockedByMeSet.has(row.peerProfileId)) {
             relationState = "active";
           }
-
           return {
-            id: row.conversation_id,
+            id: row.conversationId,
             peer: {
               ...peer,
-              flags: {
-                ...peer.flags,
-                shadowGhost: peer.flags.shadowGhost,
-              },
+              flags: { ...peer.flags, shadowGhost: peer.flags.shadowGhost },
             },
             shadowGhostMasked,
-            unreadCount: row.unread_count ?? 0,
-            lastMessagePreview: row.last_message_preview ?? "",
-            lastMessageAtIso: row.last_message_at ?? new Date().toISOString(),
+            unreadCount: row.unreadCount ?? 0,
+            lastMessagePreview: row.lastMessagePreview ?? "",
+            lastMessageAtIso: row.lastMessageAt
+              ? row.lastMessageAt.toISOString()
+              : new Date().toISOString(),
             online: peer.online,
             relationState,
-            relationStateUpdatedAtIso: toOptionalString(row.relation_state_updated_at),
-            receivedSuperLikeTraceAtIso: toOptionalString(row.received_superlike_trace_at),
+            relationStateUpdatedAtIso: row.relationStateUpdatedAt
+              ? row.relationStateUpdatedAt.toISOString()
+              : undefined,
+            receivedSuperLikeTraceAtIso: row.receivedSuperlikeTraceAt
+              ? row.receivedSuperlikeTraceAt.toISOString()
+              : undefined,
           };
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item));
@@ -528,14 +548,12 @@ export const buildServer = () => {
         },
         "chat.conversations_timing",
       );
+      return { conversations: sortedConversations };
+    } catch {
       return {
-        conversations: sortedConversations,
+        conversations: sortConversations(store.conversations),
       };
     }
-
-    return {
-      conversations: sortConversations(store.conversations),
-    };
   });
 
   app.post("/chat/open", async (request, reply) => {
@@ -551,39 +569,23 @@ export const buildServer = () => {
     }
     const requestedProfileId = parsed.data.profileId.trim();
 
-    if (supabaseServiceClient) {
+    try {
       if (looksLikeConversationId(requestedProfileId)) {
-        const existingByConversationId = await supabaseServiceClient
-          .from("chat_conversations")
-          .select("conversation_id")
-          .eq("user_id", userId)
-          .eq("conversation_id", requestedProfileId)
-          .maybeSingle();
-        if (existingByConversationId.error) {
-          reply.status(500);
-          return { code: "CHAT_OPEN_FAILED" };
-        }
-        if (existingByConversationId.data?.conversation_id) {
-          return { conversationId: existingByConversationId.data.conversation_id };
+        const existingByConvId = await prismaClient.chatConversation.findUnique({
+          where: { userId_conversationId: { userId, conversationId: requestedProfileId } },
+        });
+        if (existingByConvId) {
+          return { conversationId: existingByConvId.conversationId };
         }
       }
 
-      const byPeer = await supabaseServiceClient
-        .from("chat_conversations")
-        .select("conversation_id")
-        .eq("user_id", userId)
-        .eq("peer_profile_id", requestedProfileId)
-        .order("last_message_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const byPeer = await prismaClient.chatConversation.findFirst({
+        where: { userId, peerProfileId: requestedProfileId },
+        orderBy: { lastMessageAt: "desc" },
+      });
 
-      if (byPeer.error) {
-        reply.status(500);
-        return { code: "CHAT_OPEN_FAILED" };
-      }
-
-      if (byPeer.data?.conversation_id) {
-        return { conversationId: byPeer.data.conversation_id };
+      if (byPeer) {
+        return { conversationId: byPeer.conversationId };
       }
 
       const { byId: peerMap } = await loadPeerProfiles([requestedProfileId], () =>
@@ -595,68 +597,49 @@ export const buildServer = () => {
         return { code: "PROFILE_NOT_FOUND", message: "Cannot open conversation for this profile." };
       }
 
-      const nowIso = new Date().toISOString();
-
+      const now = new Date();
       const conversationId = resolveConversationId(userId, requestedProfileId);
+      const messageId = `m-${Date.now()}`;
 
-      const existingConversation = await supabaseServiceClient
-        .from("chat_conversations")
-        .select("conversation_id")
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId)
-        .maybeSingle();
-
-      if (existingConversation.error) {
-        reply.status(500);
-        return { code: "CHAT_OPEN_FAILED" };
-      }
-
-      if (!existingConversation.data) {
-        const conversationUpsert = await supabaseServiceClient.from("chat_conversations").upsert(
-          {
-            user_id: userId,
-            conversation_id: conversationId,
-            peer_profile_id: requestedProfileId,
-            unread_count: 0,
-            last_message_preview: parsed.data.fromSuperLike
+      await prismaClient.$transaction([
+        prismaClient.chatConversation.upsert({
+          where: { userId_conversationId: { userId, conversationId } },
+          update: {},
+          create: {
+            userId,
+            conversationId,
+            peerProfileId: requestedProfileId,
+            unreadCount: 0,
+            lastMessagePreview: parsed.data.fromSuperLike
               ? "This chat started from a SuperLike."
               : "New match. Say hello.",
-            last_message_at: nowIso,
-            relation_state: "active",
-            relation_state_updated_at: nowIso,
-            received_superlike_trace_at: parsed.data.fromSuperLike ? nowIso : null,
+            lastMessageAt: now,
+            relationState: "active",
+            relationStateUpdatedAt: now,
+            receivedSuperlikeTraceAt: parsed.data.fromSuperLike ? now : null,
           },
-          { onConflict: "user_id,conversation_id" },
-        );
-
-        if (conversationUpsert.error) {
-          reply.status(500);
-          return { code: "CHAT_OPEN_FAILED" };
-        }
-
-        const welcomeInsert = await supabaseServiceClient.from("chat_messages").upsert(
-          {
-            user_id: userId,
-            message_id: `m-${Date.now()}`,
-            conversation_id: conversationId,
-            sender_user_id: requestedProfileId,
+        }),
+        prismaClient.chatMessage.upsert({
+          where: { userId_messageId: { userId, messageId } },
+          update: {},
+          create: {
+            userId,
+            messageId,
+            conversationId,
+            senderUserId: requestedProfileId,
             direction: "incoming",
-            original_text: parsed.data.fromSuperLike
+            originalText: parsed.data.fromSuperLike
               ? "SuperLike landed. Want to chat tonight?"
               : "We matched. Nice to meet you!",
             translated: false,
-            created_at: nowIso,
+            createdAt: now,
           },
-          { onConflict: "user_id,message_id" },
-        );
-
-        if (welcomeInsert.error) {
-          reply.status(500);
-          return { code: "CHAT_OPEN_WELCOME_FAILED" };
-        }
-      }
+        }),
+      ]);
 
       return { conversationId };
+    } catch {
+      /* fall through to memory store */
     }
 
     const createdOrExisting = ensureConversationForProfile(
@@ -695,106 +678,60 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED" };
     }
 
-    if (supabaseServiceClient) {
+    try {
       let cursor = performance.now();
-      const conversationResult = await supabaseServiceClient
-        .from("chat_conversations")
-        .select("conversation_id")
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId)
-        .maybeSingle();
+      const conversationRow = await prismaClient.chatConversation.findUnique({
+        where: { userId_conversationId: { userId, conversationId } },
+      });
       buckets.guardMs = performance.now() - cursor;
 
-      if (conversationResult.error) {
-        reply.status(500);
-        return { code: "CHAT_MESSAGES_READ_FAILED" };
-      }
-
-      if (!conversationResult.data) {
+      if (!conversationRow) {
         reply.status(404);
         return { code: "NOT_FOUND", message: "Conversation not found." };
       }
 
       cursor = performance.now();
-      const messagesResult = await supabaseServiceClient
-        .from("chat_messages")
-        .select(
-          "message_id,conversation_id,sender_user_id,direction,original_text,translated_text,created_at,read_at",
-        )
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+      const messageRows = await prismaClient.chatMessage.findMany({
+        where: { userId, conversationId },
+        orderBy: { createdAt: "asc" },
+      });
       buckets.messagesReadMs = performance.now() - cursor;
-
-      if (messagesResult.error) {
-        reply.status(500);
-        return { code: "CHAT_MESSAGES_READ_FAILED" };
-      }
 
       const translation = getTranslationSetting(userId, conversationId);
 
       cursor = performance.now();
-      const mappedMessages = (messagesResult.data ?? []).map((row) => {
+      const mappedMessages = messageRows.map((row) => {
         const translatedText = translation.enabled
-          ? toOptionalString(row.translated_text) ?? row.original_text
+          ? toOptionalString(row.translatedText) ?? row.originalText
           : undefined;
         return {
-          id: row.message_id,
-          conversationId: row.conversation_id,
-          senderUserId: row.sender_user_id,
+          id: row.messageId,
+          conversationId: row.conversationId,
+          senderUserId: row.senderUserId,
           direction: row.direction,
-          originalText: row.original_text,
+          originalText: row.originalText,
           translatedText,
           translated: translation.enabled,
           targetLocale: translation.enabled ? translation.targetLocale : undefined,
-          createdAtIso: row.created_at,
-          readAtIso: toOptionalString(row.read_at),
+          createdAtIso: row.createdAt.toISOString(),
+          readAtIso: row.readAt ? row.readAt.toISOString() : undefined,
         };
       });
       buckets.mappingMs = performance.now() - cursor;
       const totalMs = performance.now() - startedAt;
       request.log.info(
-        {
-          totalMs,
-          conversationId,
-          messageCount: mappedMessages.length,
-          buckets,
-        },
+        { totalMs, conversationId, messageCount: mappedMessages.length, buckets },
         "chat.messages_timing",
       );
-      return {
-        conversationId,
-        translation,
-        messages: mappedMessages,
-      };
+      return { conversationId, translation, messages: mappedMessages };
+    } catch (error) {
+      // SECURITY: fail closed. The legacy in-memory store is keyed by
+      // conversationId only (not userId), so serving it on DB error would leak
+      // another user's messages (IDOR). Refuse instead.
+      request.log.error({ err: error, userId, conversationId }, "chat.messages_db_failed");
+      reply.status(503);
+      return { code: "CHAT_UNAVAILABLE", message: "Chat is temporarily unavailable." };
     }
-
-    const conversationExists = store.conversations.some((entry) => entry.id === conversationId);
-    if (!conversationExists) {
-      reply.status(404);
-      return { code: "NOT_FOUND", message: "Conversation not found." };
-    }
-
-    const translation = getTranslationSetting(userId, conversationId);
-    return {
-      conversationId,
-      translation,
-      messages: [...(store.messagesByConversation[conversationId] ?? [])].map((message) =>
-        translation.enabled
-          ? {
-              ...message,
-              translated: true,
-              translatedText: message.translatedText ?? message.originalText,
-              targetLocale: translation.targetLocale,
-            }
-          : {
-              ...message,
-              translated: false,
-              translatedText: undefined,
-              targetLocale: undefined,
-            },
-      ),
-    };
   });
 
   app.post("/chat/conversations/:conversationId/read", async (request, reply) => {
@@ -810,66 +747,35 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED" };
     }
 
-    if (supabaseServiceClient) {
-      const conversationResult = await supabaseServiceClient
-        .from("chat_conversations")
-        .select("conversation_id")
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId)
-        .maybeSingle();
+    try {
+      const conversationRow = await prismaClient.chatConversation.findUnique({
+        where: { userId_conversationId: { userId, conversationId } },
+      });
 
-      if (conversationResult.error || !conversationResult.data) {
+      if (!conversationRow) {
         reply.status(404);
         return { code: "NOT_FOUND", message: "Conversation not found." };
       }
 
-      const nowIso = new Date().toISOString();
-      const [conversationUpdate, messagesUpdate] = await Promise.all([
-        supabaseServiceClient
-          .from("chat_conversations")
-          .update({ unread_count: 0 })
-          .eq("user_id", userId)
-          .eq("conversation_id", conversationId),
-        supabaseServiceClient
-          .from("chat_messages")
-          .update({ read_at: nowIso })
-          .eq("user_id", userId)
-          .eq("conversation_id", conversationId)
-          .eq("direction", "incoming")
-          .is("read_at", null),
+      const now = new Date();
+      await prismaClient.$transaction([
+        prismaClient.chatConversation.update({
+          where: { userId_conversationId: { userId, conversationId } },
+          data: { unreadCount: 0 },
+        }),
+        prismaClient.chatMessage.updateMany({
+          where: { userId, conversationId, direction: "incoming", readAt: null },
+          data: { readAt: now },
+        }),
       ]);
 
-      if (conversationUpdate.error || messagesUpdate.error) {
-        reply.status(500);
-        return { code: "CHAT_MARK_READ_FAILED" };
-      }
-
       return { conversationId, markedRead: true };
+    } catch (error) {
+      // SECURITY: fail closed (memory store is not user-scoped → IDOR risk).
+      request.log.error({ err: error, userId, conversationId }, "chat.read_db_failed");
+      reply.status(503);
+      return { code: "CHAT_UNAVAILABLE", message: "Chat is temporarily unavailable." };
     }
-
-    const exists = store.conversations.some((entry) => entry.id === conversationId);
-    if (!exists) {
-      reply.status(404);
-      return { code: "NOT_FOUND", message: "Conversation not found." };
-    }
-
-    const nowIso = new Date().toISOString();
-    store.conversations = store.conversations.map((entry) =>
-      entry.id === conversationId
-        ? {
-            ...entry,
-            unreadCount: 0,
-          }
-        : entry,
-    );
-    store.messagesByConversation[conversationId] = (store.messagesByConversation[conversationId] ?? []).map(
-      (message) =>
-        message.direction === "incoming" && !message.readAtIso
-          ? { ...message, readAtIso: nowIso }
-          : message,
-    );
-
-    return { conversationId, markedRead: true };
   });
 
   app.post("/chat/messages", async (request, reply) => {
@@ -890,28 +796,27 @@ export const buildServer = () => {
       return { status: "invalid" as const };
     }
 
-    if (supabaseServiceClient) {
-      const conversationResult = await supabaseServiceClient
-        .from("chat_conversations")
-        .select("conversation_id,peer_profile_id,relation_state")
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId)
-        .maybeSingle();
+    try {
+      const conversationRow = await prismaClient.chatConversation.findUnique({
+        where: { userId_conversationId: { userId, conversationId } },
+      });
 
-      if (conversationResult.error || !conversationResult.data) {
+      if (!conversationRow) {
         reply.status(404);
         return { status: "invalid" as const };
       }
 
-      const relationState = normalizeRelationState(conversationResult.data.relation_state);
+      const relationState = normalizeRelationState(conversationRow.relationState);
       if (relationState !== "active") {
         return { status: relationState };
       }
 
       const translationSetting = getTranslationSetting(userId, conversationId);
+      const now = new Date();
+      const messageId = `m-${Date.now()}`;
 
       const message: ChatMessage = {
-        id: `m-${Date.now()}`,
+        id: messageId,
         conversationId,
         senderUserId: userId,
         direction: "outgoing",
@@ -919,106 +824,52 @@ export const buildServer = () => {
         translated: translationSetting.enabled,
         translatedText: translationSetting.enabled ? trimmed : undefined,
         targetLocale: translationSetting.enabled ? translationSetting.targetLocale : undefined,
-        createdAtIso: new Date().toISOString(),
+        createdAtIso: now.toISOString(),
       };
 
-      const [messageInsert, conversationUpdate] = await Promise.all([
-        supabaseServiceClient.from("chat_messages").upsert(
-          {
-            user_id: userId,
-            message_id: message.id,
-            conversation_id: conversationId,
-            sender_user_id: userId,
+      await prismaClient.$transaction([
+        prismaClient.chatMessage.upsert({
+          where: { userId_messageId: { userId, messageId } },
+          update: {},
+          create: {
+            userId,
+            messageId,
+            conversationId,
+            senderUserId: userId,
             direction: "outgoing",
-            original_text: trimmed,
+            originalText: trimmed,
             translated: translationSetting.enabled,
-            translated_text: translationSetting.enabled ? trimmed : null,
-            target_locale: translationSetting.enabled ? translationSetting.targetLocale : null,
-            created_at: message.createdAtIso,
+            translatedText: translationSetting.enabled ? trimmed : null,
+            targetLocale: translationSetting.enabled ? translationSetting.targetLocale : null,
+            createdAt: now,
           },
-          { onConflict: "user_id,message_id" },
-        ),
-        supabaseServiceClient
-          .from("chat_conversations")
-          .update({
-            unread_count: 0,
-            last_message_preview: trimmed,
-            last_message_at: message.createdAtIso,
-          })
-          .eq("user_id", userId)
-          .eq("conversation_id", conversationId),
+        }),
+        prismaClient.chatConversation.update({
+          where: { userId_conversationId: { userId, conversationId } },
+          data: {
+            unreadCount: 0,
+            lastMessagePreview: trimmed,
+            lastMessageAt: now,
+          },
+        }),
       ]);
-
-      if (messageInsert.error || conversationUpdate.error) {
-        reply.status(500);
-        return { code: "CHAT_SEND_FAILED" };
-      }
 
       scheduleIncomingReply({
         userId,
         conversationId,
-        peerProfileId: conversationResult.data.peer_profile_id,
+        peerProfileId: conversationRow.peerProfileId,
         userText: trimmed,
       });
 
-      return {
-        status: "sent" as const,
-        message,
-      };
+      return { status: "sent" as const, message };
+    } catch (error) {
+      // SECURITY: fail closed. Writing/sending via the user-agnostic memory
+      // store on DB error would let a caller post into another user's
+      // conversation partition (IDOR). Refuse instead.
+      request.log.error({ err: error, userId, conversationId }, "chat.send_db_failed");
+      reply.status(503);
+      return { status: "unavailable" as const };
     }
-
-    const conversation = store.conversations.find((entry) => entry.id === conversationId);
-
-    if (!conversation) {
-      reply.status(404);
-      return { status: "invalid" as const };
-    }
-
-    if (conversation.relationState !== "active") {
-      return { status: conversation.relationState };
-    }
-
-    const translationSetting = getTranslationSetting(userId, conversationId);
-
-    const message: ChatMessage = {
-      id: `m-${Date.now()}`,
-      conversationId,
-      senderUserId: userId,
-      direction: "outgoing",
-      originalText: trimmed,
-      translated: translationSetting.enabled,
-      translatedText: translationSetting.enabled ? trimmed : undefined,
-      targetLocale: translationSetting.enabled ? translationSetting.targetLocale : undefined,
-      createdAtIso: new Date().toISOString(),
-    };
-
-    store.messagesByConversation[conversationId] = [
-      ...(store.messagesByConversation[conversationId] ?? []),
-      message,
-    ];
-
-    store.conversations = store.conversations.map((entry) =>
-      entry.id === conversationId
-        ? {
-            ...entry,
-            unreadCount: 0,
-            lastMessagePreview: trimmed,
-            lastMessageAtIso: message.createdAtIso,
-          }
-        : entry,
-    );
-
-    scheduleIncomingReply({
-      userId,
-      conversationId,
-      peerProfileId: conversation.peer.id,
-      userText: trimmed,
-    });
-
-    return {
-      status: "sent" as const,
-      message,
-    };
   });
 
   app.patch("/chat/relation-state", async (request, reply) => {
@@ -1035,64 +886,35 @@ export const buildServer = () => {
     const { conversationId, state } = parsed.data;
     const updatedAtIso = new Date().toISOString();
 
-    if (supabaseServiceClient) {
-      const conversationResult = await supabaseServiceClient
-        .from("chat_conversations")
-        .select("last_message_preview")
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId)
-        .maybeSingle();
+    try {
+      const conversationRow = await prismaClient.chatConversation.findUnique({
+        where: { userId_conversationId: { userId, conversationId } },
+      });
 
-      if (conversationResult.error || !conversationResult.data) {
+      if (!conversationRow) {
         reply.status(404);
         return { code: "NOT_FOUND", message: "Conversation not found." };
       }
 
-      const updateResult = await supabaseServiceClient
-        .from("chat_conversations")
-        .update({
-          relation_state: state,
-          relation_state_updated_at: updatedAtIso,
-          last_message_preview: updateRelationPreview(
+      await prismaClient.chatConversation.update({
+        where: { userId_conversationId: { userId, conversationId } },
+        data: {
+          relationState: state,
+          relationStateUpdatedAt: new Date(updatedAtIso),
+          lastMessagePreview: updateRelationPreview(
             state,
-            conversationResult.data.last_message_preview ?? "",
+            conversationRow.lastMessagePreview ?? "",
           ),
-        })
-        .eq("user_id", userId)
-        .eq("conversation_id", conversationId);
+        },
+      });
 
-      if (updateResult.error) {
-        reply.status(500);
-        return { code: "CHAT_RELATION_UPDATE_FAILED" };
-      }
-
-      return {
-        conversationId,
-        state,
-      };
+      return { conversationId, state };
+    } catch (error) {
+      // SECURITY: fail closed (memory store is not user-scoped → IDOR risk).
+      request.log.error({ err: error, userId, conversationId }, "chat.relation_state_db_failed");
+      reply.status(503);
+      return { code: "CHAT_UNAVAILABLE", message: "Chat is temporarily unavailable." };
     }
-
-    let found = false;
-    store.conversations = store.conversations.map((entry) => {
-      if (entry.id !== conversationId) return entry;
-      found = true;
-      return {
-        ...entry,
-        relationState: state,
-        relationStateUpdatedAtIso: updatedAtIso,
-        lastMessagePreview: updateRelationPreview(state, entry.lastMessagePreview),
-      };
-    });
-
-    if (!found) {
-      reply.status(404);
-      return { code: "NOT_FOUND", message: "Conversation not found." };
-    }
-
-    return {
-      conversationId,
-      state,
-    };
   });
 
   app.patch("/chat/translation", async (request, reply) => {
@@ -1109,26 +931,22 @@ export const buildServer = () => {
 
     const { conversationId, enabled, targetLocale } = parsed.data;
 
-    const conversationExists = supabaseServiceClient
-      ? await supabaseServiceClient
-          .from("chat_conversations")
-          .select("conversation_id")
-          .eq("user_id", userId)
-          .eq("conversation_id", conversationId)
-          .maybeSingle()
-      : {
-          data: store.conversations.find((entry) => entry.id === conversationId)
-            ? { conversation_id: conversationId }
-            : null,
-          error: null,
-        };
-
-    if (conversationExists.error) {
-      reply.status(500);
-      return { code: "CHAT_TRANSLATION_UPDATE_FAILED" };
+    let conversationFound: boolean;
+    try {
+      const conversationRow = await prismaClient.chatConversation.findUnique({
+        where: { userId_conversationId: { userId, conversationId } },
+      });
+      conversationFound = Boolean(conversationRow);
+    } catch (error) {
+      // SECURITY: fail closed — do not fall back to the user-agnostic memory
+      // store (it would let a caller toggle translation on a conversation they
+      // don't own).
+      request.log.error({ err: error, userId, conversationId }, "chat.translation_db_failed");
+      reply.status(503);
+      return { code: "CHAT_UNAVAILABLE", message: "Chat is temporarily unavailable." };
     }
 
-    if (!conversationExists.data) {
+    if (!conversationFound) {
       reply.status(404);
       return { code: "NOT_FOUND", message: "Conversation not found." };
     }

@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config.js";
-import { supabaseServiceClient } from "./lib/supabaseClient.js";
+import { prismaClient } from "./lib/prismaClient.js";
 import type { BlockEntry, ReportEntry } from "./types.js";
 import { consumeRateLimit } from "./rateLimit.js";
 
@@ -54,19 +54,22 @@ const resolveActorUserId = (authorization: unknown): string | null => {
   }
 };
 
-const getRequestIp = (headers: Record<string, unknown>, fallback: string) => {
-  const forwardedFor = headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  return fallback;
-};
+// SECURITY: with Fastify trustProxy enabled, `fallback` (request.ip) is the real
+// client IP resolved from the trusted proxy hop. Do NOT trust the raw
+// x-forwarded-for header directly — a client can spoof it to bypass rate limits.
+const getRequestIp = (_headers: Record<string, unknown>, fallback: string) => fallback;
 
 export const buildServer = () => {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: true });
+
+  // SECURITY: only allow localhost dev origins outside production.
+  const allowedOrigins = [env.APP_URL];
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://127.0.0.1:3000", "http://localhost:3000");
+  }
 
   app.register(cors, {
-    origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -75,7 +78,7 @@ export const buildServer = () => {
   app.get("/health", async () => ({
     status: "ok",
     service: "safety-service",
-    persistence: supabaseServiceClient ? "supabase" : "memory",
+    persistence: "prisma",
     timestamp: new Date().toISOString(),
   }));
 
@@ -86,31 +89,25 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED" };
     }
 
-    if (supabaseServiceClient) {
-      const blocksResult = await supabaseServiceClient
-        .from("safety_blocks")
-        .select("*")
-        .eq("user_id", actorUserId)
-        .order("created_at", { ascending: false });
-
-      if (blocksResult.error) {
-        reply.status(500);
-        return { code: "SAFETY_BLOCKS_READ_FAILED" };
-      }
+    try {
+      const rows = await prismaClient.safetyBlock.findMany({
+        where: { userId: actorUserId },
+        orderBy: { createdAt: "desc" },
+      });
 
       return {
-        blocks: (blocksResult.data ?? []).map((row: { blocked_user_id: string; created_at: string }) => ({
-          blockedUserId: row.blocked_user_id,
-          createdAtIso: row.created_at,
+        blocks: rows.map((row) => ({
+          blockedUserId: row.blockedUserId,
+          createdAtIso: row.createdAt.toISOString(),
         })),
       };
+    } catch {
+      return {
+        blocks: [...blocks.values()].sort(
+          (a, b) => new Date(b.createdAtIso).getTime() - new Date(a.createdAtIso).getTime(),
+        ),
+      };
     }
-
-    return {
-      blocks: [...blocks.values()].sort(
-        (a, b) => new Date(b.createdAtIso).getTime() - new Date(a.createdAtIso).getTime(),
-      ),
-    };
   });
 
   app.post("/safety/blocks", async (request, reply) => {
@@ -146,21 +143,21 @@ export const buildServer = () => {
       createdAtIso: new Date().toISOString(),
     };
 
-    if (supabaseServiceClient) {
-      const blockResult = await supabaseServiceClient.from("safety_blocks").upsert(
-        {
-          user_id: actorUserId,
-          blocked_user_id: entry.blockedUserId,
-          created_at: entry.createdAtIso,
+    try {
+      await prismaClient.safetyBlock.upsert({
+        where: {
+          userId_blockedUserId: {
+            userId: actorUserId,
+            blockedUserId: entry.blockedUserId,
+          },
         },
-        { onConflict: "user_id,blocked_user_id" },
-      );
-
-      if (blockResult.error) {
-        reply.status(500);
-        return { code: "SAFETY_BLOCK_FAILED" };
-      }
-    } else {
+        update: {},
+        create: {
+          userId: actorUserId,
+          blockedUserId: entry.blockedUserId,
+        },
+      });
+    } catch {
       blocks.set(entry.blockedUserId, entry);
     }
 
@@ -179,29 +176,19 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED" };
     }
 
-    if (supabaseServiceClient) {
-      const deleteResult = await supabaseServiceClient
-        .from("safety_blocks")
-        .delete()
-        .eq("user_id", actorUserId)
-        .eq("blocked_user_id", userId);
+    try {
+      await prismaClient.safetyBlock.deleteMany({
+        where: { userId: actorUserId, blockedUserId: userId },
+      });
 
-      if (deleteResult.error) {
-        reply.status(500);
-        return { code: "SAFETY_UNBLOCK_FAILED" };
-      }
-
+      return { status: "unblocked", userId };
+    } catch {
+      const existed = blocks.delete(userId);
       return {
-        status: "unblocked",
+        status: existed ? "unblocked" : "noop",
         userId,
       };
     }
-
-    const existed = blocks.delete(userId);
-    return {
-      status: existed ? "unblocked" : "noop",
-      userId,
-    };
   });
 
   app.post("/safety/reports", async (request, reply) => {
@@ -239,24 +226,27 @@ export const buildServer = () => {
       createdAtIso: new Date().toISOString(),
     };
 
-    if (supabaseServiceClient) {
-      const reportResult = await supabaseServiceClient.from("safety_reports").upsert(
-        {
-          user_id: actorUserId,
-          report_id: report.id,
-          reported_user_id: report.reportedUserId,
+    try {
+      await prismaClient.safetyReport.upsert({
+        where: {
+          userId_reportId: {
+            userId: actorUserId,
+            reportId: report.id,
+          },
+        },
+        update: {
           reason: report.reason,
           note: report.note,
-          created_at: report.createdAtIso,
         },
-        { onConflict: "user_id,report_id" },
-      );
-
-      if (reportResult.error) {
-        reply.status(500);
-        return { code: "SAFETY_REPORT_FAILED" };
-      }
-    } else {
+        create: {
+          userId: actorUserId,
+          reportId: report.id,
+          reportedUserId: report.reportedUserId,
+          reason: report.reason,
+          note: report.note,
+        },
+      });
+    } catch {
       reports.push(report);
     }
 

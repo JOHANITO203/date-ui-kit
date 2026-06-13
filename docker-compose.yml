@@ -1,0 +1,328 @@
+services:
+
+  # ╔══════════════════════════════════════════════════════════════╗
+  # ║  INFRASTRUCTURE                                              ║
+  # ╚══════════════════════════════════════════════════════════════╝
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB:       ${POSTGRES_DB:-exotic}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-exotic}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - exotic-net
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio_data:/data
+    ports:
+      # Console bound to loopback only — reach it via SSH tunnel, never the public
+      # internet. Drop the 127.0.0.1 prefix only behind an authenticated proxy.
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - exotic-net
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        sleep 2;
+        mc alias set local http://minio:9000 ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required} ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required};
+        mc mb --ignore-existing local/profile-photos;
+        mc mb --ignore-existing local/profile-photos-public;
+        mc anonymous set public local/profile-photos-public;
+        echo 'MinIO buckets ready.';
+      "
+    networks:
+      - exotic-net
+
+  # ── Schema sync (one-shot, runs before app services) ────────────────────────
+  db-migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - exotic-net
+    restart: "no"
+
+  # ╔══════════════════════════════════════════════════════════════╗
+  # ║  BACKEND SERVICES                                            ║
+  # ╚══════════════════════════════════════════════════════════════╝
+
+  auth-bff:
+    build:
+      context: ./backend
+      dockerfile: services/auth-bff/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:             production
+      APP_URL:              ${APP_URL:-http://localhost}
+      API_URL:              ${APP_URL:-http://localhost}
+      API_HOST:             0.0.0.0
+      API_PORT:             8787
+      INTERNAL_JWT_SECRET:  ${INTERNAL_JWT_SECRET}
+      DATABASE_URL:         postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+      BCRYPT_ROUNDS:        ${BCRYPT_ROUNDS:-12}
+      GOOGLE_CLIENT_ID:     ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI:  ${GOOGLE_REDIRECT_URI}
+      S3_ENDPOINT:          http://minio:9000
+      S3_REGION:            ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID:     ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_BUCKET_PRIVATE:    profile-photos
+      S3_BUCKET_PUBLIC:     profile-photos-public
+      S3_PUBLIC_URL:        ${S3_PUBLIC_URL}
+      STORAGE_SIGNED_URL_TTL_SEC: ${STORAGE_SIGNED_URL_TTL_SEC:-604800}
+      COOKIE_NAME_AT:       ${COOKIE_NAME_AT:-exotic-access-token}
+      COOKIE_NAME_RT:       ${COOKIE_NAME_RT:-exotic-refresh-token}
+      COOKIE_NAME_SESSION:  ${COOKIE_NAME_SESSION:-exotic.sid}
+      COOKIE_NAME_INTENT:   ${COOKIE_NAME_INTENT:-exotic-onboarding-intent}
+      COOKIE_DOMAIN:        ${COOKIE_DOMAIN}
+      COOKIE_SECURE:        ${COOKIE_SECURE:-true}
+      COOKIE_SAMESITE:      ${COOKIE_SAMESITE:-Lax}
+      RATE_LIMIT_MAX:       ${RATE_LIMIT_MAX:-200}
+      RATE_LIMIT_TIME_WINDOW: ${RATE_LIMIT_TIME_WINDOW:-60000}
+      GEO_SCOPE:            ${GEO_SCOPE:-russia}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - exotic-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8787/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  discover-service:
+    build:
+      context: ./backend
+      dockerfile: services/discover-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:             production
+      APP_URL:              ${APP_URL:-http://localhost}
+      API_HOST:             0.0.0.0
+      API_PORT:             8788
+      INTERNAL_JWT_SECRET:  ${INTERNAL_JWT_SECRET}
+      DATABASE_URL:         postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+      S3_ENDPOINT:          http://minio:9000
+      S3_REGION:            ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID:     ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_BUCKET_PRIVATE:    profile-photos
+      S3_PUBLIC_URL:        ${S3_PUBLIC_URL}
+      STORAGE_SIGNED_URL_TTL_SEC:       ${STORAGE_SIGNED_URL_TTL_SEC:-604800}
+      DISCOVER_SETTINGS_CACHE_TTL_MS:   ${DISCOVER_SETTINGS_CACHE_TTL_MS:-60000}
+      DISCOVER_CANDIDATES_CACHE_TTL_MS: ${DISCOVER_CANDIDATES_CACHE_TTL_MS:-8000}
+      DISCOVER_FEED_PROFILE_LIMIT:      ${DISCOVER_FEED_PROFILE_LIMIT:-40}
+      DISCOVER_ACTIVE_BOOST_SCORE_BONUS: ${DISCOVER_ACTIVE_BOOST_SCORE_BONUS:-14}
+      DISCOVER_REQUIRE_PHOTO:           ${DISCOVER_REQUIRE_PHOTO:-true}
+      ONLINE_ACTIVE_WINDOW_SEC:         ${ONLINE_ACTIVE_WINDOW_SEC:-600}
+      ACTOR_ENGINE_ACTOR_EMAIL_REGEX:   ${ACTOR_ENGINE_ACTOR_EMAIL_REGEX:-^seed\..+@exotic\.local$}
+      ACTOR_DISCOVER_MATCH_CACHE_TTL_SEC: ${ACTOR_DISCOVER_MATCH_CACHE_TTL_SEC:-300}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - exotic-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8788/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  chat-service:
+    build:
+      context: ./backend
+      dockerfile: services/chat-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:             production
+      PORT:                 4023
+      APP_URL:              ${APP_URL:-http://localhost}
+      INTERNAL_JWT_SECRET:  ${INTERNAL_JWT_SECRET}
+      DATABASE_URL:         postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+      S3_ENDPOINT:          http://minio:9000
+      S3_REGION:            ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID:     ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_BUCKET_PRIVATE:    profile-photos
+      S3_PUBLIC_URL:        ${S3_PUBLIC_URL}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - exotic-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4023/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  profile-service:
+    build:
+      context: ./backend
+      dockerfile: services/profile-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:            production
+      PORT:                4022
+      APP_URL:             ${APP_URL:-http://localhost}
+      INTERNAL_JWT_SECRET: ${INTERNAL_JWT_SECRET}
+      DATABASE_URL:        postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - exotic-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4022/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  safety-service:
+    build:
+      context: ./backend
+      dockerfile: services/safety-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:                production
+      PORT:                    4024
+      APP_URL:                 ${APP_URL:-http://localhost}
+      INTERNAL_JWT_SECRET:     ${INTERNAL_JWT_SECRET}
+      DATABASE_URL:            postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+      RATE_LIMIT_WINDOW_MS:    ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_BLOCK:    ${RATE_LIMIT_MAX_BLOCK:-40}
+      RATE_LIMIT_MAX_REPORT:   ${RATE_LIMIT_MAX_REPORT:-20}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - exotic-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4024/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  payments-service:
+    build:
+      context: ./backend
+      dockerfile: services/payments-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV:                  production
+      PORT:                      4025
+      APP_URL:                   ${APP_URL:-http://localhost}
+      INTERNAL_JWT_SECRET:       ${INTERNAL_JWT_SECRET}
+      DATABASE_URL:              postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-exotic}
+      YOOKASSA_BASE_URL:         ${YOOKASSA_BASE_URL:-https://api.yookassa.ru/v3}
+      YOOKASSA_SHOP_ID:          ${YOOKASSA_SHOP_ID:-}
+      YOOKASSA_SECRET_KEY:       ${YOOKASSA_SECRET_KEY:-}
+      YOOKASSA_WEBHOOK_SECRET:   ${YOOKASSA_WEBHOOK_SECRET:-}
+      YOOKASSA_RETURN_URL:       ${APP_URL:-http://localhost}/boost
+      YOOKASSA_FAIL_URL:         ${APP_URL:-http://localhost}/boost
+      YOOKASSA_TIMEOUT_MS:       ${YOOKASSA_TIMEOUT_MS:-12000}
+      RATE_LIMIT_WINDOW_MS:      ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX_CHECKOUT:   ${RATE_LIMIT_MAX_CHECKOUT:-20}
+      RATE_LIMIT_MAX_STATUS:     ${RATE_LIMIT_MAX_STATUS:-60}
+      RATE_LIMIT_MAX_WEBHOOK:    ${RATE_LIMIT_MAX_WEBHOOK:-120}
+      PAYMENTS_DEV_AUTO_GRANT:   ${PAYMENTS_DEV_AUTO_GRANT:-false}
+      PAYMENTS_CATALOG_SOURCE:   ${PAYMENTS_CATALOG_SOURCE:-db_strict}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - exotic-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4025/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ╔══════════════════════════════════════════════════════════════╗
+  # ║  FRONTEND  (nginx: SPA + reverse proxy)                      ║
+  # ╚══════════════════════════════════════════════════════════════╝
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # All calls go through nginx (same origin) — use empty string so
+        # the frontend builds relative URLs: "" + "/auth/login" = "/auth/login"
+        # For multi-subdomain deployments, override these with absolute URLs.
+        VITE_AUTH_BFF_URL:              ${VITE_AUTH_BFF_URL:-}
+        VITE_DISCOVER_API_URL:          ${VITE_DISCOVER_API_URL:-}
+        VITE_CHAT_API_URL:              ${VITE_CHAT_API_URL:-}
+        VITE_PROFILE_API_URL:           ${VITE_PROFILE_API_URL:-/profile-api}
+        VITE_SAFETY_API_URL:            ${VITE_SAFETY_API_URL:-}
+        VITE_PAYMENTS_API_URL:          ${VITE_PAYMENTS_API_URL:-}
+        VITE_MONITORING_LOG_ENDPOINT:   ${VITE_MONITORING_LOG_ENDPOINT:-}
+        VITE_ANALYTICS_ENDPOINT:        ${VITE_ANALYTICS_ENDPOINT:-}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # Container listens on 8080 (unprivileged nginx). Dokploy/Traefik fronts this.
+      - "${FRONTEND_PORT:-80}:8080"
+    depends_on:
+      auth-bff:
+        condition: service_healthy
+      discover-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+      safety-service:
+        condition: service_healthy
+      payments-service:
+        condition: service_healthy
+    networks:
+      - exotic-net
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  VOLUMES & NETWORK                                           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  exotic-net:
+    driver: bridge

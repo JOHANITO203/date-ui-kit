@@ -1,18 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { supabaseAnonClient } from "../../lib/supabaseClient";
 import { getGoogleClient, generatePKCE, generateState } from "../../lib/oidc";
+import { prismaClient } from "../../lib/prismaClient";
+import { decodeJwtPayload } from "../../lib/hashUtils";
 import { env } from "../../config/env";
 import {
-  setAuthCookies,
   setIntentCookie,
   clearIntentCookie,
   extractIntentId,
 } from "../../lib/cookies";
 import {
-  issueInternalSessionToken,
-  persistInternalSession,
+  issueSessionForUser,
 } from "../../lib/session";
 import { sendAuthError, sendAuthSuccess } from "./utils";
 
@@ -38,8 +37,6 @@ const CALLBACK_EXPIRATION = 1000 * 60 * 10; // 10 minutes
 const INTENT_EXPIRATION = 1000 * 60 * 5; // 5 minutes
 const OAUTH_CALLBACK_MAX_ATTEMPTS = 3;
 const OAUTH_CALLBACK_RETRY_DELAYS_MS = [250, 700];
-const SUPABASE_SIGNIN_MAX_ATTEMPTS = 3;
-const SUPABASE_SIGNIN_RETRY_DELAYS_MS = [300, 900];
 
 const intentStore = new Map<string, OnboardingIntent>();
 
@@ -112,27 +109,6 @@ const isTransientOAuthNetworkError = (error: unknown) => {
   }
 
   return typeof message === "string" && message.toLowerCase().includes("timed out");
-};
-
-const isTransientSupabaseAuthError = (error: unknown) => {
-  if (!error || typeof error !== "object") return false;
-
-  const status = (error as { status?: number }).status;
-  const code = (error as { code?: string }).code;
-  const message = (error as { message?: string }).message ?? "";
-
-  if (status === 0) return true;
-  if (
-    code === "EAI_AGAIN" ||
-    code === "ENOTFOUND" ||
-    code === "ETIMEDOUT" ||
-    code === "ECONNRESET"
-  ) {
-    return true;
-  }
-
-  const lowered = typeof message === "string" ? message.toLowerCase() : "";
-  return lowered.includes("fetch failed") || lowered.includes("timed out");
 };
 
 const isOauth2GoogleapisDnsError = (error: unknown) => {
@@ -220,38 +196,6 @@ const exchangeGoogleCallbackWithRetry = async (input: {
   }
 
   throw lastError;
-};
-
-const signInWithSupabaseIdTokenWithRetry = async (input: {
-  idToken: string;
-  accessToken: string;
-}) => {
-  let lastError: unknown = null;
-
-  for (let attempt = 1; attempt <= SUPABASE_SIGNIN_MAX_ATTEMPTS; attempt += 1) {
-    const { data, error } = await supabaseAnonClient.auth.signInWithIdToken({
-      provider: "google",
-      token: input.idToken,
-      access_token: input.accessToken,
-    });
-
-    if (!error && data.session) {
-      return { data, error: null as null };
-    }
-
-    lastError = error ?? new Error("supabase_signin_missing_session");
-    if (!isTransientSupabaseAuthError(lastError) || attempt >= SUPABASE_SIGNIN_MAX_ATTEMPTS) {
-      break;
-    }
-
-    const retryDelay = SUPABASE_SIGNIN_RETRY_DELAYS_MS[attempt - 1] ?? 1200;
-    await sleep(retryDelay);
-  }
-
-  return {
-    data: null,
-    error: lastError,
-  };
 };
 
 export async function registerGoogleAuthRoutes(app: FastifyInstance) {
@@ -377,48 +321,78 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
         );
       }
 
-      const { data, error: supabaseError } = await signInWithSupabaseIdTokenWithRetry({
-        idToken,
-        accessToken,
-      });
-      const session = data?.session;
+      // Decode id_token claims — Google JWTs are unsigned-verifiable but we
+      // trust them here because they came directly from accounts.google.com.
+      const claims = decodeJwtPayload(idToken);
+      const googleSub = typeof claims.sub === "string" ? claims.sub : null;
+      const googleEmail = typeof claims.email === "string" ? claims.email : null;
 
-      if (supabaseError || !session) {
-        request.log.error({ err: supabaseError }, "auth.google.supabase_signin_failed");
-        if (isTransientSupabaseAuthError(supabaseError)) {
-          return sendAuthError(
-            reply,
-            503,
-            "SUPABASE_NETWORK_UNAVAILABLE",
-            "Temporary network issue while finalizing Google sign-in. Please retry.",
-            ["login_with_google"]
-          );
-        }
+      if (!googleSub || !googleEmail) {
+        request.log.error({ claims }, "auth.google.missing_claims");
         return sendAuthError(
           reply,
           401,
-          "SUPABASE_SIGNIN_FAILED",
-          "Google sign-in failed on Supabase.",
+          "GOOGLE_CLAIMS_MISSING",
+          "Unable to extract identity from Google token.",
           ["login_with_google"]
         );
       }
 
-      setAuthCookies(reply, session.access_token, session.refresh_token);
+      // SECURITY: defense-in-depth claim validation. The primary openid-client
+      // path already verifies signature/iss/aud/exp/nonce, but the DNS-fallback
+      // exchange (exchangeGoogleCodeViaAccountsEndpoint) returns the raw id_token
+      // unverified. Enforce the critical claims here so a token minted for another
+      // client_id, a wrong issuer, or an expired token is never trusted.
+      const audClaim = claims.aud;
+      const issClaim = typeof claims.iss === "string" ? claims.iss : "";
+      const expClaim = typeof claims.exp === "number" ? claims.exp : 0;
+      const audienceOk =
+        audClaim === env.GOOGLE_CLIENT_ID ||
+        (Array.isArray(audClaim) && audClaim.includes(env.GOOGLE_CLIENT_ID));
+      const issuerOk = issClaim === "https://accounts.google.com" || issClaim === "accounts.google.com";
+      const notExpired = expClaim * 1000 > Date.now();
+      if (!audienceOk || !issuerOk || !notExpired) {
+        request.log.error(
+          { issuerOk, audienceOk, notExpired },
+          "auth.google.idtoken_claims_invalid",
+        );
+        return sendAuthError(
+          reply,
+          401,
+          "GOOGLE_TOKEN_INVALID",
+          "Invalid Google identity token.",
+          ["login_with_google"]
+        );
+      }
+
+      // Upsert user: find by Google sub first, then by email (account linking)
+      let dbUser = await prismaClient.user.findUnique({
+        where: { googleSub },
+        select: { id: true, email: true, role: true, googleSub: true },
+      });
+
+      if (!dbUser) {
+        dbUser = await prismaClient.user.upsert({
+          where: { email: googleEmail },
+          update: { googleSub, emailVerified: true },
+          create: {
+            email: googleEmail,
+            googleSub,
+            emailVerified: true,
+            role: "member",
+            profile: { create: {} },
+            settings: { create: {} },
+          },
+          select: { id: true, email: true, role: true, googleSub: true },
+        });
+      }
+
+      const { internalToken } = await issueSessionForUser(reply, dbUser);
+
       request.log.info(
-        {
-          provider: "google",
-          userId: session.user.id,
-          email: session.user.email,
-        },
+        { provider: "google", userId: dbUser.id, email: dbUser.email },
         "auth.google.success"
       );
-
-      const internalToken = issueInternalSessionToken({
-        sub: session.user.id,
-        email: session.user.email,
-        role: session.user.role ?? "authenticated",
-      });
-      persistInternalSession(reply, internalToken);
 
       const nextPath = entry.next ?? DEFAULT_NEXT_PATH;
       const redirectPath = entry.redirect ?? DEFAULT_REDIRECT_PATH;
@@ -435,16 +409,7 @@ export async function registerGoogleAuthRoutes(app: FastifyInstance) {
       const redirectUrl = new URL(redirectPath, env.APP_URL);
       redirectUrl.searchParams.set("provider", "google");
       redirectUrl.searchParams.set("token", internalToken);
-      if (session.access_token) {
-        redirectUrl.searchParams.set("access_token", session.access_token);
-      }
-      if (session.refresh_token) {
-        redirectUrl.searchParams.set("refresh_token", session.refresh_token);
-      }
       redirectUrl.searchParams.set("next", nextPath);
-      if (session.expires_in) {
-        redirectUrl.searchParams.set("expires_in", String(session.expires_in));
-      }
 
       stateStore.delete(state);
       reply.clearCookie(OAUTH_STATE_COOKIE, {

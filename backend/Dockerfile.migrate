@@ -1,0 +1,16 @@
+# Build context: backend/
+# One-shot container: applies versioned Prisma migrations and exits.
+# Used by the db-migrate service in docker-compose.yml.
+#
+# Uses `prisma migrate deploy` (NOT `db push`): it only applies committed,
+# reviewed migrations from prisma/migrations and never resets/drops data.
+FROM node:22-alpine
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+# Schema + versioned migration history
+COPY prisma ./prisma
+
+CMD ["npx", "prisma", "migrate", "deploy", "--schema=./prisma/schema.prisma"]

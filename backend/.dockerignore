@@ -1,0 +1,20 @@
+# Backend .dockerignore — applies to all backend service Dockerfiles (build context: backend/)
+
+# Never copy built outputs or local modules
+**/node_modules
+**/dist
+
+# Dev artifacts
+**/*.log
+.DS_Store
+
+# Local env files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Scripts are not needed in production images
+**/scripts/
+
+# Supabase leftovers (if any)
+supabase/

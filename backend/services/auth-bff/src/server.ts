@@ -8,6 +8,7 @@ import { registerEmailAuthRoutes } from "./routes/auth/email";
 import { registerGoogleAuthRoutes } from "./routes/auth/google";
 import { registerProfileRoutes } from "./routes/profile";
 import { registerOnboardingRoutes } from "./routes/onboarding";
+import { registerLocationRoutes } from "./routes/location";
 
 const resolveAllowedOrigins = (appUrl: string): Set<string> => {
   const allowed = new Set<string>();
@@ -35,6 +36,12 @@ const resolveAllowedOrigins = (appUrl: string): Set<string> => {
 
 export function buildServer() {
   const server = Fastify({
+    // Photo/KYC uploads are base64 JSON (10 MB binary ≈ 13.3 MB encoded).
+    // Sized to accommodate them; the upload handlers enforce the real byte cap.
+    bodyLimit: 16 * 1024 * 1024,
+    // Trust the reverse proxy (nginx) so request.ip is the real client IP,
+    // which the rate limiter keys on.
+    trustProxy: true,
     logger: {
       level: env.NODE_ENV === "production" ? "info" : "debug",
     },
@@ -73,10 +80,12 @@ export function buildServer() {
     },
   });
 
+  // SECURITY: only relax rate limits inside the automated test suite. Previously
+  // ANY non-production NODE_ENV (incl. staging/preprod or an unset value) disabled
+  // brute-force protection — this now fails closed everywhere except tests.
   const isRelaxedMode =
-    process.env.E2E_TEST_MODE === "1" ||
-    process.env.PLAYWRIGHT === "1" ||
-    env.NODE_ENV !== "production";
+    env.NODE_ENV === "test" &&
+    (process.env.E2E_TEST_MODE === "1" || process.env.PLAYWRIGHT === "1");
 
   const rateLimitMax = isRelaxedMode
     ? Math.max(env.RATE_LIMIT_MAX, 50_000)
@@ -90,8 +99,9 @@ export function buildServer() {
     max: rateLimitMax,
     timeWindow: rateLimitWindow,
     skipOnError: true,
-    keyGenerator: (request) =>
-      (request.headers["x-real-ip"] as string | undefined) ?? request.ip,
+    // request.ip is trustworthy because trustProxy is enabled — do NOT key on a
+    // raw client-supplied header (spoofable → trivial rate-limit bypass).
+    keyGenerator: (request) => request.ip,
   });
 
   server.register(async (instance) => {
@@ -99,6 +109,7 @@ export function buildServer() {
     await registerGoogleAuthRoutes(instance);
     await registerProfileRoutes(instance);
     await registerOnboardingRoutes(instance);
+    await registerLocationRoutes(instance);
   });
 
   server.get("/health", async () => ({

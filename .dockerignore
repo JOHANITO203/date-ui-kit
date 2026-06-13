@@ -1,0 +1,21 @@
+# Root .dockerignore — applies to the frontend Dockerfile (build context: .)
+
+node_modules
+dist
+.git
+.gitignore
+*.md
+
+# Backend (has its own build context)
+backend/
+
+# Dev tools
+.vscode
+.idea
+*.log
+.DS_Store
+
+# Local env files — never bake secrets into the image
+.env
+.env.*
+!.env.example

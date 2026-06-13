@@ -3,14 +3,14 @@ import cors from "@fastify/cors";
 import { createVerifier } from "fast-jwt";
 import { z } from "zod";
 import { env } from "./config";
-import { supabaseServiceClient } from "./lib/supabaseClient";
+import { prismaClient } from "./lib/prismaClient";
 
 const patchSchema = z.object({
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  locale: z.string().optional(),
+  first_name: z.string().max(100).optional(),
+  last_name: z.string().max(100).optional(),
+  locale: z.string().max(16).optional(),
   bio: z.string().max(1000).optional(),
-  city: z.string().optional(),
+  city: z.string().max(120).optional(),
   settings: z
     .object({
       language: z.enum(["en", "ru"]).optional(),
@@ -127,10 +127,16 @@ const resolveAuthenticatedUserId = (
 };
 
 export const buildServer = () => {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: true });
+
+  // SECURITY: only allow localhost dev origins outside production.
+  const allowedOrigins = [env.APP_URL];
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://127.0.0.1:3000", "http://localhost:3000");
+  }
 
   app.register(cors, {
-    origin: [env.APP_URL, "http://127.0.0.1:3000", "http://localhost:3000"],
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -139,7 +145,7 @@ export const buildServer = () => {
   app.get("/health", async () => ({
     status: "ok",
     service: "profile-service",
-    persistence: supabaseServiceClient ? "supabase" : "memory",
+    persistence: "prisma",
     timestamp: new Date().toISOString(),
   }));
 
@@ -149,29 +155,61 @@ export const buildServer = () => {
       return { code: "UNAUTHORIZED" };
     }
 
-    if (!supabaseServiceClient) {
+    try {
+      const [profile, settings] = await Promise.all([
+        prismaClient.profile.findUnique({
+          where: { userId },
+          select: {
+            firstName: true,
+            lastName: true,
+            locale: true,
+            bio: true,
+            birthDate: true,
+            gender: true,
+            city: true,
+            originCountry: true,
+            languages: true,
+            intent: true,
+            interests: true,
+            photosCount: true,
+            verifiedOptIn: true,
+            onboardingVersion: true,
+          },
+        }),
+        prismaClient.userSettings.findUnique({
+          where: { userId },
+          select: {
+            language: true,
+            targetLang: true,
+            autoTranslate: true,
+            autoDetectLanguage: true,
+            notificationsEnabled: true,
+            preciseLocationEnabled: true,
+            visibility: true,
+            hideAge: true,
+            hideDistance: true,
+            incognito: true,
+            readReceipts: true,
+            shadowGhost: true,
+            travelPassCity: true,
+            phoneCountryCode: true,
+            phoneNationalNumber: true,
+            distanceKm: true,
+            ageMin: true,
+            ageMax: true,
+            genderPreference: true,
+          },
+        }),
+      ]);
+
+      return { userId, profile, settings };
+    } catch {
       return {
         userId,
         profile: memoryProfiles.get(userId) ?? null,
         settings: memorySettings.get(userId) ?? null,
       };
     }
-
-    const [profileResult, settingsResult] = await Promise.all([
-      supabaseServiceClient.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabaseServiceClient.from("settings").select("*").eq("user_id", userId).maybeSingle(),
-    ]);
-
-    if (profileResult.error || settingsResult.error) {
-      reply.status(500);
-      return { code: "PROFILE_READ_FAILED" };
-    }
-
-    return {
-      userId,
-      profile: profileResult.data,
-      settings: settingsResult.data,
-    };
   });
 
   app.patch("/profiles/me", async (request, reply) => {
@@ -188,7 +226,99 @@ export const buildServer = () => {
 
     const payload = parsed.data;
 
-    if (!supabaseServiceClient) {
+    try {
+      const profileData = {
+        firstName: payload.first_name,
+        lastName: payload.last_name,
+        locale: payload.locale,
+        bio: payload.bio,
+        city: payload.city,
+      };
+
+      await prismaClient.profile.upsert({
+        where: { userId },
+        update: profileData,
+        create: { userId, ...profileData },
+      });
+
+      if (payload.settings) {
+        const settingsData = {
+          language: payload.settings.language,
+          targetLang: payload.settings.target_lang,
+          autoTranslate: payload.settings.auto_translate,
+          autoDetectLanguage: payload.settings.auto_detect_language,
+          notificationsEnabled: payload.settings.notifications_enabled,
+          preciseLocationEnabled: payload.settings.precise_location_enabled,
+          visibility: payload.settings.visibility,
+          hideAge: payload.settings.hide_age,
+          hideDistance: payload.settings.hide_distance,
+          incognito: payload.settings.incognito,
+          readReceipts: payload.settings.read_receipts,
+          shadowGhost: payload.settings.shadow_ghost,
+          travelPassCity: payload.settings.travel_pass_city,
+          phoneCountryCode: payload.settings.phone_country_code,
+          phoneNationalNumber: payload.settings.phone_national_number,
+          distanceKm: payload.settings.distance_km,
+          ageMin: payload.settings.age_min,
+          ageMax: payload.settings.age_max,
+          genderPreference: payload.settings.gender_preference,
+        };
+
+        await prismaClient.userSettings.upsert({
+          where: { userId },
+          update: settingsData,
+          create: { userId, ...settingsData },
+        });
+      }
+
+      const [profile, settings] = await Promise.all([
+        prismaClient.profile.findUnique({
+          where: { userId },
+          select: {
+            firstName: true,
+            lastName: true,
+            locale: true,
+            bio: true,
+            birthDate: true,
+            gender: true,
+            city: true,
+            originCountry: true,
+            languages: true,
+            intent: true,
+            interests: true,
+            photosCount: true,
+            verifiedOptIn: true,
+            onboardingVersion: true,
+          },
+        }),
+        prismaClient.userSettings.findUnique({
+          where: { userId },
+          select: {
+            language: true,
+            targetLang: true,
+            autoTranslate: true,
+            autoDetectLanguage: true,
+            notificationsEnabled: true,
+            preciseLocationEnabled: true,
+            visibility: true,
+            hideAge: true,
+            hideDistance: true,
+            incognito: true,
+            readReceipts: true,
+            shadowGhost: true,
+            travelPassCity: true,
+            phoneCountryCode: true,
+            phoneNationalNumber: true,
+            distanceKm: true,
+            ageMin: true,
+            ageMax: true,
+            genderPreference: true,
+          },
+        }),
+      ]);
+
+      return { userId, profile, settings };
+    } catch {
       const currentProfile = memoryProfiles.get(userId) ?? {};
       const currentSettings = memorySettings.get(userId) ?? {};
 
@@ -214,50 +344,6 @@ export const buildServer = () => {
         settings: memorySettings.get(userId) ?? null,
       };
     }
-
-    const profilePatch = {
-      user_id: userId,
-      first_name: payload.first_name,
-      last_name: payload.last_name,
-      locale: payload.locale,
-      bio: payload.bio,
-      city: payload.city,
-    };
-
-    const profileUpsert = await supabaseServiceClient.from("profiles").upsert(profilePatch, {
-      onConflict: "user_id",
-    });
-
-    if (profileUpsert.error) {
-      reply.status(500);
-      return { code: "PROFILE_PATCH_FAILED" };
-    }
-
-    if (payload.settings) {
-      const settingsUpsert = await supabaseServiceClient.from("settings").upsert(
-        {
-          user_id: userId,
-          ...payload.settings,
-        },
-        { onConflict: "user_id" },
-      );
-
-      if (settingsUpsert.error) {
-        reply.status(500);
-        return { code: "SETTINGS_PATCH_FAILED" };
-      }
-    }
-
-    const [profileResult, settingsResult] = await Promise.all([
-      supabaseServiceClient.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabaseServiceClient.from("settings").select("*").eq("user_id", userId).maybeSingle(),
-    ]);
-
-    return {
-      userId,
-      profile: profileResult.data ?? null,
-      settings: settingsResult.data ?? null,
-    };
   });
 
   return app;
