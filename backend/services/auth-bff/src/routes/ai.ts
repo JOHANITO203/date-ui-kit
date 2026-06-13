@@ -96,6 +96,50 @@ export async function registerAiRoutes(app: FastifyInstance) {
       } satisfies AuthResponse<{ suggestions: string[] }>);
     });
 
+    // Conversational search: natural language → structured discovery filters.
+    protectedRoutes.post("/api/ai/search", async (request, reply) => {
+      if (!request.userSession) return;
+      if (!isAiEnabled()) return sendAuthError(reply, 503, "AI_DISABLED", "AI features are not enabled.");
+      const parsed = z.object({ query: z.string().min(1).max(400) }).safeParse(request.body);
+      if (!parsed.success) return sendAuthError(reply, 400, "AI_INVALID", "Invalid payload.");
+
+      const filters = await generateJson<{
+        interests: string[];
+        keywords: string[];
+        intent?: string;
+        genderPreference?: string;
+        ageMin?: number;
+        ageMax?: number;
+        distanceKm?: number;
+      }>({
+        system:
+          "Parse a natural-language dating search into structured discovery filters. " +
+          "Only populate fields the query clearly implies; leave the rest empty. " +
+          "interests and keywords are short lowercase tags. Ages 18-100.",
+        prompt: parsed.data.query,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            interests: { type: "array", items: { type: "string" } },
+            keywords: { type: "array", items: { type: "string" } },
+            intent: { type: "string", enum: ["serieuse", "connexion", "decouverte", "verrai"] },
+            genderPreference: { type: "string", enum: ["men", "women", "everyone"] },
+            ageMin: { type: "integer" },
+            ageMax: { type: "integer" },
+            distanceKm: { type: "integer" },
+          },
+          required: ["interests", "keywords"],
+        },
+        maxTokens: 400,
+      });
+      if (!filters) return sendAuthError(reply, 502, "AI_FAILED", "Could not parse the search.");
+      return sendAuthSuccess(reply, {
+        ok: true,
+        data: { filters },
+      } satisfies AuthResponse<{ filters: typeof filters }>);
+    });
+
     // Real-time translation of a message.
     protectedRoutes.post("/api/ai/translate", async (request, reply) => {
       if (!request.userSession) return;

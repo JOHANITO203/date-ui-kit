@@ -45,4 +45,19 @@ export const aiClient = {
   translate(text: string, targetLang: 'en' | 'ru' | 'fr'): Promise<{ translated: string } | null> {
     return post<{ translated: string }>('/api/ai/translate', { text, targetLang });
   },
+
+  // Conversational search: free-text → structured discovery filters.
+  search(query: string): Promise<{
+    filters: {
+      interests: string[];
+      keywords: string[];
+      intent?: string;
+      genderPreference?: 'men' | 'women' | 'everyone';
+      ageMin?: number;
+      ageMax?: number;
+      distanceKm?: number;
+    };
+  } | null> {
+    return post('/api/ai/search', { query });
+  },
 };
