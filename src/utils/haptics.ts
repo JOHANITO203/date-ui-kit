@@ -49,3 +49,17 @@ export const haptic = (pattern: HapticPattern = 'light'): void => {
     /* ignore */
   }
 };
+
+// Semantic interaction → haptic pattern. Use these names at call sites so the
+// feel is consistent and tunable in one place.
+export const hapticFor = {
+  tap: () => haptic('select'),
+  toggle: () => haptic('light'),
+  like: () => haptic('medium'),
+  pass: () => haptic('select'),
+  superlike: () => haptic('medium'),
+  match: () => haptic('success'),
+  sheetSnap: () => haptic('light'),
+  refresh: () => haptic('light'),
+  error: () => haptic('error'),
+} as const;

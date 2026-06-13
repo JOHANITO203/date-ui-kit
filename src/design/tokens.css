@@ -1,0 +1,22 @@
+/* src/design/tokens.css — Direction C: neo-minimal tactile dark */
+@layer base {
+  :root {
+    --c-bg: #000000;
+    --c-surface: #0b0b0f;
+    --c-elevated: #14141a;
+    --c-overlay: #1c1c24;
+    --c-hairline: rgba(255, 255, 255, 0.10);
+    --c-hairline-strong: rgba(255, 255, 255, 0.18);
+    --c-text: #ffffff;
+    --c-text-2: #c7c7cf;
+    --c-text-3: #8a8a92;
+    --c-accent: #ec4899;
+    --c-accent-2: #00bfff;
+    --c-accent-grad: linear-gradient(135deg, #ff1493, #00bfff);
+    --c-accent-glow: 0 0 22px rgba(236, 72, 153, 0.45);
+    --motion-fast: 140ms;
+    --motion-base: 220ms;
+    --motion-slow: 360ms;
+    --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
