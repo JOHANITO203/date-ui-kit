@@ -94,6 +94,13 @@ export const translations: Record<Locale, Dictionary> = {
         language: '{value}',
       },
     },
+    match: {
+      title: "It's a match",
+      subtitleNamed: 'You and {name} liked each other.',
+      subtitle: 'You liked each other.',
+      sayHello: 'Say hello',
+      keepSwiping: 'Keep swiping',
+    },
     likes: {
       eyebrow: 'Activity',
       title: 'YOUR LIKES',
@@ -846,6 +853,13 @@ export const translations: Record<Locale, Dictionary> = {
         distance: '{value}',
         language: '{value}',
       },
+    },
+    match: {
+      title: 'Это взаимная симпатия',
+      subtitleNamed: 'Вы и {name} понравились друг другу.',
+      subtitle: 'Вы понравились друг другу.',
+      sayHello: 'Поздороваться',
+      keepSwiping: 'Продолжить',
     },
     likes: {
       eyebrow: 'Активность',
