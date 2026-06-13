@@ -1,0 +1,117 @@
+name: Mobile builds (Capacitor)
+
+# Build the native apps in CI. The macOS job is the "free Mac" for iOS — GitHub's
+# hosted macOS runners let you build/archive iOS from anywhere (incl. Windows).
+#
+# IMPORTANT (Apple reality): a free macOS runner gives you the Mac, but a real
+# *installable* IPA (TestFlight / App Store / device) still needs an Apple
+# Developer account ($99/yr) + signing certs. The iOS job below builds UNSIGNED
+# by default (proves it compiles + produces an .app). The signed archive/export
+# steps are included but commented — add the secrets, then uncomment.
+#
+# Run it manually from the Actions tab (workflow_dispatch) or on a version tag.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  android:
+    name: Android (debug APK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21" # Capacitor 8 requires JDK 21
+      - name: Install deps
+        run: |
+          npm ci
+          npm i -D @capacitor/android
+      - name: Build web + sync Capacitor
+        run: |
+          npm run build
+          npx cap add android || true
+          npx cap sync android
+      - name: Assemble debug APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exotic-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  ios:
+    name: iOS (build on free macOS runner)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install deps
+        run: |
+          npm ci
+          npm i -D @capacitor/ios
+      - name: Build web + add iOS platform
+        run: |
+          npm run build
+          npx cap add ios || true
+          npx cap sync ios
+      - name: CocoaPods
+        run: |
+          cd ios/App
+          pod install
+      # Unsigned build — verifies the iOS app compiles end-to-end (no Apple
+      # account needed). Produces a .app, not an installable IPA.
+      - name: Build (unsigned)
+        run: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      # ── Signed IPA (TestFlight / App Store) — requires Apple Developer secrets ──
+      # Add these repo secrets, then uncomment:
+      #   BUILD_CERTIFICATE_BASE64, P12_PASSWORD, BUILD_PROVISION_PROFILE_BASE64,
+      #   KEYCHAIN_PASSWORD, APPLE_TEAM_ID
+      # - name: Import signing assets
+      #   env:
+      #     CERT: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      #     PROFILE: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     echo "$CERT" | base64 --decode > cert.p12
+      #     echo "$PROFILE" | base64 --decode > pp.mobileprovision
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     security import cert.p12 -k build.keychain -P "$P12_PASSWORD" -A
+      #     security list-keychains -s build.keychain
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+      #     cp pp.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+      # - name: Archive + export IPA
+      #   run: |
+      #     cd ios/App
+      #     xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+      #       -archivePath build/App.xcarchive archive
+      #     xcodebuild -exportArchive -archivePath build/App.xcarchive \
+      #       -exportPath build/ipa -exportOptionsPlist ExportOptions.plist
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: exotic-ios-ipa
+      #     path: ios/App/build/ipa/*.ipa

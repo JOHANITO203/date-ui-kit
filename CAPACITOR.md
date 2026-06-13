@@ -44,6 +44,28 @@ npm run cap:open:ios       # → Xcode → Product > Archive
 
 `appId` / `appName` / colors live in [capacitor.config.ts](capacitor.config.ts).
 
+## Build in CI — the "free Mac" for iOS (no Mac required)
+
+You have Android Studio for the APK. For the IPA without owning a Mac, use
+GitHub Actions' hosted **macOS runners** — already set up in
+[.github/workflows/mobile.yml](.github/workflows/mobile.yml). Run it from the
+repo's **Actions** tab (or push a `v*` tag):
+
+- **Android job** (Ubuntu): builds a debug APK, uploaded as an artifact — no
+  signing needed. (You can also just use Android Studio locally.)
+- **iOS job** (macOS runner = the free Mac): builds the iOS app **unsigned** to
+  prove it compiles and produce an `.app`.
+
+> ⚠️ **Apple reality:** the free macOS runner solves the *Mac* requirement, but an
+> *installable* IPA (TestFlight / App Store / a real device) still needs an
+> **Apple Developer account ($99/yr)** + signing certificates. There is no fully
+> free path to a signed iOS app — that's Apple's rule, not a tooling gap. Once you
+> have the account, add the signing secrets and uncomment the archive/export steps
+> in the workflow (they're there, commented, with the exact secret names).
+
+Alternatives to GitHub Actions: **Codemagic** and **Ionic Appflow** both have free
+tiers with macOS build machines and first-class Capacitor support.
+
 ## Two delivery models
 
 1. **Bundled (default, store-ready):** web assets ship inside the binary —
