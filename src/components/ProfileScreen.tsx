@@ -485,6 +485,11 @@ const ProfileScreen = () => {
       </div>
       {/* Header Section */}
       <div className="sticky top-0 z-20 px-[var(--page-x)] mb-6 md:mb-8 bg-black/0">
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 backdrop-blur-xl border-b border-white/10"
+          style={{ opacity: reduceMotion ? 1 : compactOpacity, backgroundColor: 'rgba(10,10,12,0.72)' }}
+        />
         <div className="flex items-start justify-between gap-4">
           <div className="relative min-w-0">
             {reduceMotion ? (
